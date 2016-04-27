@@ -1,4 +1,4 @@
-﻿using NeoMapleStory.Core.TimeManager;
+﻿using NeoMapleStory.Core;
 using NeoMapleStory.Packet;
 
 namespace NeoMapleStory.Game.Client

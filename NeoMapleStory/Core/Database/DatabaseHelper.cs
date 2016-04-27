@@ -11,7 +11,7 @@ namespace NeoMapleStory.Core.Database
     {
         public static void ChangeGender(string username, byte gender)
         {
-            MySqlCommand cmd = new MySqlCommand("UPDATE Account SET Gender=@Gender Where Username=@Username");
+            MySqlCommand cmd = new MySqlCommand("UPDATE Accounts SET Gender=@Gender Where Username=@Username");
             cmd.Parameters.Add(new MySqlParameter("@Username", username));
             cmd.Parameters.Add(new MySqlParameter("@Gender", gender != 0));
 
@@ -25,7 +25,7 @@ namespace NeoMapleStory.Core.Database
 
         public static bool CheckNameUsed(string name)
         {
-            MySqlCommand cmd = new MySqlCommand("SELECT Id FROM Character Where Name=@Name");
+            MySqlCommand cmd = new MySqlCommand("SELECT Id FROM Characters Where Name=@Name");
             cmd.Parameters.Add(new MySqlParameter("@Name", name));
 
             using (var con = DbConnectionManager.Instance.GetConnection())
@@ -72,7 +72,7 @@ namespace NeoMapleStory.Core.Database
 
         public static LoginResultCode Login(string username, string password)
         {
-            MySqlCommand cmd = new MySqlCommand("SELECT * FROM Account WHERE Username=@Username");
+            MySqlCommand cmd = new MySqlCommand("SELECT * FROM Accounts WHERE Username=@Username");
             cmd.Parameters.Add(new MySqlParameter("@Username", username));
 
             using (var con = DbConnectionManager.Instance.GetConnection())
@@ -84,7 +84,7 @@ namespace NeoMapleStory.Core.Database
                 {
                     if ((bool)reader["IsLogged"])
                         return LoginResultCode.IsLogged;
-                    if ((string)reader["Password"] != Sha256.Get(password,(string)reader["PasswordSalt"]))
+                    if ((string) reader["Password"] != Sha256.Get(password, Guid.Parse((string)reader["PasswordSalt"])))
                         return LoginResultCode.IncorrectPassword;
                     if ((bool)reader["PermanentBan"] || reader["TempBanDate"] !=DBNull.Value)
                         return LoginResultCode.Banned;
@@ -93,8 +93,8 @@ namespace NeoMapleStory.Core.Database
 
                     reader.Close();
 
-                    cmd.CommandText = "UPDATE Account SET IsLogged='true' WHERE Username=@Username";
-                    //cmd.Parameters.Add(new SqlParameter("@Username", username));
+                    cmd.CommandText = "UPDATE Accounts SET IsLogged=true WHERE Username=@Username";
+                    //cmd.Parameters.Add(new MySqlParameter("@Username", username));
 
                     if (cmd.ExecuteNonQuery() > 0)
                         return LoginResultCode.Success;
@@ -109,8 +109,8 @@ namespace NeoMapleStory.Core.Database
         public static List<MapleCharacter> LoadCharacters(MapleClient client)
         {
             var chars = new List<MapleCharacter>();
-            MySqlCommand cmd = new MySqlCommand("SELECT Id FROM Character WHERE Account_Id=@Account_Id");
-            cmd.Parameters.Add(new MySqlParameter("@Account_Id", client.Account.Id));
+            MySqlCommand cmd = new MySqlCommand("SELECT Id FROM Characters WHERE AId=@AId");
+            cmd.Parameters.Add(new MySqlParameter("@AId", client.Account.Id));
 
             using (var con = DbConnectionManager.Instance.GetConnection())
             {
@@ -141,8 +141,32 @@ namespace NeoMapleStory.Core.Database
 
         public static Account LoadAccount(string username)
         {
-            MySqlCommand cmd = new MySqlCommand("SELECT Id,Username,Gender,IsGm,NexonPoint,MaplePoint FROM Account WHERE Username=@Username");
+            MySqlCommand cmd = new MySqlCommand("SELECT Id,Username,Gender,IsGm,NexonPoint,MaplePoint FROM Accounts WHERE Username=@Username");
             cmd.Parameters.Add(new MySqlParameter("@Username", username));
+
+            using (var con = DbConnectionManager.Instance.GetConnection())
+            {
+                cmd.Connection = con;
+                con.Open();
+                var reader = cmd.ExecuteReader();
+                if (reader.Read())
+                    return new Account
+                    {
+                        Id = (int)reader["Id"],
+                        Username = (string)reader["Username"],
+                        Gender = reader["Gender"] == DBNull.Value ? null : (bool?)reader["Gender"],
+                        IsGm = (bool)reader["IsGm"],
+                        NexonPoint = (int)reader["NexonPoint"],
+                        MaplePoint = (int)reader["MaplePoint"]
+                    };
+                throw new Exception("加载账号错误");
+            }
+        }
+
+        public static Account LoadAccount(int charId)
+        {
+            MySqlCommand cmd = new MySqlCommand("SELECT Accounts.Id,Username,Gender,IsGm,NexonPoint,MaplePoint FROM Accounts LEFT JOIN Characters ON Accounts.Id=Characters.AId WHERE Characters.Id=@CId");
+            cmd.Parameters.Add(new MySqlParameter("@CId", charId));
             
             using (var con = DbConnectionManager.Instance.GetConnection())
             {
@@ -150,11 +174,11 @@ namespace NeoMapleStory.Core.Database
                 con.Open();
                 var reader = cmd.ExecuteReader();
                 if (reader.Read())
-                    return new Account()
+                    return new Account
                     {
                         Id = (int) reader["Id"],
                         Username = (string) reader["Username"],
-                        Gender = reader["Gender"]==DBNull.Value?null: (bool?)reader["Gender"],
+                        Gender = reader["Gender"] == DBNull.Value ? null : (bool?) reader["Gender"],
                         IsGm = (bool) reader["IsGm"],
                         NexonPoint = (int) reader["NexonPoint"],
                         MaplePoint = (int) reader["MaplePoint"]
@@ -165,7 +189,7 @@ namespace NeoMapleStory.Core.Database
 
         public static void PlayerExit(Account account)
         {
-            MySqlCommand cmd = new MySqlCommand("SELECT IsLogged FROM Account WHERE Username=@Username");
+            MySqlCommand cmd = new MySqlCommand("SELECT IsLogged FROM Accounts WHERE Username=@Username");
             cmd.Parameters.Add(new MySqlParameter("@Username", account.Username));
 
             using (var con = DbConnectionManager.Instance.GetConnection())
@@ -177,8 +201,8 @@ namespace NeoMapleStory.Core.Database
                 if (!(bool) reader["IsLogged"]) return;
 
                 reader.Close();
-                cmd.CommandText = "UPDATE Account SET IsLogged='false' WHERE Username=@Username";
-                Console.WriteLine(cmd.ExecuteNonQuery() > 0 ? "角色下线成功！" : "角色下线失败！");
+                cmd.CommandText = "UPDATE Accounts SET IsLogged=false WHERE Username=@Username";
+                //Console.WriteLine(cmd.ExecuteNonQuery() > 0 ? "角色下线成功！" : "角色下线失败！");
             }
         }
     }

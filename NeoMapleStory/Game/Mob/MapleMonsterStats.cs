@@ -60,8 +60,7 @@ namespace NeoMapleStory.Game.Mob
 
             if (_mResistance.TryGetValue(e, out elementalEffectiveness))
                 return ElementalEffectiveness.Normal;
-            else
-                return elementalEffectiveness;
+            return elementalEffectiveness;
         }
 
         public void SetSkills(List<Tuple<byte, byte>> skills) => _mSkills.AddRange(skills);

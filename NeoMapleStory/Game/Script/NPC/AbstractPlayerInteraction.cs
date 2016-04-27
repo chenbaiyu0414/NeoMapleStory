@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using NeoMapleStory.Core.TimeManager;
+using NeoMapleStory.Core;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.Map;

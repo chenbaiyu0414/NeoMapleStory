@@ -9,7 +9,7 @@ namespace NeoMapleStory.Server
 
         protected override void OnNewClientConnected(MapleClient client)
         {
-            Console.WriteLine($"玩家 {client.SocketSession.RemoteEndPoint.Address.ToString()}:{client.SocketSession.RemoteEndPoint.Port} 已连接");
+            Console.WriteLine($"玩家 {client.SocketSession.RemoteEndPoint.Address}:{client.SocketSession.RemoteEndPoint.Port} 已连接");
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
         }
 
@@ -29,7 +29,7 @@ namespace NeoMapleStory.Server
             MProcessor.AppendHandler(RecvOpcodes.CharSelect, LoginPacketHandlers.CHAR_SELECT);
             //m_processor.AppendHandler(RecvOpcodes.RELOG, LoginPacketHandlers.RELOG);
             MProcessor.AppendHandler(RecvOpcodes.ErrorLog, LoginPacketHandlers.ERROR_LOG);
-
+            MProcessor.AppendHandler(RecvOpcodes.PlayerUpdate, LoginPacketHandlers.PLAYER_UPDATE);
         }
 
         public override bool Start()

@@ -119,13 +119,13 @@ namespace NeoMapleStory.Game.Mob
                     }
                     break;
                 case 129: // Banish
-                    //if (lt != Point.Empty && rb != Point.Empty && skill)
-                    //    foreach (MapleCharacter chr in getPlayersInRange(monster, player))
-                    //        chr.changeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
-                    //            monster.Stats.Banish.Msg);
-                    //else
-                    //    player.changeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
-                    //        monster.Stats.Banish.Msg);
+                    if (lt != Point.Empty && rb != Point.Empty && skill)
+                        foreach (MapleCharacter chr in getPlayersInRange(monster, player))
+                            chr.changeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
+                                monster.Stats.Banish.Msg);
+                    else
+                        player.changeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
+                            monster.Stats.Banish.Msg);
                     break;
                 case 131: // Poison Mist
                           // TODO: make this work
@@ -292,7 +292,7 @@ namespace NeoMapleStory.Game.Mob
                 }
             }
             monster.usedSkill(skillId, skillLevel, cooltime);
-            monster.Stats.Mp -= mpCon;
+            monster.Mp -= mpCon;
         }
 
         public bool makeChanceResult()

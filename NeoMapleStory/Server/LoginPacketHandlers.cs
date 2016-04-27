@@ -38,9 +38,8 @@ namespace NeoMapleStory.Server
             string password = p.ReadMapleString();
 
             var result = DatabaseHelper.Login(username, password);
-
-            Console.WriteLine($"LoginCode:{result}");
             c.Account = DatabaseHelper.LoadAccount(username);
+
             switch (result)
             {
                 case DatabaseHelper.LoginResultCode.GenderNeeded:
@@ -221,6 +220,10 @@ namespace NeoMapleStory.Server
         public static void ERROR_LOG(MapleClient c, InPacket p)
         {
             Console.WriteLine($"错误信息：{p.ReadMapleString()}");
+        }
+        public static void PLAYER_UPDATE(MapleClient c, InPacket p)
+        {
+            c.Character.SaveToDb(true);
         }
     }
 }

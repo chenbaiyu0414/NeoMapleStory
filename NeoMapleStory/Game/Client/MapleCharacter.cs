@@ -1,7 +1,6 @@
 ﻿using NeoMapleStory.Core;
 using NeoMapleStory.Core.Database;
 using NeoMapleStory.Core.IO;
-using NeoMapleStory.Core.TimeManager;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client.AntiCheat;
 using NeoMapleStory.Game.Inventory;
@@ -21,7 +20,6 @@ using System.Drawing;
 using System.Linq;
 using NeoMapleStory.Game.Script.Event;
 using System.Data;
-using System.Data.SqlClient;
 using MySql.Data.MySqlClient;
 
 namespace NeoMapleStory.Game.Client
@@ -76,7 +74,7 @@ namespace NeoMapleStory.Game.Client
 
 
 
-
+        public int LocalMaxBasedDamage { get; set; }
 
 
 
@@ -93,7 +91,7 @@ namespace NeoMapleStory.Game.Client
         private int _apqScore;
         private int _cp;
         private readonly Dictionary<MapleBuffStat, MapleBuffStatValueHolder> _effects = new Dictionary<MapleBuffStat, MapleBuffStatValueHolder>();
-        private readonly List<MapleDisease> _diseases = new List<MapleDisease>();
+       public readonly List<MapleDisease> _diseases = new List<MapleDisease>();
         public Dictionary<ISkill, SkillEntry> Skills { get; private set; } = new Dictionary<ISkill, SkillEntry>();
         private readonly List<string> _mapletips = new List<string>();
         private readonly Dictionary<int, MapleCoolDownValueHolder> _coolDowns = new Dictionary<int, MapleCoolDownValueHolder>();
@@ -405,13 +403,65 @@ namespace NeoMapleStory.Game.Client
                 Localluk += (short)(mWarrior.Value / 100 * Localluk);
             }
 
-            // localmaxbasedamage = calculateMaxBaseDamage(Watk);
+            LocalMaxBasedDamage = calculateMaxBaseDamage(Watk);
             if (oldmaxhp != 0 && oldmaxhp != Localmaxhp)
             {
                 UpdatePartyMemberHp();
             }
         }
 
+        public int calculateMaxBaseDamage(int watk)
+        {
+            int maxbasedamage;
+            if (watk == 0)
+            {
+                maxbasedamage = 1;
+            }
+            else
+            {
+                var weapon_item = Inventorys[MapleInventoryType.Equipped.Value].Inventory[11];
+                bool barefists = weapon_item == null && (Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight);
+
+                if (weapon_item != null || Job== MapleJob.Pirate || Job== MapleJob.ThiefKnight)
+                {
+                    MapleWeaponType weapon = barefists ? MapleWeaponType.Knuckle : MapleItemInformationProvider.Instance.GetWeaponType(weapon_item.ItemId);
+                    int mainstat;
+                    int secondarystat;
+                    if (weapon == MapleWeaponType.Bow || weapon == MapleWeaponType.Crossbow)
+                    {
+                        mainstat = Localdex;
+                        secondarystat = Localstr;
+                    }
+                    else if ((Job==MapleJob.Thief || Job==MapleJob.NightKnight) && (weapon == MapleWeaponType.Claw || weapon == MapleWeaponType.Dagger))
+                    {
+                        mainstat = Localluk;
+                        secondarystat = Localdex + Localstr;
+                    }
+                    else if ((Job==MapleJob.Pirate || Job==MapleJob.ThiefKnight) && (weapon == MapleWeaponType.Gun))
+                    {
+                        mainstat = Localdex;
+                        secondarystat = Localstr;
+                    }
+                    else if ((Job==MapleJob.Pirate || Job==MapleJob.ThiefKnight) && (weapon == MapleWeaponType.Knuckle))
+                    {
+                        mainstat = Localstr;
+                        secondarystat = Localdex;
+                    }
+                    else
+                    {
+                        mainstat = Localstr;
+                        secondarystat = Localdex;
+                    }
+                    maxbasedamage = (int)((weapon.DamageMultiplier * mainstat + secondarystat) / 100.0 * watk);
+                    maxbasedamage += 10;
+                }
+                else
+                {
+                    maxbasedamage = 0;
+                }
+            }
+            return maxbasedamage;
+        }
 
         public void GainNexonPoint(int value)
         {
@@ -424,32 +474,32 @@ namespace NeoMapleStory.Game.Client
         {
             MySqlCommand cmd;
             if (update)
-                cmd = new MySqlCommand("UPDATE Character SET Level = @Level, Fame = @Fame, Str =@Str , Dex = @Dex, Luk =@Luk, Int =@Int, EXP =@Exp, Hp = @Hp, Mp =@Mp, MaxHp =@MaxHp, MaxMp = @MaxMp, RemainingSp =@RemainingSP, RemainingAp =@RemainingAp, GmLevel =@GmLevel, Skin = @Skin,JobId =@JobId, Hair =@Hair, Face =@Face, MapId = @MapId, Money = @Money, SpawnPoint = @SpawnPoint, PartyId = @PartyId, AutoHpPot = @AutoHpPot, AutoMpPot = @AutoMpPot, IsMarried = @IsMarried, EquipSlots = @EquipSlots, UseSlots = @UseSlots, SetupSlots = @SetupSlots, EtcSlots = @EtcSlots, CashSlots = @CashSlots WHERE Id = @Id");
+                cmd = new MySqlCommand("UPDATE Characters SET Level = @Level, Fame = @Fame, Str =@Str , Dex = @Dex, Luk =@Luk, `Int` =@Int, EXP =@Exp, Hp = @Hp, Mp =@Mp, MaxHp =@MaxHp, MaxMp = @MaxMp, RemainingSp =@RemainingSP, RemainingAp =@RemainingAp, GmLevel =@GmLevel, Skin = @Skin,JobId =@JobId, Hair =@Hair, Face =@Face, MapId = @MapId, Money = @Money, SpawnPoint = @SpawnPoint, PartyId = @PartyId, AutoHpPot = @AutoHpPot, AutoMpPot = @AutoMpPot, IsMarried = @IsMarried, EquipSlots = @EquipSlots, UseSlots = @UseSlots, SetupSlots = @SetupSlots, EtcSlots = @EtcSlots, CashSlots = @CashSlots WHERE Id = @Id");
             else
                 cmd = new MySqlCommand(
-                    @"INSERT Character(AId,WorldId,Name,JobId,GmLevel,Level,Dex,Int,Luk,Str,Hp,MaxHp,Mp,MaxMp,EXP,Money,Fame,IsMarried,MapId,SpawnPoint,PartyId,Face,Hair,Skin,RemainingAp,RemainingSp,AutoHpPot,AutoMpPot,EquipSlots,UseSlots,SetupSlots,EtcSlots,CashSlots)
+                    @"INSERT Characters(AId,WorldId,Name,JobId,GmLevel,Level,Dex,`Int`,Luk,Str,Hp,MaxHp,Mp,MaxMp,EXP,Money,Fame,IsMarried,MapId,SpawnPoint,PartyId,Face,Hair,Skin,RemainingAp,RemainingSp,AutoHpPot,AutoMpPot,EquipSlots,UseSlots,SetupSlots,EtcSlots,CashSlots)
 VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp,@Mp,@MaxMp,@Exp,@Money,@Fame,@IsMarried,@MapId,@SpawnPoint,@PartyId,@Face,@Hair,@Skin,@RemainingAp,@RemainingSp,@AutoHpPot,@AutoMpPot,@EquipSlots,@UseSlots,@SetupSlots,@EtcSlots,@CashSlots)");
 
 
-            cmd.Parameters.Add(new SqlParameter("@Level", Level));
-            cmd.Parameters.Add(new SqlParameter("@Fame", Fame));
-            cmd.Parameters.Add(new SqlParameter("@Str", Str));
-            cmd.Parameters.Add(new SqlParameter("@Dex", Dex));
-            cmd.Parameters.Add(new SqlParameter("@Luk", Luk));
-            cmd.Parameters.Add(new SqlParameter("@Int", Int));
-            cmd.Parameters.Add(new SqlParameter("@Exp", Exp.Value));
-            cmd.Parameters.Add(new SqlParameter("@Hp", Hp));
-            cmd.Parameters.Add(new SqlParameter("@Mp", Mp));
-            cmd.Parameters.Add(new SqlParameter("@MaxHp", MaxHp));
-            cmd.Parameters.Add(new SqlParameter("@MaxMp", MaxMp));
-            cmd.Parameters.Add(new SqlParameter("@RemainingSp", RemainingSp));
-            cmd.Parameters.Add(new SqlParameter("@RemainingAp", RemainingAp));
-            cmd.Parameters.Add(new SqlParameter("@GmLevel", GmLevel));
-            cmd.Parameters.Add(new SqlParameter("@Skin", Skin.ColorId));
-            cmd.Parameters.Add(new SqlParameter("@JobId", Job.JobId));
-            cmd.Parameters.Add(new SqlParameter("@Hair", Hair));
-            cmd.Parameters.Add(new SqlParameter("@Face", Face));
-            cmd.Parameters.Add(new SqlParameter("@Money", Money.Value));
+            cmd.Parameters.Add(new MySqlParameter("@Level", Level));
+            cmd.Parameters.Add(new MySqlParameter("@Fame", Fame));
+            cmd.Parameters.Add(new MySqlParameter("@Str", Str));
+            cmd.Parameters.Add(new MySqlParameter("@Dex", Dex));
+            cmd.Parameters.Add(new MySqlParameter("@Luk", Luk));
+            cmd.Parameters.Add(new MySqlParameter("@Int", Int));
+            cmd.Parameters.Add(new MySqlParameter("@Exp", Exp.Value));
+            cmd.Parameters.Add(new MySqlParameter("@Hp", Hp));
+            cmd.Parameters.Add(new MySqlParameter("@Mp", Mp));
+            cmd.Parameters.Add(new MySqlParameter("@MaxHp", MaxHp));
+            cmd.Parameters.Add(new MySqlParameter("@MaxMp", MaxMp));
+            cmd.Parameters.Add(new MySqlParameter("@RemainingSp", RemainingSp));
+            cmd.Parameters.Add(new MySqlParameter("@RemainingAp", RemainingAp));
+            cmd.Parameters.Add(new MySqlParameter("@GmLevel", GmLevel));
+            cmd.Parameters.Add(new MySqlParameter("@Skin", Skin.ColorId));
+            cmd.Parameters.Add(new MySqlParameter("@JobId", Job.JobId));
+            cmd.Parameters.Add(new MySqlParameter("@Hair", Hair));
+            cmd.Parameters.Add(new MySqlParameter("@Face", Face));
+            cmd.Parameters.Add(new MySqlParameter("@Money", Money.Value));
             //ps.setInt(22, hpApUsed);
             //ps.setInt(23, mpApUsed);
 
@@ -477,7 +527,7 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
                  mapId = Map.MapId;
             }
                
-            cmd.Parameters.Add(new SqlParameter("@MapId", mapId));
+            cmd.Parameters.Add(new MySqlParameter("@MapId", mapId));
 
             int spawnPoint = 0;
             if (Map == null || Map.MapId == 610020000 || Map.MapId == 610020001)
@@ -490,15 +540,15 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
                 spawnPoint = closest?.PortalId ?? 0;
             }
 
-            cmd.Parameters.Add(new SqlParameter("@SpawnPoint", spawnPoint));
+            cmd.Parameters.Add(new MySqlParameter("@SpawnPoint", spawnPoint));
 
-            cmd.Parameters.Add(new SqlParameter("@PartyId", Party?.PartyId ?? 0));
+            cmd.Parameters.Add(new MySqlParameter("@PartyId", Party?.PartyId ?? 0));
 
-            cmd.Parameters.Add(new SqlParameter("@AutoHpPot", AutoHpPot != 0 && GetItemAmount(AutoHpPot) >= 1 ? AutoHpPot : 0));
+            cmd.Parameters.Add(new MySqlParameter("@AutoHpPot", AutoHpPot != 0 && GetItemAmount(AutoHpPot) >= 1 ? AutoHpPot : 0));
 
-            cmd.Parameters.Add(new SqlParameter("@AutoMpPot", AutoMpPot != 0 && GetItemAmount(AutoMpPot) >= 1 ? AutoMpPot : 0));
+            cmd.Parameters.Add(new MySqlParameter("@AutoMpPot", AutoMpPot != 0 && GetItemAmount(AutoMpPot) >= 1 ? AutoMpPot : 0));
 
-            cmd.Parameters.Add(new SqlParameter("@IsMarried", IsMarried));
+            cmd.Parameters.Add(new MySqlParameter("@IsMarried", IsMarried));
 
 
             //if (Messenger == null)
@@ -525,21 +575,21 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
             //    ps.setInt(51, 0);
             //}
 
-            cmd.Parameters.Add(new SqlParameter("@EquipSlots", Inventorys[MapleInventoryType.Equip.Value].SlotLimit));
-            cmd.Parameters.Add(new SqlParameter("@UseSlots", Inventorys[MapleInventoryType.Equip.Value].SlotLimit));
-            cmd.Parameters.Add(new SqlParameter("@SetupSlots", Inventorys[MapleInventoryType.Setup.Value].SlotLimit));
-            cmd.Parameters.Add(new SqlParameter("@EtcSlots", Inventorys[MapleInventoryType.Etc.Value].SlotLimit));
-            cmd.Parameters.Add(new SqlParameter("@CashSlots", Inventorys[MapleInventoryType.Cash.Value].SlotLimit));
+            cmd.Parameters.Add(new MySqlParameter("@EquipSlots", Inventorys[MapleInventoryType.Equip.Value].SlotLimit));
+            cmd.Parameters.Add(new MySqlParameter("@UseSlots", Inventorys[MapleInventoryType.Equip.Value].SlotLimit));
+            cmd.Parameters.Add(new MySqlParameter("@SetupSlots", Inventorys[MapleInventoryType.Setup.Value].SlotLimit));
+            cmd.Parameters.Add(new MySqlParameter("@EtcSlots", Inventorys[MapleInventoryType.Etc.Value].SlotLimit));
+            cmd.Parameters.Add(new MySqlParameter("@CashSlots", Inventorys[MapleInventoryType.Cash.Value].SlotLimit));
 
             if (update)
             {
-                cmd.Parameters.Add(new SqlParameter("@Id", Id));
+                cmd.Parameters.Add(new MySqlParameter("@Id", Id));
             }
             else
             {
-                cmd.Parameters.Add(new SqlParameter("@AId", Account.Id));
-                cmd.Parameters.Add(new SqlParameter("@Name",Name));
-                cmd.Parameters.Add(new SqlParameter("@WorldId", WorldId));
+                cmd.Parameters.Add(new MySqlParameter("@AId", Account.Id));
+                cmd.Parameters.Add(new MySqlParameter("@Name",Name));
+                cmd.Parameters.Add(new MySqlParameter("@WorldId", WorldId));
             }
 
 
@@ -598,14 +648,14 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
                 //}
 
 
-                cmd.CommandText = "DELETE FROM InventoryItem WHERE CId=@CId";
-                cmd.Parameters.Add(new SqlParameter("@CId", Id));
+                cmd.CommandText = "DELETE FROM InventoryItems WHERE CId=@CId";
+                cmd.Parameters.Add(new MySqlParameter("@CId", Id));
                 cmd.ExecuteNonQuery();
                 cmd.Parameters.Clear();
 
-                string cmdStr_Item = "INSERT InventoryItem(CId,ItemId,Type,Position,Quantity,Owner,ExpireDate,UniqueId) VALUES(@CId,@ItemId,@Type,@Position,@Quantity,@Owner,@ExpireDate,@UniqueId)";
+                string cmdStr_Item = "INSERT InventoryItems(CId,ItemId,Type,Position,Quantity,Owner,ExpireDate,UniqueId) VALUES(@CId,@ItemId,@Type,@Position,@Quantity,@Owner,@ExpireDate,@UniqueId)";
                 string cmdStr_Equipment =
-                    @"INSERT InventoryEquipment(InventoryItemId,UpgradeSlots,Level,Str,Dex,Int,Luk,HP,MP,Watk,Matk,Wdef,Mdef,Acc,Avoid,Hands,Speed,Jump,Vicious,IsRing,Flag,Locked) 
+                    @"INSERT InventoryEquipments(InventoryItemId,UpgradeSlots,Level,Str,Dex,`Int`,Luk,HP,MP,Watk,Matk,Wdef,Mdef,Acc,Avoid,Hands,Speed,Jump,Vicious,IsRing,Flag,Locked) 
 VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@Matk,@Wdef,@Mdef,@Acc,@Avoid,@Hands,@Speed,@Jump,@Vicious,@IsRing,@Flag,@Locked)";
 
                 foreach (var inventory in Inventorys)
@@ -614,14 +664,14 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                     foreach (var item in inventory.Inventory.Values)
                     {
                         cmd.CommandText = cmdStr_Item;
-                        cmd.Parameters.Add(new SqlParameter("@CId", Id));
-                        cmd.Parameters.Add(new SqlParameter("@ItemId", item.ItemId));
-                        cmd.Parameters.Add(new SqlParameter("@Type", inventory.Type.Value));
-                        cmd.Parameters.Add(new SqlParameter("@Position", item.Position));
-                        cmd.Parameters.Add(new SqlParameter("@Quantity", item.Quantity));
-                        cmd.Parameters.Add(new SqlParameter("@Owner", item.Owner ?? (object) DBNull.Value));
-                        cmd.Parameters.Add(new SqlParameter("@UniqueId", item.UniqueId));
-                        cmd.Parameters.Add(new SqlParameter("@ExpireDate", item.Expiration ?? (object)DBNull.Value));
+                        cmd.Parameters.Add(new MySqlParameter("@CId", Id));
+                        cmd.Parameters.Add(new MySqlParameter("@ItemId", item.ItemId));
+                        cmd.Parameters.Add(new MySqlParameter("@Type", inventory.Type.Value));
+                        cmd.Parameters.Add(new MySqlParameter("@Position", item.Position));
+                        cmd.Parameters.Add(new MySqlParameter("@Quantity", item.Quantity));
+                        cmd.Parameters.Add(new MySqlParameter("@Owner", item.Owner ?? (object) DBNull.Value));
+                        cmd.Parameters.Add(new MySqlParameter("@UniqueId", item.UniqueId));
+                        cmd.Parameters.Add(new MySqlParameter("@ExpireDate", item.Expiration ?? (object)DBNull.Value));
                         //PetSlot = /*getPetByUniqueId(item.UniqueID) > -1 ? getPetByUniqueId(item.UniqueID) + 1 :*/ 0,
                         cmd.ExecuteNonQuery();
                     
@@ -632,28 +682,28 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                         {
                             IEquip equip = (IEquip)item;
                             cmd.CommandText = cmdStr_Equipment;
-                            cmd.Parameters.Add(new SqlParameter("@InventoryItemId", inventoryId));
-                            cmd.Parameters.Add(new SqlParameter("@Acc", equip.Acc));
-                            cmd.Parameters.Add(new SqlParameter("@Avoid", equip.Avoid));
-                            cmd.Parameters.Add(new SqlParameter("@Dex", equip.Dex));
-                            cmd.Parameters.Add(new SqlParameter("@Hands", equip.Hands));
-                            cmd.Parameters.Add(new SqlParameter("@Hp", equip.Hp));
-                            cmd.Parameters.Add(new SqlParameter("@Mp", equip.Mp));
-                            cmd.Parameters.Add(new SqlParameter("@Int", equip.Int));
-                            cmd.Parameters.Add(new SqlParameter("@IsRing", equip.IsRing));
-                            cmd.Parameters.Add(new SqlParameter("@Jump", equip.Jump));
-                            cmd.Parameters.Add(new SqlParameter("@Level", equip.Level));
-                            cmd.Parameters.Add(new SqlParameter("@Locked", equip.Locked));
-                            cmd.Parameters.Add(new SqlParameter("@Luk", equip.Luk));
-                            cmd.Parameters.Add(new SqlParameter("@Matk", equip.Matk));
-                            cmd.Parameters.Add(new SqlParameter("@Mdef", equip.Mdef));
-                            cmd.Parameters.Add(new SqlParameter("@Watk", equip.Watk));
-                            cmd.Parameters.Add(new SqlParameter("@Wdef", equip.Wdef));
-                            cmd.Parameters.Add(new SqlParameter("@Speed", equip.Speed));
-                            cmd.Parameters.Add(new SqlParameter("@Str", equip.Str));
-                            cmd.Parameters.Add(new SqlParameter("@UpgradeSlots", equip.UpgradeSlots));
-                            cmd.Parameters.Add(new SqlParameter("@Vicious", equip.Vicious));
-                            cmd.Parameters.Add(new SqlParameter("@Flag", equip.Flag));
+                            cmd.Parameters.Add(new MySqlParameter("@InventoryItemId", inventoryId));
+                            cmd.Parameters.Add(new MySqlParameter("@Acc", equip.Acc));
+                            cmd.Parameters.Add(new MySqlParameter("@Avoid", equip.Avoid));
+                            cmd.Parameters.Add(new MySqlParameter("@Dex", equip.Dex));
+                            cmd.Parameters.Add(new MySqlParameter("@Hands", equip.Hands));
+                            cmd.Parameters.Add(new MySqlParameter("@Hp", equip.Hp));
+                            cmd.Parameters.Add(new MySqlParameter("@Mp", equip.Mp));
+                            cmd.Parameters.Add(new MySqlParameter("@Int", equip.Int));
+                            cmd.Parameters.Add(new MySqlParameter("@IsRing", equip.IsRing));
+                            cmd.Parameters.Add(new MySqlParameter("@Jump", equip.Jump));
+                            cmd.Parameters.Add(new MySqlParameter("@Level", equip.Level));
+                            cmd.Parameters.Add(new MySqlParameter("@Locked", equip.Locked));
+                            cmd.Parameters.Add(new MySqlParameter("@Luk", equip.Luk));
+                            cmd.Parameters.Add(new MySqlParameter("@Matk", equip.Matk));
+                            cmd.Parameters.Add(new MySqlParameter("@Mdef", equip.Mdef));
+                            cmd.Parameters.Add(new MySqlParameter("@Watk", equip.Watk));
+                            cmd.Parameters.Add(new MySqlParameter("@Wdef", equip.Wdef));
+                            cmd.Parameters.Add(new MySqlParameter("@Speed", equip.Speed));
+                            cmd.Parameters.Add(new MySqlParameter("@Str", equip.Str));
+                            cmd.Parameters.Add(new MySqlParameter("@UpgradeSlots", equip.UpgradeSlots));
+                            cmd.Parameters.Add(new MySqlParameter("@Vicious", equip.Vicious));
+                            cmd.Parameters.Add(new MySqlParameter("@Flag", equip.Flag));
                             cmd.ExecuteNonQuery();
                             cmd.Parameters.Clear();
                         }
@@ -789,7 +839,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             MapleCharacter ret = new MapleCharacter();
             ret.Client = client;
 
-            MySqlCommand cmd = new MySqlCommand("SELECT * FROM Character WHERE Id=@Id");
+            MySqlCommand cmd = new MySqlCommand("SELECT * FROM Characters WHERE Id=@Id");
             cmd.Parameters.Add(new MySqlParameter("@Id", charid));
 
             using (var con = DbConnectionManager.Instance.GetConnection())
@@ -931,13 +981,13 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 reader.Close();
 
                 cmd.CommandText =
-                    "SELECT * FROM InventoryItem LEFT JOIN InventoryEquipment ON InventoryItem.Id=InventoryEquipment.InventoryItem_Id WHERE Character_Id=@CharacterId";
-                cmd.Parameters.Add(new SqlParameter("@CharacterId", charid));
+                    "SELECT * FROM InventoryItems LEFT JOIN InventoryEquipments ON InventoryItems.Id=InventoryEquipments.InventoryItemId WHERE CId=@CId";
+                cmd.Parameters.Add(new MySqlParameter("@CId", charid));
 
                 if (!channelserver)
                 {
                     cmd.CommandText += " AND Type=@Type";
-                    cmd.Parameters.Add(new SqlParameter("@Type", MapleInventoryType.Equipped.Value));
+                    cmd.Parameters.Add(new MySqlParameter("@Type", MapleInventoryType.Equipped.Value));
                 }
 
                 reader = cmd.ExecuteReader();
@@ -1292,6 +1342,16 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             return stats;
         }
 
+        public bool isBuffFrom(MapleBuffStat stat, ISkill skill)
+        {
+            MapleBuffStatValueHolder mbsvh;
+            if (!_effects.TryGetValue(stat ,out mbsvh))
+            {
+                return false;
+            }
+            return mbsvh.Effect.IsSkill() && mbsvh.Effect.GetSourceId() == skill.SkillId;
+        }
+
         public int? GetBuffedValue(MapleBuffStat effect)
         {
             MapleBuffStatValueHolder mbsvh;
@@ -1314,16 +1374,22 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
         }
 
+        public bool isActiveBuffedValue(int skillid)
+        {
+            List<MapleBuffStatValueHolder> allBuffs = new List<MapleBuffStatValueHolder>(_effects.Values);
+            return allBuffs.Any(mbsvh => mbsvh.Effect.IsSkill() && mbsvh.Effect.GetSourceId() == skillid && !Account.IsGm);
+        }
+
         public void giveDebuff(MapleDisease disease, MobSkill skill)
         {
             lock (_diseases)
             {
-                if (IsAlive /*&& !isActiveBuffedValue(2321005)*/ && !_diseases.Contains(disease) && _diseases.Count < 2)
+                if (IsAlive && !isActiveBuffedValue(2321005) && !_diseases.Contains(disease) && _diseases.Count < 2)
                 {
                     _diseases.Add(disease);
                     List<Tuple<MapleDisease, int>> debuff = new List<Tuple<MapleDisease, int>>()
                     {
-                        (new Tuple<MapleDisease, int>(disease, skill.x))
+                        new Tuple<MapleDisease, int>(disease, skill.x)
                     };
                     long mask = debuff.Aggregate<Tuple<MapleDisease, int>, long>(0,
                         (current, statup) => current | (long) statup.Item1);
@@ -1554,6 +1620,13 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         }
 
+        public void changeMapBanish(int mapid, string portal, string msg)
+        {
+            DropMessage(PacketCreator.ServerMessageType.PinkText, msg);
+            MapleMap map = Client.ChannelServer.MapFactory.GetMap(mapid);
+            changeMap(map, map.getPortal(portal));
+        }
+
 
         public int GetItemAmount(int itemid)
         {
@@ -1728,8 +1801,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             UpdateSingleStat(MapleStat.Exp, Exp.Value);
             if (show && gain != 0)
             {
-                var eqp = Inventorys[MapleInventoryType.Equipped.Value].Inventory[17];
-                if ((eqp != null && eqp.ItemId == 1122018) || (eqp != null && eqp.ItemId == 1122017))
+                IMapleItem eqp ; 
+                if ((Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(17,out eqp) && eqp.ItemId == 1122018) || (eqp != null && eqp.ItemId == 1122017))
                 {
                     //围脖吊坠
                     if (Level >= 1)
@@ -1762,13 +1835,13 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
             if (Job == MapleJob.Ares || Job == MapleJob.Ares1 || Job == MapleJob.Ares2 || Job == MapleJob.Ares3 || Job == MapleJob.Ares4)
             {
-                MaxHp += (short)Rand(24, 28);
-                MaxMp += (short)Rand(4, 6);
+                MaxHp += Rand(24, 28);
+                MaxMp += Rand(4, 6);
             }
             if (Job == MapleJob.Beginner || Job == MapleJob.Knight)
             {
-                MaxHp += (short)Rand(12, 16);
-                MaxMp += (short)Rand(10, 12);
+                MaxHp += Rand(12, 16);
+                MaxMp += Rand(10, 12);
             }
             else if (Job == MapleJob.Warrior || Job == MapleJob.GhostKnight || Job == MapleJob.Ares1)
             {
@@ -1842,22 +1915,20 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                     //getClient().getChannelServer().reconnectWorld();
                 }
             }
-            if (Hp <= 70)
-            {
-                DropMessage($"[警告] 注意!!你的生命值为 { Hp } 已不足 100 !");
-            }
 
             MaxHp = Math.Min((short)30000, MaxHp);
             MaxMp = Math.Min((short)30000, MaxMp);
 
-            List<Tuple<MapleStat, int>> statup = new List<Tuple<MapleStat, int>>(8);
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Availableap, RemainingAp));
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Maxhp, MaxHp));
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Maxmp, MaxMp));
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Hp, MaxHp));
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Mp, MaxMp));
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Exp, Exp.Value));
-            statup.Add(new Tuple<MapleStat, int>(MapleStat.Level, Level));
+            List<Tuple<MapleStat, int>> statup = new List<Tuple<MapleStat, int>>(8)
+            {
+                new Tuple<MapleStat, int>(MapleStat.Availableap, RemainingAp),
+                new Tuple<MapleStat, int>(MapleStat.Maxhp, MaxHp),
+                new Tuple<MapleStat, int>(MapleStat.Maxmp, MaxMp),
+                new Tuple<MapleStat, int>(MapleStat.Hp, MaxHp),
+                new Tuple<MapleStat, int>(MapleStat.Mp, MaxMp),
+                new Tuple<MapleStat, int>(MapleStat.Exp, Exp.Value),
+                new Tuple<MapleStat, int>(MapleStat.Level, Level)
+            };
 
             if (Job != MapleJob.Beginner)
             {
@@ -1929,6 +2000,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             Skills.Add(skill, new SkillEntry(newLevel, newMasterlevel));
             Client.Send(PacketCreator.UpdateSkill(skill.SkillId, newLevel, newMasterlevel));
         }
+
+
 
         public void UpdateQuest(MapleQuestStatus quest)
         {
@@ -2099,6 +2172,39 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
         }
 
+        //public void registerEffect(MapleStatEffect effect, long starttime, ScheduledFuture<?> schedule)
+        //{
+           
+        //    if (effect.IsHide())
+        //    {
+        //        this.IsHidden = true;
+        //        Map.BroadcastNonGmMessage(this, PacketCreator.RemovePlayerFromMap(Id));
+        //        // getMap().broadcastMessage(this, MaplePacketCreator.removePlayerFromMap(getId()), false);
+        //    }
+        //    else if (effect.IsDragonBlood())
+        //    {
+        //        prepareDragonBlood(effect);
+        //    }
+        //    else if (effect.IsBerserk())
+        //    {
+        //        checkBerserk();
+        //    }
+        //    else if (effect.IsBeholder())
+        //    {
+        //        prepareBeholderEffect();
+        //    }
+
+        //    foreach (var statup in effect.GetStatups())
+        //    {
+        //        var value = new MapleBuffStatValueHolder(effect, starttime, schedule, statup.Item2);
+        //        if (_effects.ContainsKey(statup.Item1))
+        //            _effects[statup.Item1] = value;
+        //        else
+        //            _effects.Add(statup.Item1, value);
+        //    }
+        //    RecalcLocalStats();
+        //}
+
         public void ReceivePartyMemberHp()
         {
             if (Party != null)
@@ -2171,6 +2277,52 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
 
             CheckBerserk();
+        }
+        public void checkMonsterAggro(MapleMonster monster)
+        {
+            if (monster.ControllerHasAggro) return;
+            if (monster.GetController() == this)
+            {
+                monster.ControllerHasAggro = true;
+            }
+            else
+            {
+                monster.switchController(this, true);
+            }
+        }
+
+        public int getBuffSource(MapleBuffStat stat)
+        {
+            MapleBuffStatValueHolder mbsvh ;
+            if (!_effects.TryGetValue(stat,out mbsvh))
+            {
+                return -1;
+            }
+
+            return mbsvh.Effect.GetSourceId();
+        }
+
+        public void mobKilled(int id)
+        {
+            foreach (MapleQuestStatus q in _quests.Values)
+            {
+                if (MapleQuest.GetInstance(q.Quest.QuestId).NullCompleteQuestData())
+                {
+                    //reloadQuest(MapleQuest.getInstance(q.getQuest().getId()));
+                }
+                if (q.Status == MapleQuestStatusType.Completed || q.Quest.CanComplete(this, null))
+                {
+                    continue;
+                }
+
+                if (!q.MobKilled(id) /*&& !q.Quest is maplecustomQuest*/) continue;
+
+                //Client.Send(PacketCreator.updateQuestMobKills(q));
+                if (q.Quest.CanComplete(this, null))
+                {
+                    //Client.Send(PacketCreator.getShowQuestCompletion(q.Quest.QuestId));
+                }
+            }
         }
 
         public void CheckBerserk()

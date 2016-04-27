@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Net;
 using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database;
+using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Life;
 using NeoMapleStory.Game.Mob;
 using NeoMapleStory.Game.Script.NPC;
@@ -29,7 +31,7 @@ namespace NeoMapleStory.Server
                 
           
             MapleCharacter player = c.Character;
-            //player.Account = c.Account= DatabaseHelper.LoadAccount()
+            player.Account = c.Account = DatabaseHelper.LoadAccount(charId);
             //int state = c.getLoginState();
             //bool allowLogin = true;
             ChannelServer channelServer = MasterServer.Instance.ChannelServers[c.ChannelId];
@@ -129,11 +131,11 @@ namespace NeoMapleStory.Server
                 player.DropMessage($"[欢迎] 尊敬的管理员 {player.Name} ,当前在线人数为: {c.AppServer.SessionCount}");
             }
 
-            if (player.Hp < 50)
-            {
-                //这里判断暂时这样写吧！
-                c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, "[游戏公告] 生命低于 50 !请留意HP!"));
-            }
+            //if (player.Hp < 50)
+            //{
+            //    //这里判断暂时这样写吧！
+            //    c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, "[游戏公告] 生命低于 50 !请留意HP!"));
+            //}
 
             string prefix = "";
             IMapleItem equip = null;
@@ -685,14 +687,14 @@ namespace NeoMapleStory.Server
             {
                 if (!noPacket)
                 {
-                    c.Send(PacketCreator.moveMonsterResponse(objectid, moveid, monster.Stats.Mp, aggro, toUse.skillId,toUse.skillLevel));
+                    c.Send(PacketCreator.moveMonsterResponse(objectid, moveid, monster.Mp, aggro, toUse.skillId,toUse.skillLevel));
                 }
             }
             else
             {
                 if (!noPacket)
                 {
-                    c.Send(PacketCreator.moveMonsterResponse(objectid, moveid, monster.Stats.Mp, aggro));
+                    c.Send(PacketCreator.moveMonsterResponse(objectid, moveid, monster.Mp, aggro));
                 }
 
             }
@@ -714,6 +716,153 @@ namespace NeoMapleStory.Server
                 c.Character.Map.moveMonster(monster, monster.Position);
                 c.Character.AntiCheatTracker.CheckMoveMonster(monster.Position);
             }
+        }
+
+        private static bool isFinisher(int skillId)
+        {
+            return (skillId >= 1111003 && skillId <= 1111006) || (skillId >= 11111002 && skillId <= 11111003) || skillId == 21110004 || skillId == 21100004 || skillId == 21120006;
+        }
+
+        public static void CLOSE_RANGE_ATTACK(MapleClient c, InPacket p)
+        {
+            AbstractDealDamageHandler.AttackInfo attack = AbstractDealDamageHandler.parseDamage(c.Character, p, false);
+            var player = c.Character;
+            var packet = PacketCreator.closeRangeAttack(player.Id, attack.skill, attack.stance, attack.numAttackedAndDamage, attack.allDamage, attack.speed, attack.pos);
+            player.Map.BroadcastMessage(player, packet, false, true);
+            // handle combo orb consume
+            int numFinisherOrbs = 0;
+            int? comboBuff = player.GetBuffedValue(MapleBuffStat.Combo);
+            ISkill AranCombo = SkillFactory.GetSkill(21000000);
+            int AranComboSkillLevel = player.getSkillLevel(AranCombo);
+            if (isFinisher(attack.skill))
+            {
+                if (comboBuff != null)
+                {
+                    numFinisherOrbs = comboBuff.Value - 1;
+                }
+                //player.handleOrbconsume();
+            }
+            else if (attack.numAttacked > 0)
+            {
+                // handle combo orbgain
+                if (attack.skill != 1111008 && comboBuff != null)
+                { 
+                    // 虎咆哮不给予combo?14101006
+                    //player.handleOrbgain();
+                }
+                if (AranComboSkillLevel > 0)
+                {
+                    for (int i = 0; i < attack.numAttacked; i++)
+                    {
+                        //player.handleComboGain();
+                    }
+                }
+            }
+            if (attack.skill != 14101006 && comboBuff != null)
+            { // 吸血�?能不给连击点�?
+                //player.handleOrbgain();
+            }
+            if (AranComboSkillLevel > 0)
+            {
+                for (int i = 0; i < attack.numAttacked; i++)
+                {
+                    //player.handleComboGain();
+                }
+            }
+
+            //if (attack.numAttacked > 0 && attack.skill == 1311005)
+            //{ 
+            //    //龙之献祭
+            //    int totDamageToOneMonster = attack.allDamage.get(0).getRight().get(0); // sacrifice attacks only 1 mob with 1 attack
+            //    player.setHp(player.getHp() - totDamageToOneMonster * attack.getAttackEffect(player).getX() / 100);
+            //    player.updateSingleStat(MapleStat.HP, player.getHp());
+            //}
+
+            // handle charged blow
+            //if (attack.numAttacked > 0 && attack.skill == 1211002)
+            //{ 
+            //    //属�?�攻�? - [�?高等�?:30]\n赋予武器全属�?, 攻击6个以下多个�?�物。一定的几率使�?�物昏迷�?
+            //    boolean advcharge_prob = false;
+            //    int advcharge_level = player.getSkillLevel(SkillFactory.getSkill(1220010));
+            //    if (advcharge_level > 0)
+            //    {
+            //        MapleStatEffect advcharge_effect = SkillFactory.getSkill(1220010).getEffect(advcharge_level);
+            //        advcharge_prob = advcharge_effect.makeChanceResult();
+            //    }
+            //    else
+            //    {
+            //        advcharge_prob = false;
+            //    }
+            //    if (!advcharge_prob)
+            //    {
+            //        player.cancelEffectFromBuffStat(MapleBuffStat.WK_CHARGE);
+            //    }
+            //}
+
+            int maxdamage = player.LocalMaxBasedDamage;
+            int attackCount = 1;
+            if (attack.skill != 0)
+            {
+                //MapleStatEffect effect = attack.getAttackEffect(player);
+                //attackCount = effect.getattackcount();
+                //maxdamage *= effect.getDamage() / 100.0;
+                //maxdamage *= attackCount;
+            }
+            maxdamage = Math.Min(maxdamage, 199999);
+            //if (attack.skill == 4211006)
+            //{ //金钱炸弹
+            //    maxdamage = 700000;
+            //}
+            //else if (numFinisherOrbs > 0)
+            //{
+            //    maxdamage *= numFinisherOrbs;
+            //}
+            //else if (comboBuff != null)
+            //{
+            //    ISkill combo = SkillFactory.getSkill(1111002);
+            //    int comboLevel = player.getSkillLevel(combo);
+            //    if (comboLevel == 0)
+            //    {
+            //        combo = SkillFactory.getSkill(11111001);
+            //        comboLevel = player.getSkillLevel(combo);
+            //    }
+            //    MapleStatEffect comboEffect = combo.getEffect(comboLevel);
+            //    double comboMod = 1.0 + (comboEffect.getDamage() / 100.0 - 1.0) * (comboBuff - 1);
+            //    maxdamage *= comboMod;
+            //}
+            if (numFinisherOrbs == 0 && isFinisher(attack.skill))
+            {
+                return; // can only happen when lagging o.o
+            }
+            if (isFinisher(attack.skill))
+            {
+                maxdamage = 199999; // FIXME reenable damage calculation for finishers
+            }
+            if (attack.skill > 0)
+            {
+                ISkill skill = SkillFactory.GetSkill(attack.skill);
+                int skillLevel = player.getSkillLevel(skill);
+                MapleStatEffect effect_ = skill.GetEffect(skillLevel);
+                //if (effect_.GetCoolDown() > 0)
+                //{
+                //    player.Client.Send(PacketCreator.SkillCooldown(attack.skill, effect_.getCooldown()));
+                //    var jobname = TimerManager.Instance.ScheduleJob(new CancelCooldownAction(c.getPlayer(), attack.skill), effect_.getCooldown());
+                // player.AddCooldown(attack.skill, DateTime.Now.GetTimeMilliseconds(), effect_.getCooldown() , jobname);
+                //}
+            }
+            //if (attack.skill == 21120002 || attack.skill == 21110002 || attack.skill == 21110006 || attack.skill == 21120009 || attack.skill == 21120010 || attack.skill == 21110007 || attack.skill == 21110004 || attack.skill == 21100004)
+            //{
+            //    ISkill skill = SkillFactory.getSkill(attack.skill);
+            //    int skillLevel = c.getPlayer().getSkillLevel(skill);
+            //    MapleStatEffect effect_ = skill.getEffect(skillLevel);
+            //    if (effect_.getCooldown() > 0)
+            //    {
+            //        c.getSession().write(MaplePacketCreator.skillCooldown(attack.skill, effect_.getCooldown()));
+            //        ScheduledFuture <?> timer = TimerManager.getInstance().schedule(new CancelCooldownAction(c.getPlayer(), attack.skill), effect_.getCooldown() * 1000);
+            //        c.getPlayer().addCooldown(attack.skill, System.currentTimeMillis(), effect_.getCooldown() * 1000, timer);
+            //    }
+            //}
+            AbstractDealDamageHandler.applyAttack(attack, player, maxdamage, attackCount);
         }
     }
 }

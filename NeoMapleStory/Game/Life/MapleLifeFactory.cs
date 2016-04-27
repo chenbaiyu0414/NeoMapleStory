@@ -19,17 +19,15 @@ namespace NeoMapleStory.Game.Life
             {
                 return GetNpc(id);
             }
-            else if (type.ToLower()== "m")
+            if (type.ToLower()== "m")
             {
                 return GetMonster(id);
             }
-            else {
-                Console.WriteLine("Unknown Life type: {0}", type);
-                return null;
-            }
+            Console.WriteLine($"Unknown Life type: {type}");
+            return null;
         }
 
-        public static MapleMonster GetMonster(int mid)
+         public static MapleMonster GetMonster(int mid)
         {
             MapleMonsterStats stats;
             if (!MMonsterStats.TryGetValue(mid ,out stats))
@@ -41,18 +39,20 @@ namespace NeoMapleStory.Game.Life
                 }
                 IMapleData monsterInfoData = monsterData.GetChildByPath("info");
 
-                stats = new MapleMonsterStats();
-                stats.Hp= MapleDataTool.ConvertToInt("maxHP", monsterInfoData);
-                stats.Mp= MapleDataTool.ConvertToInt("maxMP", monsterInfoData, 0);
-                stats.Exp= MapleDataTool.ConvertToInt("exp", monsterInfoData, 0);
-                stats.Level=MapleDataTool.ConvertToInt("level", monsterInfoData);
-                stats.RemoveAfter=MapleDataTool.ConvertToInt("removeAfter", monsterInfoData, 0);
-                stats.IsBoss= MapleDataTool.ConvertToInt("boss", monsterInfoData, 0) > 0;
-                stats.IsFfaLoot = MapleDataTool.ConvertToInt("publicReward", monsterInfoData, 0) > 0;
-                stats.IsUndead= MapleDataTool.ConvertToInt("undead", monsterInfoData, 0) > 0;
-                stats.Name= MapleDataTool.GetString(mid + "/name", MMobStringData, "MISSINGNO");
-                stats.BuffToGive= MapleDataTool.ConvertToInt("buff", monsterInfoData, -1);
-                stats.IsExplosive= MapleDataTool.ConvertToInt("explosiveReward", monsterInfoData, 0) > 0;
+                stats = new MapleMonsterStats
+                {
+                    Hp = MapleDataTool.ConvertToInt("maxHP", monsterInfoData),
+                    Mp = MapleDataTool.ConvertToInt("maxMP", monsterInfoData, 0),
+                    Exp = MapleDataTool.ConvertToInt("exp", monsterInfoData, 0),
+                    Level = MapleDataTool.ConvertToInt("level", monsterInfoData),
+                    RemoveAfter = MapleDataTool.ConvertToInt("removeAfter", monsterInfoData, 0),
+                    IsBoss = MapleDataTool.ConvertToInt("boss", monsterInfoData, 0) > 0,
+                    IsFfaLoot = MapleDataTool.ConvertToInt("publicReward", monsterInfoData, 0) > 0,
+                    IsUndead = MapleDataTool.ConvertToInt("undead", monsterInfoData, 0) > 0,
+                    Name = MapleDataTool.GetString(mid + "/name", MMobStringData, "MISSINGNO"),
+                    BuffToGive = MapleDataTool.ConvertToInt("buff", monsterInfoData, -1),
+                    IsExplosive = MapleDataTool.ConvertToInt("explosiveReward", monsterInfoData, 0) > 0
+                };
 
                 IMapleData firstAttackData = monsterInfoData.GetChildByPath("firstAttack");
                 int firstAttack = 0;
@@ -129,8 +129,7 @@ namespace NeoMapleStory.Game.Life
                 }
                 MMonsterStats.Add(mid, stats);
             }
-            MapleMonster ret = new MapleMonster(mid, stats);
-            return ret;
+            return new MapleMonster(mid, stats);
         }
 
         public static void DecodeElementalString(MapleMonsterStats stats, string elemAttr)

@@ -581,6 +581,158 @@ namespace NeoMapleStory.Packet
             }
         }
 
+        public static OutPacket closeRangeAttack(int cid, int skill, byte stance, byte numAttackedAndDamage, List<Tuple<int, List<int>>> damage,byte speed, byte pos)
+        {
+            using (var p = new OutPacket(SendOpcodes.CloseRangeAttack))
+            {
+                if (skill == 4211006)
+                {
+                    addMesoExplosion(p, cid, skill, stance, numAttackedAndDamage, 0, damage, speed, pos);
+                }
+                else
+                {
+                    addAttackBody(p, cid, skill, stance, numAttackedAndDamage, 0, damage, speed, pos);
+                }
+                return p;
+            }
+        }
+
+        private static void addAttackBody(OutPacket lew, int cid, int skill, byte stance, byte numAttackedAndDamage, int projectile, List<Tuple<int, List<int>>> damage, byte speed, byte pos)
+        {
+            lew.WriteInt(cid);
+            lew.WriteByte(numAttackedAndDamage);
+            lew.WriteByte(0);
+            if (skill > 0)
+            {
+                lew.WriteByte(0xFF); // too low and some skills don't work (?)
+                lew.WriteInt(skill);
+            }
+            else
+            {
+                lew.WriteByte(0);
+            }
+            lew.WriteByte(0);
+            lew.WriteByte(pos);
+            lew.WriteByte(stance);
+            lew.WriteByte(speed);
+            lew.WriteByte(0);
+            lew.WriteInt(projectile);
+
+            foreach (var oned in damage)
+            {
+                if (oned.Item2 != null)
+                {
+                    lew.WriteInt(oned.Item1);
+                    lew.WriteByte(0xFF);
+                    foreach (var eachd in oned.Item2)
+                    {
+                        lew.WriteInt((int) (skill == 3221007 ? eachd + 0x80000000 : eachd));
+                    }
+                }
+            }
+        }
+
+        private static void addMesoExplosion(OutPacket lew, int cid, int skill, byte stance, byte numAttackedAndDamage, int projectile, List<Tuple<int, List<int>>> damage,byte speed, byte pos)
+        {
+            // BC 00 90 E5 2F 00 00 5A 1A 3E 41 40 00 00 3F 00 03 0A 00 00 00 00 //078
+            lew.WriteInt(cid);
+            lew.WriteByte(numAttackedAndDamage);
+            lew.WriteByte(0x5A);
+            lew.WriteByte(0x1A);
+            lew.WriteInt(skill);
+            lew.WriteByte(0);
+            lew.WriteByte(pos);
+            lew.WriteByte(stance);
+            lew.WriteByte(speed);
+            lew.WriteByte(0x0A);
+            lew.WriteInt(projectile);
+
+            foreach (var oned in damage)
+            {
+                if (oned.Item2 != null)
+                {
+                    lew.WriteInt(oned.Item1);
+                    lew.WriteByte(0xFF);
+                    lew.WriteByte((byte)oned.Item2.Count);
+                    foreach (var eachd in oned.Item2)
+                    {
+                        lew.WriteInt(eachd);
+                    }
+                }
+            }
+
+        }
+
+        public static OutPacket removeItemFromMap(int oid, byte animation, int cid)
+        {
+            return removeItemFromMap(oid, animation, cid, false, 0);
+        }
+
+        public static OutPacket removeItemFromMap(int oid, byte animation, int cid, bool pet, byte slot)
+        {
+            using (var p = new OutPacket(SendOpcodes.RemoveItemFromMap))
+            {
+                p.WriteByte(animation); // expire
+                p.WriteInt(oid);
+                if (animation >= 2)
+                {
+                    p.WriteInt(cid);
+                    if (pet)
+                    {
+                        p.WriteByte(slot);
+                    }
+                }
+                return p;
+            }
+        }
+
+        public static OutPacket dropMesoFromMapObject(int amount, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod)
+        {
+            return dropItemFromMapObjectInternal(amount, itemoid, dropperoid, ownerid, dropfrom, dropto, mod, true);
+        }
+
+        public static OutPacket dropItemFromMapObject(int itemid, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod)
+        {
+            return dropItemFromMapObjectInternal(itemid, itemoid, dropperoid, ownerid, dropfrom, dropto, mod, false);
+        }
+
+        public static OutPacket dropItemFromMapObjectInternal(int itemid, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod, bool mesos)
+        {
+            using (var p = new OutPacket(SendOpcodes.DropItemFromMapobject))
+            {
+                p.WriteByte(mod);
+                p.WriteInt(itemoid);
+                p.WriteBool(mesos); // 1 = mesos, 0 =item
+                p.WriteInt(itemid);
+                p.WriteInt(0); // owner charid
+                p.WriteByte(0x04);
+                p.WriteShort((short)dropto.X);
+                p.WriteShort((short)dropto.Y);
+                if (mod != 2)
+                {
+                    p.WriteInt(0);
+                    p.WriteShort((short)dropfrom.X);
+                    p.WriteShort((short)dropfrom.Y);
+                }
+                else
+                {
+                    p.WriteInt(dropperoid);
+                }
+                p.WriteByte(0);
+                if (mod != 2)
+                {
+                    p.WriteByte(0); //fuck knows
+                    p.WriteByte(1); //PET Meso pickup
+                }
+                if (!mesos)
+                {
+                    p.WriteLong(DateUtiliy.GetFileTimestamp(DateTime.Now.GetTimeMilliseconds()));
+                }
+
+                return p;
+            }
+        }
+
         #region 任务
 
         public static OutPacket StartQuest(MapleCharacter c, short quest)
@@ -2283,6 +2435,72 @@ namespace NeoMapleStory.Packet
             }
         }
 
+        public static OutPacket showOwnBuffEffect(int skillid, byte effectid)
+        {
+            using (var p = new OutPacket(SendOpcodes.ShowItemGainInchat))
+            {
+                p.WriteByte(effectid);
+                p.WriteInt(skillid);
+                p.WriteByte(0x01); //Ver0.78?
+                p.WriteByte(0x01); // probably buff level but we don't know it and it doesn't really matter
+                return p;
+            }
+        }
+
+        public static OutPacket showBuffeffect(int cid, int skillid, byte effectid)
+        {
+            return showBuffeffect(cid, skillid, effectid, 3, false);
+        }
+
+        public static OutPacket showBuffeffect(int cid, int skillid, byte effectid, byte direction)
+        {
+            using (var p = new OutPacket(SendOpcodes.ShowForeignEffect))
+            {
+                p.WriteInt(cid); // ?
+                p.WriteByte(effectid);
+                p.WriteInt(skillid);
+                p.WriteByte(0x02);
+                p.WriteByte(0x01);
+                if (direction !=  3)
+                {
+                    p.WriteByte(direction);
+                }
+
+                return p;
+            }
+        }
+
+        public static OutPacket showBuffeffect(int cid, int skillid, byte effectid, byte direction, bool morph)
+        {
+            using (var p = new OutPacket(SendOpcodes.ShowForeignEffect))
+            {
+                p.WriteInt(cid);
+                if (morph)
+                {
+                    p.WriteByte(0x01);
+                    p.WriteInt(skillid);
+                    p.WriteByte(direction);
+                }
+                p.WriteByte(effectid);
+                p.WriteInt(skillid);
+                p.WriteByte(0x01);
+                if (direction !=  3)
+                {
+                    p.WriteByte(direction);
+                }
+                return p;
+            }
+        }
+
+        public static OutPacket giveGmHide(bool hidden)
+        {
+            using (var p = new OutPacket(SendOpcodes.Gm))
+            {
+                p.WriteByte(0x10);
+                p.WriteBool(hidden);
+                return p;
+            }
+        }
 
         #region 怪物
         public static OutPacket killMonster(int oid, bool animation)

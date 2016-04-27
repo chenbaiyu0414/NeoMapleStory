@@ -6,6 +6,7 @@ using NeoMapleStory.Packet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SuperSocket.SocketBase;
 
 namespace NeoMapleStory.Server
 {
@@ -15,7 +16,7 @@ namespace NeoMapleStory.Server
         public int ChannelId { get; private set; }
         public List<MapleCharacter> Characters { get; } = new List<MapleCharacter>();
 
-        public int ExpRate { get; private set; }
+        public int ExpRate { get; private set; } = 1;
 
         public MapleMapFactory MapFactory { get; private set; }
         public int UserLogged => ClientCount;
@@ -47,6 +48,7 @@ namespace NeoMapleStory.Server
             MProcessor.AppendHandler(RecvOpcodes.GeneralChat, ChannelPacketHandlers.GENERAL_CHAT);
             MProcessor.AppendHandler(RecvOpcodes.NpcTalk, ChannelPacketHandlers.NPC_TALK);
             MProcessor.AppendHandler(RecvOpcodes.MoveLife, ChannelPacketHandlers.MOVE_LIFE);
+            MProcessor.AppendHandler(RecvOpcodes.CloseRangeAttack, ChannelPacketHandlers.CLOSE_RANGE_ATTACK);
         }
 
         public override bool Start()
@@ -112,5 +114,6 @@ namespace NeoMapleStory.Server
             }
             return false;
         }
+
     }
 }

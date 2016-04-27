@@ -8,32 +8,37 @@ using NeoMapleStory.Game.Skill;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Text;
+using NeoMapleStory.Game.Inventory;
+using NeoMapleStory.Game.World;
+using NeoMapleStory.Packet;
 
 namespace NeoMapleStory.Game.Client
 {
      public class MapleStatEffect
     {
-        private short _watk, _matk, _wdef, _mdef, _acc, _avoid, _hands, _speed, _jump;
+        public short _watk, _matk, _wdef, _mdef, _acc, _avoid, _hands, _speed, _jump;
 
 
         private short _hp, _mp;
         private double _hpR, _mpR;
         private short _mpCon, _hpCon;
-        private int _duration;
+        public int _duration;
         private bool _overTime;
         private int _sourceid;
         private int _moveTo;
         private bool _skill;
         private List<Tuple<MapleBuffStat, int>> _statups;
-        private Dictionary<MonsterStatus, int> _monsterStatus;
+        public Dictionary<MonsterStatus, int> _monsterStatus;
         public int X { get; private set; }
         public int Y { get; private set; }
         public int Z { get; private set; }
         private double _prop;
         private int _itemCon, _itemConNo;
         private int _fixDamage;
-        private int _damage, _attackCount, _bulletCount, _bulletConsume;
+         public int _damage { get; set; }
+       private int  _attackCount, _bulletCount, _bulletConsume;
         private Point _lt, _rb;
         private int _mobCount;
         private int _moneyCon;
@@ -553,543 +558,553 @@ namespace NeoMapleStory.Game.Client
             return ret;
         }
 
-        //public void applyPassive(MapleCharacter applyto, IMapleMapObject obj, int attack)
-        //{
-        //    if (makeChanceResult())
-        //    {
-        //        switch (sourceid)
-        //        {
-        //            // MP eater
-        //            case 2100000:
-        //            case 2200000:
-        //            case 2300000:
-        //                if (obj == null || obj.GetType() != MapleMapObjectType.MONSTER)
-        //                {
-        //                    return;
-        //                }
-        //                MapleMonster mob = (MapleMonster)obj;
-        //                // x is absorb percentage
-        //                if (!mob.IsBoss)
-        //                {
-        //                    int absorbMp = Math.Min((int)(mob.GetMaxMp() * (x / 100.0)), mob.GetMp());
-        //                    if (absorbMp > 0)
-        //                    {
-        //                        mob.setMp(mob.GetMp() - absorbMp);
-        //                        applyto.AddMP(absorbMp);
-        //                        applyto.GetClient().GetSession().write(MaplePacketCreator.showOwnBuffEffect(sourceid, 1));
-        //                        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.showBuffeffect(applyto.GetId(), sourceid, 1, (byte)3), false);
-        //                    }
-        //                }
-        //                break;
-        //        }
-        //    }
-        //}
+        public void applyPassive(MapleCharacter applyto, IMapleMapObject obj, int attack)
+        {
+            if (MakeChanceResult())
+            {
+                switch (_sourceid)
+                {
+                    // MP eater
+                    case 2100000:
+                    case 2200000:
+                    case 2300000:
+                        if (obj == null || obj.GetType() != MapleMapObjectType.Monster)
+                        {
+                            return;
+                        }
+                        MapleMonster mob = (MapleMonster)obj;
+                        // x is absorb percentage
+                        if (!mob.IsBoss)
+                        {
+                            int absorbMp = Math.Min((int)(mob.MaxMp * (X / 100.0)), mob.Mp);
+                            if (absorbMp > 0)
+                            {
+                                mob.Mp -= absorbMp;
+                                applyto.Mp += (short) absorbMp;
+                                applyto.Client.Send(PacketCreator.showOwnBuffEffect(_sourceid, 1));
+                                applyto.Map.BroadcastMessage(applyto, PacketCreator.showBuffeffect(applyto.Id, _sourceid, 1, 3), false);
+                            }
+                        }
+                        break;
+                }
+            }
+        }
 
-        //public bool applyTo(MapleCharacter chr)
-        //{
-        //    return applyTo(chr, chr, true, null);
-        //}
+        public bool applyTo(MapleCharacter chr)
+        {
+            return applyTo(chr, chr, true, null);
+        }
 
-        //public bool applyTo(MapleCharacter chr, Point pos)
-        //{
-        //    return applyTo(chr, chr, true, pos);
-        //}
+        public bool applyTo(MapleCharacter chr, Point pos)
+        {
+            return applyTo(chr, chr, true, pos);
+        }
 
-        //private bool applyTo(MapleCharacter applyfrom, MapleCharacter applyto, bool primary, Point? pos)
-        //{
-        //    int hpchange = calcHPChange(applyfrom, primary);
-        //    int mpchange = calcMPChange(applyfrom, primary);
+        private bool applyTo(MapleCharacter applyfrom, MapleCharacter applyto, bool primary, Point? pos)
+        {
+            int hpchange = CalcHpChange(applyfrom, primary);
+            int mpchange = CalcMpChange(applyfrom, primary);
 
-        //    if (primary)
-        //    {
-        //        if (itemConNo != 0)
-        //        {
-        //            MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(itemCon);
-        //            MapleInventoryManipulator.removeById(applyto.Client, type, itemCon, itemConNo, false, true);
-        //        }
-        //    }
-        //    if (cureDebuffs.Any())
-        //    {
-        //        foreach (MapleDisease debuff in cureDebuffs)
-        //        {
-        //            applyfrom.dispelDebuff(debuff);
-        //        }
-        //    }
-        //    List<Tuple<MapleStat, int>> hpmpupdate = new List<Tuple<MapleStat, int>>(2);
-        //    if (!primary && isResurrection())
-        //    {
-        //        hpchange = applyto.maxhp;
-        //        applyto.Stance = 0;
-        //    }
-        //    if (isDispel() && makeChanceResult())
-        //    {
-        //        applyto.dispelDebuffs();
-        //    }
-        //    if (isHeroWill())
-        //    {
-        //        applyto.cancelAllDebuffs();
-        //    }
-        //    if (hpchange != 0)
-        //    {
-        //        if (hpchange < 0 && (-hpchange) > applyto.hp)
-        //        {
-        //            return false;
-        //        }
-        //        int newHp = applyto.hp + hpchange;
-        //        if (newHp < 1)
-        //        {
-        //            newHp = 1;
-        //        }
-        //        applyto.hp = (short)newHp;
-        //        hpmpupdate.Add(new Tuple<MapleStat, int>(MapleStat.HP, applyto.hp));
-        //    }
-        //    if (mpchange != 0)
-        //    {
-        //        if (mpchange < 0 && (-mpchange) > applyto.mp)
-        //        {
-        //            return false;
-        //        }
-        //        applyto.mp += (short)mpchange;
-        //        hpmpupdate.Add(new Tuple<MapleStat, int>(MapleStat.MP, applyto.mp));
-        //    }
+            if (primary)
+            {
+                if (_itemConNo != 0)
+                {
+                    MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(_itemCon);
+                    MapleInventoryManipulator.removeById(applyto.Client, type, _itemCon, _itemConNo, false, true);
+                }
+            }
+            if (_cureDebuffs.Any())
+            {
+                foreach (MapleDisease debuff in _cureDebuffs)
+                {
+                    applyfrom.DispelDebuff(debuff);
+                }
+            }
+            List<Tuple<MapleStat, int>> hpmpupdate = new List<Tuple<MapleStat, int>>(2);
+            if (!primary && IsResurrection())
+            {
+                hpchange = applyto.MaxHp;
+                applyto.Stance = 0;
+            }
+            if (IsDispel() && MakeChanceResult())
+            {
+                applyto.DispelDebuffs();
+            }
+            if (IsHeroWill())
+            {
+                applyto.CancelAllDebuffs();
+            }
+            if (hpchange != 0)
+            {
+                if (hpchange < 0 && (-hpchange) > applyto.Hp)
+                {
+                    return false;
+                }
+                int newHp = applyto.Hp + hpchange;
+                if (newHp < 1)
+                {
+                    newHp = 1;
+                }
+                applyto.Hp = (short)newHp;
+                hpmpupdate.Add(new Tuple<MapleStat, int>(MapleStat.Hp, applyto.Hp));
+            }
+            if (mpchange != 0)
+            {
+                if (mpchange < 0 && (-mpchange) > applyto.Mp)
+                {
+                    return false;
+                }
+                applyto.Mp += (short)mpchange;
+                hpmpupdate.Add(new Tuple<MapleStat, int>(MapleStat.Mp, applyto.Mp));
+            }
 
-        //    //applyto.GetClient().GetSession().write(MaplePacketCreator.updatePlayerStats(hpmpupdate, true));
+            applyto.Client.Send(PacketCreator.UpdatePlayerStats(hpmpupdate, true));
 
-        //    if (moveTo != -1)
-        //    {
-        //        MapleMap target = null;
-        //        bool nearest = false;
-        //        if (moveTo == 999999999)
-        //        {
-        //            nearest = true;
-        //            if (applyto.Map.returnMapId != 999999999)
-        //            {
-        //                target = applyto.Map.ReturnMap;
-        //            }
-        //        }
-        //        else {
-        //            target = applyto.Client.ChannelServer.MapFactory.GetMap(moveTo);
-        //            int targetMapId = target.MapID / 10000000;
-        //            int charMapId = applyto.MapID / 10000000;
-        //            if (targetMapId != 60 && charMapId != 61)
-        //            {
-        //                if (targetMapId != 21 && charMapId != 20)
-        //                {
-        //                    if (targetMapId != 12 && charMapId != 10)
-        //                    {
-        //                        if (targetMapId != 10 && charMapId != 12)
-        //                        {
-        //                            if (targetMapId != charMapId)
-        //                            {
-        //                                Console.WriteLine("人物 {0} 尝试回到一个非法的位置 ({1}->{2})", applyto.CharacterName, applyto.MapID, target.MapID);
-        //                                applyto.Client.Close();
-        //                                return false;
-        //                            }
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //        if (target == applyto.Map || nearest && applyto.Map.town)
-        //        {
-        //            return false;
-        //        }
-        //    }
-        //    if (isShadowClaw())
-        //    {
-        //        MapleInventory use = applyto.Inventorys[MapleInventoryType.USE.Value];
-        //        MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
-        //        int projectile = 0;
-        //        for (int i = 0; i < 255; i++)
-        //        { // impose order...
-        //            var item = use.Inventory[(sbyte)i];
-        //            if (item != null)
-        //            {
-        //                bool isStar = mii.IsThrowingStar(item.ItemID);
-        //                if (isStar && item.Quantity >= 200)
-        //                {
-        //                    projectile = item.ItemID;
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        if (projectile == 0)
-        //        {
-        //            return false;
-        //        }
-        //        else {
-        //            MapleInventoryManipulator.removeById(applyto.Client, MapleInventoryType.USE, projectile, 200, false, true);
-        //        }
-        //    }
-        //    if (overTime)
-        //    {
-        //        applyBuffEffect(applyfrom, applyto, primary);
-        //    }
-        //    if (primary && (overTime || isHeal()))
-        //    {
-        //        applyBuff(applyfrom);
-        //    }
-        //    if (primary && isMonsterBuff())
-        //    {
-        //        applyMonsterBuff(applyfrom);
-        //    }
+            if (_moveTo != -1)
+            {
+                MapleMap target = null;
+                bool nearest = false;
+                if (_moveTo == 999999999)
+                {
+                    nearest = true;
+                    if (applyto.Map.ReturnMapId != 999999999)
+                    {
+                        target = applyto.Map.ReturnMap;
+                    }
+                }
+                else
+                {
+                    target = applyto.Client.ChannelServer.MapFactory.GetMap(_moveTo);
+                    int targetMapId = target.MapId / 10000000;
+                    int charMapId = applyto.Map.MapId / 10000000;
+                    if (targetMapId != 60 && charMapId != 61)
+                    {
+                        if (targetMapId != 21 && charMapId != 20)
+                        {
+                            if (targetMapId != 12 && charMapId != 10)
+                            {
+                                if (targetMapId != 10 && charMapId != 12)
+                                {
+                                    if (targetMapId != charMapId)
+                                    {
+                                        Console.WriteLine("人物 {0} 尝试回到一个非法的位置 ({1}->{2})", applyto.Name, applyto.Map.MapId, target.MapId);
+                                        applyto.Client.Close();
+                                        return false;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (target == applyto.Map || nearest && applyto.Map.Town)
+                {
+                    return false;
+                }
+            }
+            if (IsShadowClaw())
+            {
+                MapleInventory use = applyto.Inventorys[MapleInventoryType.Use.Value];
+                MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
+                int projectile = 0;
+                for (int i = 0; i < 255; i++)
+                { // impose order...
+                    IMapleItem item;
+                    if (use.Inventory.TryGetValue(1, out item))
+                    {
+                        bool isStar = mii.IsThrowingStar(item.ItemId);
+                        if (isStar && item.Quantity >= 200)
+                        {
+                            projectile = item.ItemId;
+                            break;
+                        }
+                    }
+                }
+                if (projectile == 0)
+                {
+                    return false;
+                }
+                else
+                {
+                    MapleInventoryManipulator.removeById(applyto.Client, MapleInventoryType.Use, projectile, 200, false, true);
+                }
+            }
+            if (_overTime)
+            {
+                applyBuffEffect(applyfrom, applyto, primary);
+            }
+            if (primary && (_overTime || IsHeal()))
+            {
+                applyBuff(applyfrom);
+            }
+            if (primary && IsMonsterBuff())
+            {
+                applyMonsterBuff(applyfrom);
+            }
 
-        //    SummonMovementType? summonMovementType = getSummonMovementType();
-        //    if (summonMovementType.HasValue && pos != null)
-        //    {
-        //        MapleSummon tosummon = new MapleSummon(applyfrom, sourceid, pos.Value, summonMovementType.Value);
-        //        if (!tosummon.isPuppet())
-        //        {
-        //            applyfrom.GetCheatTracker().resetSummonAttack();
-        //        }
-        //        applyfrom.Map.spawnSummon(tosummon);
-        //        applyfrom.GetSummons().Add(sourceid, tosummon);
-        //        tosummon.hp += x;
-        //        if (isBeholder())
-        //        {
-        //            tosummon.hp++;
-        //        }
-        //    }
-        //    // Magic Door
-        //    if (isMagicDoor())
-        //    {
-        //        Point doorPosition = new Point(applyto.Position.X, applyto.Position.Y);
-        //        MapleDoor door = new MapleDoor(applyto, doorPosition);
-        //        applyto.GetMap().spawnDoor(door);
-        //        applyto.AddDoor(door);
-        //        door = new MapleDoor(door);
-        //        applyto.AddDoor(door);
-        //        door.GetTown().spawnDoor(door);
-        //        if (applyto.GetParty() != null)
-        //        {
-        //            applyto.silentPartyUpdate();
-        //        }
-        //        applyto.disableDoor();
-        //    }
-        //    else if (isMist())
-        //    {
-        //        Rectangle bounds = calculateBoundingBox(applyfrom.GetPosition(), applyfrom.isFacingLeft());
-        //        MapleMist mist = new MapleMist(bounds, applyfrom, this);
-        //        applyfrom.GetMap().spawnMist(mist, getDuration(), false);
-        //    }
-        //    if (isTimeLeap())
-        //    {
-        //        for (PlayerCoolDownValueHolder i : applyto.GetAllCooldowns())
-        //        {
-        //            if (i.skillId != 5121010)
-        //            {
-        //                applyto.removeCooldown(i.skillId);
-        //            }
-        //        }
-        //    }
-        //    if (isHide())
-        //    {
-        //        if (applyto.isHidden())
-        //        {
-        //            applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.removePlayerFromMap(applyto.GetId()), false);
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveGmHide(true));
-        //        }
-        //        else {
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveGmHide(false));
-        //            applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.spawnPlayerMapobject(applyto), false);
-        //            for (MaplePet pet : applyto.GetPets())
-        //            {
-        //                if (pet != null)
-        //                {
-        //                    applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.showPet(applyto, pet, false, false), false);
-        //                }
-        //            }
-        //        }
-        //    }
-        //    return true;
-        //}
+            SummonMovementType? summonMovementType = GetSummonMovementType();
+            if (summonMovementType.HasValue && pos != null)
+            {
+                MapleSummon tosummon = new MapleSummon(applyfrom, _sourceid, pos.Value, summonMovementType.Value);
+                if (!tosummon.IsPuppet())
+                {
+                    applyfrom.AntiCheatTracker.ResetSummonAttack();
+                }
+                applyfrom.Map.SpawnSummon(tosummon);
+                applyfrom.Summons.Add(_sourceid, tosummon);
+                tosummon.Hp += X;
+                if (IsBeholder())
+                {
+                    tosummon.Hp++;
+                }
+            }
+            // Magic Door
+            //if (IsMagicDoor())
+            //{
+            //    Point doorPosition = new Point(applyto.Position.X, applyto.Position.Y);
+            //    MapleDoor door = new MapleDoor(applyto, doorPosition);
+            //    applyto.Map.spawnDoor(door);
+            //    applyto.AddDoor(door);
+            //    door = new MapleDoor(door);
+            //    applyto.AddDoor(door);
+            //    door.Town.spawnDoor(door);
+            //    if (applyto.Party != null)
+            //    {
+            //        applyto.silentPartyUpdate();
+            //    }
+            //    applyto.disableDoor();
+            //}
+            //else if (IsMist())
+            //{
+            //    Rectangle bounds = calculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
+            //    MapleMist mist = new MapleMist(bounds, applyfrom, this);
+            //    applyfrom.Map.spawnMist(mist, _duration, false);
+            //}
+            if (IsTimeLeap())
+            {
+                foreach (PlayerCoolDownValueHolder i in applyto.GetAllCooldowns())
+                {
+                    if (i.SkillId != 5121010)
+                    {
+                        applyto.RemoveCooldown(i.SkillId);
+                    }
+                }
+            }
+            if (IsHide())
+            {
+                if (applyto.IsHidden)
+                {
+                    applyto.Map.BroadcastMessage(applyto, PacketCreator.RemovePlayerFromMap(applyto.Id), false);
+                    applyto.Client.Send(PacketCreator.giveGmHide(true));
+                }
+                else
+                {
+                    applyto.Client.Send(PacketCreator.giveGmHide(false));
+                    applyto.Map.BroadcastMessage(applyto, PacketCreator.SpawnPlayerMapobject(applyto), false);
+                    foreach (MaplePet pet in applyto.Pets)
+                    {
+                        if (pet != null)
+                        {
+                            applyto.Map.BroadcastMessage(applyto, PacketCreator.ShowPet(applyto, pet, false), false);
+                        }
+                    }
+                }
+            }
+            return true;
+        }
 
-        //public bool applyReturnScroll(MapleCharacter applyto)
-        //{
-        //    if (moveTo != -1)
-        //    {
-        //        if (applyto.GetMap().GetReturnMapId() != applyto.GetMapId())
-        //        {
-        //            MapleMap target;
-        //            if (moveTo == 999999999)
-        //            {
-        //                target = applyto.GetMap().GetReturnMap();
-        //            }
-        //            else {
-        //                target = ChannelServer.GetInstance(applyto.GetClient().GetChannel()).GetMapFactory().GetMap(moveTo);
-        //                if (target.GetId() / 10000000 != 60 && applyto.GetMapId() / 10000000 != 61)
-        //                {
-        //                    if (target.GetId() / 10000000 != 21 && applyto.GetMapId() / 10000000 != 20)
-        //                    {
-        //                        if (target.GetId() / 10000000 != applyto.GetMapId() / 10000000)
-        //                        {
-        //                            return false;
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //            applyto.changeMap(target, target.GetPortal(0));
-        //            return true;
-        //        }
-        //    }
-        //    return false;
-        //}
+        public bool applyReturnScroll(MapleCharacter applyto)
+        {
+            if (_moveTo != -1)
+            {
+                if (applyto.Map.ReturnMapId != applyto.Map.MapId)
+                {
+                    MapleMap target;
+                    if (_moveTo == 999999999)
+                    {
+                        target = applyto.Map.ReturnMap;
+                    }
+                    else
+                    {
+                        target = applyto.Client.ChannelServer.MapFactory.GetMap(_moveTo);
+                        if (target.MapId / 10000000 != 60 && applyto.Id / 10000000 != 61)
+                        {
+                            if (target.MapId / 10000000 != 21 && applyto.Map.MapId / 10000000 != 20)
+                            {
+                                if (target.MapId / 10000000 != applyto.Map.MapId / 10000000)
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    applyto.changeMap(target, target.getPortal(0));
+                    return true;
+                }
+            }
+            return false;
+        }
 
-        //private void applyBuff(MapleCharacter applyfrom)
-        //{
-        //    if (isPartyBuff() && (applyfrom.GetParty() != null || isGMBuff()))
-        //    {
-        //        Rectangle bounds = calculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
-        //        List<IMapleMapObject> affecteds = applyfrom.GetMap().GetMapObjectsInRect(bounds, Arrays.asList(MapleMapObjectType.PLAYER));
-        //        List<MapleCharacter> affectedp = new List<MapleCharacter>(affecteds.Count);
-        //        foreach (IMapleMapObject affectedmo in affecteds)
-        //        {
-        //            MapleCharacter affected = (MapleCharacter)affectedmo;
-        //            //this is new and weird...
-        //            if (affected != null && isHeal() && affected != applyfrom && affected.GetParty() == applyfrom.GetParty() && affected.isAlive())
-        //            {
-        //                int expadd = (int)((calcHPChange(applyfrom, true) / 10) * (applyfrom.GetClient().GetChannelServer().GetExpRate() + ((Math.random() * 10) + 30)) * (Math.floor(Math.random() * (applyfrom.GetSkillLevel(SkillFactory.GetSkill(2301002))) / 100) * (applyfrom.GetLevel() / 30)));
-        //                if (affected.GetHp() < affected.GetMaxHp() - affected.GetMaxHp() / 20)
-        //                {
-        //                    applyfrom.gainExp(expadd, true, false, false);
-        //                }
-        //            }
-        //            if (affected != applyfrom && (isGMBuff() || applyfrom.GetParty().equals(affected.GetParty())))
-        //            {
-        //                bool isRessurection = isResurrection();
-        //                if ((isRessurection && !affected.isAlive()) || (!isRessurection && affected.isAlive()))
-        //                {
-        //                    affectedp.Add(affected);
-        //                }
-        //                if (isTimeLeap())
-        //                {
-        //                    for (PlayerCoolDownValueHolder i : affected.GetAllCooldowns())
-        //                    {
-        //                        if (i.skillId != 5121010)
-        //                        {
-        //                            affected.removeCooldown(i.skillId);
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //        for (MapleCharacter affected : affectedp)
-        //        {
-        //            // TODO actually heal (and others) shouldn't recalculate everything
-        //            // for heal this is an actual bug since heal hp is decreased with the number
-        //            // of affected players
-        //            applyTo(applyfrom, affected, false, null);
-        //            affected.GetClient().GetSession().write(MaplePacketCreator.showOwnBuffEffect(sourceid, 2));
-        //            affected.GetMap().broadcastMessage(affected, MaplePacketCreator.showBuffeffect(affected.GetId(), sourceid, 2, (byte)3), false);
-        //        }
-        //    }
-        //}
+        private void applyBuff(MapleCharacter applyfrom)
+        {
+            if (IsPartyBuff() && (applyfrom.Party != null || IsGmBuff()))
+            {
+                Rectangle bounds = calculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
+                List<IMapleMapObject> affecteds = applyfrom.Map.getMapObjectsInRect(bounds,
+                    new List<MapleMapObjectType> {MapleMapObjectType.Player});
 
-        //private void applyMonsterBuff(MapleCharacter applyfrom)
-        //{
-        //    Rectangle bounds = calculateBoundingBox(applyfrom.GetPosition(), applyfrom.isFacingLeft());
-        //    List<MapleMapObject> affected = applyfrom.GetMap().GetMapObjectsInRect(bounds, Arrays.asList(MapleMapObjectType.MONSTER));
-        //    ISkill skill_ = SkillFactory.GetSkill(sourceid);
-        //    int i = 0;
-        //    for (MapleMapObject mo : affected)
-        //    {
-        //        MapleMonster monster = (MapleMonster)mo;
-        //        if (makeChanceResult())
-        //        {
-        //            monster.applyStatus(applyfrom, new MonsterStatusEffect(getMonsterStati(), skill_, false), isPoison(), getDuration());
-        //        }
-        //        i++;
-        //        if (i >= mobCount)
-        //        {
-        //            break;
-        //        }
-        //    }
-        //}
+                List<MapleCharacter> affectedp = new List<MapleCharacter>(affecteds.Count);
+                foreach (IMapleMapObject affectedmo in affecteds)
+                {
+                    MapleCharacter affected = (MapleCharacter)affectedmo;
+                    //this is new and weird...
+                    if (affected != null && IsHeal() && affected != applyfrom && affected.Party == applyfrom.Party && affected.IsAlive)
+                    {
+                        int expadd = (int)((CalcHpChange(applyfrom, true) / 10) * (applyfrom.Client.ChannelServer.ExpRate + (Randomizer.NextDouble() * 10 + 30)) * (Math.Floor(Randomizer.NextDouble() * (applyfrom.getSkillLevel(SkillFactory.GetSkill(2301002))) / 100) * (applyfrom.Level / 30)));
+                        if (affected.Hp < affected.MaxHp - affected.MaxHp / 20)
+                        {
+                            applyfrom.gainExp(expadd, true, false, false);
+                        }
+                    }
+                    if (affected != applyfrom && (IsGmBuff() || applyfrom.Party.Equals(affected?.Party)))
+                    {
+                        bool isRessurection = IsResurrection();
+                        if ((isRessurection && !affected.IsAlive) || (!isRessurection && affected.IsAlive))
+                        {
+                            affectedp.Add(affected);
+                        }
+                        if (IsTimeLeap())
+                        {
+                            foreach (PlayerCoolDownValueHolder i in affected.GetAllCooldowns())
+                            {
+                                if (i.SkillId != 5121010)
+                                {
+                                    affected.RemoveCooldown(i.SkillId);
+                                }
+                            }
+                        }
+                    }
+                }
+                foreach (MapleCharacter affected in affectedp)
+                {
+                    // TODO actually heal (and others) shouldn't recalculate everything
+                    // for heal this is an actual bug since heal hp is decreased with the number
+                    // of affected players
+                    applyTo(applyfrom, affected, false, null);
+                    affected.Client.Send(PacketCreator.showOwnBuffEffect(_sourceid, 2));
+                    affected.Map.BroadcastMessage(affected,PacketCreator.showBuffeffect(affected.Id, _sourceid, 2, 3), false);
+                }
+            }
+        }
 
-        //private Rectangle calculateBoundingBox(Point posFrom, bool facingLeft)
-        //{
-        //    Point mylt;
-        //    Point myrb;
-        //    if (facingLeft)
-        //    {
-        //        mylt = new Point(lt.X + posFrom.X, lt.Y + posFrom.Y);
-        //        myrb = new Point(rb.X + posFrom.X, rb.Y + posFrom.Y);
-        //    }
-        //    else {
-        //        myrb = new Point(lt.X * -1 + posFrom.X, rb.Y + posFrom.Y);
-        //        mylt = new Point(rb.X * -1 + posFrom.X, lt.Y + posFrom.Y);
-        //    }
-        //    Rectangle bounds = new Rectangle(mylt.X, mylt.Y, myrb.X - mylt.X, myrb.Y - mylt.Y);
-        //    return bounds;
-        //}
+        private void applyMonsterBuff(MapleCharacter applyfrom)
+        {
+            Rectangle bounds = calculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
+           var affected = applyfrom.Map.getMapObjectsInRect(bounds, new List<MapleMapObjectType> {MapleMapObjectType.Monster});
+            ISkill skill_ = SkillFactory.GetSkill(_sourceid);
+            int i = 0;
+            foreach (IMapleMapObject mo in affected)
+            {
+                MapleMonster monster = (MapleMonster)mo;
+                if (MakeChanceResult())
+                {
+                    monster.applyStatus(applyfrom, new MonsterStatusEffect(_monsterStatus, skill_, false), IsPoison(), _duration);
+                }
+                i++;
+                if (i >= _mobCount)
+                {
+                    break;
+                }
+            }
+        }
 
-        //public void silentApplyBuff(MapleCharacter chr, long starttime)
-        //{
-        //    int localDuration = duration;
-        //    localDuration = alchemistModifyVal(chr, localDuration, false);
-        //    CancelEffectAction cancelAction = new CancelEffectAction(chr, this, starttime);
+        private Rectangle calculateBoundingBox(Point posFrom, bool facingLeft)
+        {
+            Point mylt;
+            Point myrb;
+            if (facingLeft)
+            {
+                mylt = new Point(_lt.X + posFrom.X, _lt.Y + posFrom.Y);
+                myrb = new Point(_rb.X + posFrom.X, _rb.Y + posFrom.Y);
+            }
+            else
+            {
+                myrb = new Point(_lt.X * -1 + posFrom.X, _rb.Y + posFrom.Y);
+                mylt = new Point(_rb.X * -1 + posFrom.X, _lt.Y + posFrom.Y);
+            }
+            Rectangle bounds = new Rectangle(mylt.X, mylt.Y, myrb.X - mylt.X, myrb.Y - mylt.Y);
+            return bounds;
+        }
 
-        //    var schedule = TimerManager.Instance.Schedule(cancelAction, starttime + localDuration - DateTime.Now.GetTimeMilliseconds());
-        //    chr.registerEffect(this, starttime, schedule);
+        public void silentApplyBuff(MapleCharacter chr, int starttime)
+        {
+            int localDuration = _duration;
+            localDuration = AlchemistModifyVal(chr, localDuration, false);
+            CancelEffectAction cancelAction = new CancelEffectAction(chr, this, starttime);
 
-        //    SummonMovementType? summonMovementType = getSummonMovementType();
-        //    if (summonMovementType.HasValue)
-        //    {
-        //        MapleSummon tosummon = new MapleSummon(chr, sourceid, chr.Position, summonMovementType.Value);
-        //        if (!tosummon.isPuppet())
-        //        {
-        //            chr.GetCheatTracker().resetSummonAttack();
-        //            chr.GetSummons().Add(sourceid, tosummon);
-        //            tosummon.hp += x;
-        //        }
-        //    }
-        //}
+            var schedule = TimerManager.Instance.ScheduleJob(cancelAction.run, starttime + localDuration);
+            //chr.registerEffect(this, starttime, schedule);
 
-        //private void applyBuffEffect(MapleCharacter applyfrom, MapleCharacter applyto, bool primary)
-        //{
-        //    if (!isMonsterRiding())
-        //    {
-        //        applyto.cancelEffect(this, true, -1);
-        //    }
-        //    List<Tuple<MapleBuffStat, int>> localstatups = statups;
-        //    int localDuration = duration;
-        //    int localsourceid = sourceid;
-        //    if (isMonsterRiding())
-        //    {
-        //        int ridingLevel = 0; // mount id
-        //        IMapleItem mount = applyfrom.Inventorys[MapleInventoryType.EQUIPPED.Value].Inventory[-18];
-        //        if (mount != null)
-        //        {
-        //            ridingLevel = mount.ItemID;
-        //        }
-        //        localDuration = sourceid;
-        //        localsourceid = ridingLevel;
-        //        localstatups = new List<Tuple<MapleBuffStat, int>>(1);
-        //        localstatups.Add(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 0));
-        //    }
-        //    if (isBattleShip())
-        //    {
-        //        int ridingLevel = 1932000;
-        //        localDuration = sourceid;
-        //        localsourceid = ridingLevel;
-        //        localstatups = new List<Tuple<MapleBuffStat, int>>(1);
-        //        localstatups.Add(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 0));
-        //    }
-        //    if (primary)
-        //    {
-        //        localDuration = alchemistModifyVal(applyfrom, localDuration, false);
-        //    }
-        //    if (localstatups.Any())
-        //    {
-        //        if (isDash())
-        //        {
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveDash(statups, localDuration / 1000));
-        //        }
-        //        else {
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveBuff(applyto, (skill ? localsourceid : -localsourceid), localDuration, localstatups));
-        //        }
-        //    }
-        //    if (localstatups.Any())
-        //    {
-        //        if (isDash())
-        //        {
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveDash(localstatups, localDuration / 1000));
-        //        }
-        //        else if (isInfusion())
-        //        {
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveInfusion(localDuration / 1000, x));
-        //        }
-        //        else {
-        //            applyto.GetClient().GetSession().write(MaplePacketCreator.giveBuff(applyto, (skill ? localsourceid : -localsourceid), localDuration, localstatups));
-        //        }
-        //    }
-        //    if (isMonsterRiding())
-        //    {
-        //        int ridingLevel = 0;
-        //        IMapleItem mount = applyfrom.Inventorys[MapleInventoryType.EQUIPPED.Value].Inventory[-18];
-        //        if (mount != null)
-        //        {
-        //            ridingLevel = mount.ItemID;
-        //        }
-        //        List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 1));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.showMonsterRiding(applyto.CharacterID, stat, ridingLevel, sourceid), false);
-        //        localDuration = duration;
-        //    }
-        //    if (isBattleShip())
-        //    {
-        //        int ridingLevel = 1932000;
-        //        List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 1));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.showMonsterRiding(applyto.CharacterID, stat, ridingLevel, sourceid), false);
-        //        localDuration = duration;
-        //    }
-        //    if (isDs())
-        //    {
-        //        List<Tuple<MapleBuffStat, int>> dsstat = Collections.singletonList(Tuple.Create(MapleBuffStat.DARKSIGHT, 0));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, dsstat, this), false);
-        //    }
-        //    if (isCombo())
-        //    {
-        //        List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.COMBO, 1));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
-        //    }
-        //    if (isShadowPartner())
-        //    {
-        //        List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.SHADOWPARTNER, 0));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
-        //    }
-        //    if (isSoulArrow())
-        //    {
-        //        List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.SOULARROW, 0));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
-        //    }
-        //    if (isEnrage())
-        //    {
-        //        applyto.handleOrbconsume();
-        //    }
-        //    if (isMorph)
-        //    {
-        //        List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.MORPH, morphId));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
-        //    }
-        //    if (isPirateMorph())
-        //    {
-        //        List<Tuple<MapleBuffStat, int>> stat = new ArrayList<Tuple<MapleBuffStat, int>>();
-        //        stat.Add(Tuple.Create(MapleBuffStat.SPEED, speed)));
-        //        stat.Add(Tuple.Create(MapleBuffStat.MORPH, morphId)));
-        //        applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
-        //    }
-        //    if (isTimeLeap())
-        //    {
-        //        for (PlayerCoolDownValueHolder i : applyto.GetAllCooldowns())
-        //        {
-        //            if (i.skillId != 5121010)
-        //            {
-        //                applyto.removeCooldown(i.skillId);
-        //            }
-        //        }
-        //    }
-        //    if (localstatups.size() > 0)
-        //    {
-        //        long starttime = System.currentTimeMillis();
-        //        CancelEffectAction cancelAction = new CancelEffectAction(applyto, this, starttime);
-        //        ScheduledFuture <?> schedule = TimerManager.GetInstance().schedule(cancelAction, localDuration);
-        //        applyto.registerEffect(this, starttime, schedule);
-        //    }
-        //    if (primary && !isHide())
-        //    {
-        //        if (isDash())
-        //        {
-        //            applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.showDashEffecttoOthers(applyto.GetId(), localstatups, localDuration / 1000), false);
-        //        }
-        //        else if (isInfusion())
-        //        {
-        //            applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.giveForeignInfusion(applyto.GetId(), x, localDuration / 1000), false);
-        //        }
-        //        else {
-        //            applyto.GetMap().broadcastMessage(applyto, MaplePacketCreator.showBuffeffect(applyto.GetId(), sourceid, 1, (byte)3), false);
-        //        }
-        //    }
-        //}
+            SummonMovementType? summonMovementType = GetSummonMovementType();
+            if (summonMovementType.HasValue)
+            {
+                MapleSummon tosummon = new MapleSummon(chr, _sourceid, chr.Position, summonMovementType.Value);
+                if (!tosummon.IsPuppet())
+                {
+                    chr.AntiCheatTracker.ResetSummonAttack();
+                    chr.Summons.Add(_sourceid, tosummon);
+                    tosummon.Hp += X;
+                }
+            }
+        }
+
+        private void applyBuffEffect(MapleCharacter applyfrom, MapleCharacter applyto, bool primary)
+        {
+            //if (!isMonsterRiding())
+            //{
+            //    applyto.cancelEffect(this, true, -1);
+            //}
+            //List<Tuple<MapleBuffStat, int>> localstatups = statups;
+            //int localDuration = duration;
+            //int localsourceid = _sourceid;
+            //if (isMonsterRiding())
+            //{
+            //    int ridingLevel = 0; // mount id
+            //    IMapleItem mount = applyfrom.Inventorys[MapleInventoryType.EQUIPPED.Value].Inventory[-18];
+            //    if (mount != null)
+            //    {
+            //        ridingLevel = mount.ItemID;
+            //    }
+            //    localDuration = _sourceid;
+            //    localsourceid = ridingLevel;
+            //    localstatups = new List<Tuple<MapleBuffStat, int>>(1);
+            //    localstatups.Add(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 0));
+            //}
+            //if (isBattleShip())
+            //{
+            //    int ridingLevel = 1932000;
+            //    localDuration = _sourceid;
+            //    localsourceid = ridingLevel;
+            //    localstatups = new List<Tuple<MapleBuffStat, int>>(1);
+            //    localstatups.Add(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 0));
+            //}
+            //if (primary)
+            //{
+            //    localDuration = alchemistModifyVal(applyfrom, localDuration, false);
+            //}
+            //if (localstatups.Any())
+            //{
+            //    if (isDash())
+            //    {
+            //        applyto.GetClient().GetSession().write(MaplePacketCreator.giveDash(statups, localDuration / 1000));
+            //    }
+            //    else
+            //    {
+            //        applyto.GetClient().GetSession().write(MaplePacketCreator.giveBuff(applyto, (skill ? localsourceid : -localsourceid), localDuration, localstatups));
+            //    }
+            //}
+            //if (localstatups.Any())
+            //{
+            //    if (isDash())
+            //    {
+            //        applyto.GetClient().GetSession().write(MaplePacketCreator.giveDash(localstatups, localDuration / 1000));
+            //    }
+            //    else if (isInfusion())
+            //    {
+            //        applyto.GetClient().GetSession().write(MaplePacketCreator.giveInfusion(localDuration / 1000, x));
+            //    }
+            //    else
+            //    {
+            //        applyto.GetClient().GetSession().write(MaplePacketCreator.giveBuff(applyto, (skill ? localsourceid : -localsourceid), localDuration, localstatups));
+            //    }
+            //}
+            //if (isMonsterRiding())
+            //{
+            //    int ridingLevel = 0;
+            //    IMapleItem mount = applyfrom.Inventorys[MapleInventoryType.EQUIPPED.Value].Inventory[-18];
+            //    if (mount != null)
+            //    {
+            //        ridingLevel = mount.ItemID;
+            //    }
+            //    List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 1));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.showMonsterRiding(applyto.CharacterID, stat, ridingLevel, _sourceid), false);
+            //    localDuration = duration;
+            //}
+            //if (isBattleShip())
+            //{
+            //    int ridingLevel = 1932000;
+            //    List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.MONSTER_RIDING, 1));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.showMonsterRiding(applyto.CharacterID, stat, ridingLevel, _sourceid), false);
+            //    localDuration = duration;
+            //}
+            //if (isDs())
+            //{
+            //    List<Tuple<MapleBuffStat, int>> dsstat = Collections.singletonList(Tuple.Create(MapleBuffStat.DARKSIGHT, 0));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, dsstat, this), false);
+            //}
+            //if (isCombo())
+            //{
+            //    List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.COMBO, 1));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
+            //}
+            //if (isShadowPartner())
+            //{
+            //    List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.SHADOWPARTNER, 0));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
+            //}
+            //if (isSoulArrow())
+            //{
+            //    List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.SOULARROW, 0));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
+            //}
+            //if (isEnrage())
+            //{
+            //    applyto.handleOrbconsume();
+            //}
+            //if (isMorph)
+            //{
+            //    List<Tuple<MapleBuffStat, int>> stat = Collections.singletonList(Tuple.Create(MapleBuffStat.MORPH, morphId));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
+            //}
+            //if (isPirateMorph())
+            //{
+            //    List<Tuple<MapleBuffStat, int>> stat = new ArrayList<Tuple<MapleBuffStat, int>>();
+            //    stat.Add(Tuple.Create(MapleBuffStat.SPEED, speed)));
+            //    stat.Add(Tuple.Create(MapleBuffStat.MORPH, morphId)));
+            //    applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignBuff(applyto, stat, this), false);
+            //}
+            //if (IsTimeLeap())
+            //{
+            //    for (PlayerCoolDownValueHolder i : applyto.GetAllCooldowns())
+            //    {
+            //        if (i.skillId != 5121010)
+            //        {
+            //            applyto.removeCooldown(i.skillId);
+            //        }
+            //    }
+            //}
+            //if (localstatups.size() > 0)
+            //{
+            //    long starttime = System.currentTimeMillis();
+            //    CancelEffectAction cancelAction = new CancelEffectAction(applyto, this, starttime);
+            //    ScheduledFuture <?> schedule = TimerManager.GetInstance().schedule(cancelAction, localDuration);
+            //    applyto.registerEffect(this, starttime, schedule);
+            //}
+            //if (primary && !isHide())
+            //{
+            //    if (isDash())
+            //    {
+            //        applyto.Map().broadcastMessage(applyto, MaplePacketCreator.showDashEffecttoOthers(applyto.GetId(), localstatups, localDuration / 1000), false);
+            //    }
+            //    else if (isInfusion())
+            //    {
+            //        applyto.Map().broadcastMessage(applyto, MaplePacketCreator.giveForeignInfusion(applyto.GetId(), x, localDuration / 1000), false);
+            //    }
+            //    else
+            //    {
+            //        applyto.Map().broadcastMessage(applyto, MaplePacketCreator.showBuffeffect(applyto.GetId(), _sourceid, 1, (byte)3), false);
+            //    }
+            //}
+        }
 
         private int CalcHpChange(MapleCharacter applyfrom, bool primary)
         {
@@ -1537,34 +1552,35 @@ namespace NeoMapleStory.Game.Client
         {
             return _prop == 1.0 || Randomizer.NextDouble() < _prop;
         }
-        //     public class CancelEffectAction 
-        //    {
 
-        //    private MapleStatEffect effect;
-        //    private WeakReference<MapleCharacter> target;
-        //    private long startTime;
+        public class CancelEffectAction
+        {
 
-        //    public CancelEffectAction(MapleCharacter target, MapleStatEffect effect, long startTime)
-        //    {
-        //        this.effect = effect;
-        //        this.target = new WeakReference<MapleCharacter>(target);
-        //        this.startTime = startTime;
-        //    }
+            private MapleStatEffect effect;
+            private WeakReference<MapleCharacter> target;
+            private long startTime;
 
-        //    public void run()
-        //    {
-        //        MapleCharacter realTarget = target.Get();
-        //        if (realTarget != null)
-        //        {
-        //            if (realTarget.inCS() || realTarget.inMTS())
-        //            {
-        //                realTarget.AddToCancelBuffPackets(effect, startTime);
-        //                return;
-        //            }
-        //            realTarget.cancelEffect(effect, false, startTime);
-        //        }
-        //    }
-        //}
+            public CancelEffectAction(MapleCharacter target, MapleStatEffect effect, long startTime)
+            {
+                this.effect = effect;
+                this.target = new WeakReference<MapleCharacter>(target);
+                this.startTime = startTime;
+            }
+
+            public void run()
+            {
+                MapleCharacter realTarget;
+                if (target.TryGetTarget(out realTarget))
+                {
+                    //if (realTarget.inCS() || realTarget.inMTS())
+                    //{
+                    //    realTarget.AddToCancelBuffPackets(effect, startTime);
+                    //    return;
+                    //}
+                    realTarget.CancelEffect(effect, false, startTime);
+                }
+            }
+        }
     }
 }
 

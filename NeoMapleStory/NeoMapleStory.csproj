@@ -42,8 +42,8 @@
       <HintPath>..\packages\CS-Script.bin.3.12.1.0\lib\net45\CSScriptLibrary.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="FluentScheduler, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b76503528a14ebd1, processorArchitecture=MSIL">
-      <HintPath>..\packages\FluentScheduler.4.0.0\lib\net40\FluentScheduler.dll</HintPath>
+    <Reference Include="FluentScheduler, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b76503528a14ebd1, processorArchitecture=MSIL">
+      <HintPath>..\packages\FluentScheduler.4.0.1\lib\net40\FluentScheduler.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="log4net, Version=1.2.15.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
@@ -125,8 +125,7 @@
     <Compile Include="Core\IO\OutPacket.cs" />
     <Compile Include="Core\MethodExtension.cs" />
     <Compile Include="Core\Randomizer.cs" />
-    <Compile Include="Core\TimeManager\ITimerManager.cs" />
-    <Compile Include="Core\TimeManager\TimerManager.cs" />
+    <Compile Include="Core\TimerManager.cs" />
     <Compile Include="Game\Buff\MapleBuffStat.cs" />
     <Compile Include="Game\Client\AntiCheat\CheatingOffense.cs" />
     <Compile Include="Game\Client\AntiCheat\CheatingOffenseEntry.cs" />
@@ -169,6 +168,7 @@
     <Compile Include="Game\Inventory\MapleItemInformationProvider.cs" />
     <Compile Include="Game\Inventory\MapleWeaponType.cs" />
     <Compile Include="Game\Job\MapleJob.cs" />
+    <Compile Include="Game\Life\AbstractDealDamageHandler.cs" />
     <Compile Include="Game\Life\AbstractLoadedMapleLife.cs" />
     <Compile Include="Game\Life\BanishInfo.cs" />
     <Compile Include="Game\Life\Element.cs" />
@@ -182,6 +182,7 @@
     <Compile Include="Game\Client\MapleDisease.cs" />
     <Compile Include="Game\Client\MapleMount.cs" />
     <Compile Include="Game\Client\MaplePet.cs" />
+    <Compile Include="Game\Map\MapleMapItem.cs" />
     <Compile Include="Game\Map\MapleReactor.cs" />
     <Compile Include="Game\Map\MapleReactorFactory.cs" />
     <Compile Include="Game\Map\MapleReactorStats.cs" />

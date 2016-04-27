@@ -1,9 +1,9 @@
 ﻿using NeoMapleStory.Core.IO;
-using NeoMapleStory.Core.TimeManager;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
 using System;
 using System.Drawing;
+using NeoMapleStory.Core;
 
 namespace NeoMapleStory.Game.Map
 {

@@ -139,9 +139,10 @@ namespace NeoMapleStory.Game.Map
                         string id = MapleDataTool.GetString(life.GetChildByPath("id"));
                         string type = MapleDataTool.GetString(life.GetChildByPath("type"));
                         AbstractLoadedMapleLife myLife = loadLife(life, id, type);
-                        if (myLife is MapleMonster)
+                        var mapleMonster = myLife as MapleMonster;
+                        if (mapleMonster != null)
                         {
-                            MapleMonster monster = (MapleMonster)myLife;
+                            MapleMonster monster = mapleMonster;
                             int mobTime = MapleDataTool.GetInt("mobTime", life, 0);
                             if (mobTime == -1)
                             { 

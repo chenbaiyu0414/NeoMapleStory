@@ -36,17 +36,6 @@ namespace NeoMapleStory
 
         private void button2_Click(object sender, EventArgs e)
         {
-
-        }
-
-        private void MainForm_Load(object sender, EventArgs e)
-        {
-            Console.SetOut(new TextBoxWriter(textBox1));
-        }
-
-        private void button3_Click(object sender, EventArgs e)
-        {
-
             //Username = "cby40899570",
             //        Password = Core.Encryption.Sha256.Get("cby159753", grid),
             //        Salt = grid,
@@ -62,7 +51,7 @@ namespace NeoMapleStory
                 @"INSERT Account(Username,Password,PasswordSalt,SecretKey,SecretKeySalt,IsGm,MaplePoint,NexonPoint,BirthDate,RegisterDate,Email) 
                              VALUES(@Username,@Password,@PasswordSalt,@SecretKey,@SecretKeySalt,@IsGm,@MaplePoint,@NexonPoint,@BirthDate,@RegisterDate,@Email)");
             cmd.Parameters.Add(new MySqlParameter("@Username", "cby40899570"));
-            cmd.Parameters.Add(new MySqlParameter("@Password",Core.Encryption.Sha256.Get("cby159753",g1.ToString())));
+            cmd.Parameters.Add(new MySqlParameter("@Password", Core.Encryption.Sha256.Get("cby159753", g1.ToString())));
             cmd.Parameters.Add(new MySqlParameter("@PasswordSalt", g1.ToString().ToUpper()));
             cmd.Parameters.Add(new MySqlParameter("@SecretKey", Core.Encryption.Sha256.Get("159753", g2.ToString())));
             cmd.Parameters.Add(new MySqlParameter("@SecretKeySalt", g2.ToString().ToUpper()));
@@ -84,6 +73,11 @@ namespace NeoMapleStory
                 else
                     MessageBox.Show("失败");
             }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            Console.SetOut(new TextBoxWriter(textBox1));
         }
     }
 }

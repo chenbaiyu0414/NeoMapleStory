@@ -40,7 +40,8 @@ namespace NeoMapleStory.Server
 
             unchecked
             {
-                SendCipher = new MapleCipher((short)(0xFFFF - ServerSettings.MapleVersion), SendIv, MapleCipher.CipherType.Encrypt);
+                SendCipher = new MapleCipher((short) (0xFFFF - ServerSettings.MapleVersion), SendIv,
+                    MapleCipher.CipherType.Encrypt);
                 RecvCipher = new MapleCipher(ServerSettings.MapleVersion, RecvIv, MapleCipher.CipherType.Decrypt);
             }
         }

@@ -1,10 +1,9 @@
 ﻿using System;
 using FluentScheduler;
 
-
-namespace NeoMapleStory.Core.TimeManager
+namespace NeoMapleStory.Core
 {
-     public class TimerManager:Registry
+    public class TimerManager : Registry
     {
         public static TimerManager Instance { get; private set; }
 
@@ -67,7 +66,7 @@ namespace NeoMapleStory.Core.TimeManager
         {
             string name = nameof(action);
             JobManager.AddJob(action,
-                s => s.WithName(name).ToRunOnceIn((int) (timestamp - DateTime.Now.GetTimeMilliseconds())/1000).Seconds());
+                s => s.WithName(name).ToRunOnceIn((int)(timestamp - DateTime.Now.GetTimeMilliseconds()) / 1000).Seconds());
             //Schedule(action).ToRunOnceIn((int) (timestamp - DateTime.Now.GetTimeMilliseconds())/1000).Seconds();
             return name;
         }

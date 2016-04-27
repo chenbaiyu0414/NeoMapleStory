@@ -1,12 +1,12 @@
 ﻿using NeoMapleStory.Core;
 using NeoMapleStory.Core.IO;
-using NeoMapleStory.Core.TimeManager;
 using NeoMapleStory.Server;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using FluentScheduler;
 using NeoMapleStory.Game.Life;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Game.Mob;
@@ -105,6 +105,8 @@ namespace NeoMapleStory.Game.Map
         public string TimeMobMessage { get; set; } = "";
 
         public int MaxRegularSpawn => (int)(_monsterSpawn.Count / _monsterRate);
+
+        public bool HasEvent { get; set; }
 
         private static readonly int MaxOid = 20000;
 
@@ -405,6 +407,127 @@ namespace NeoMapleStory.Game.Map
             SpawnedMonstersOnMap.Increment();
         }
 
+        public List<IMapleMapObject> getAllPlayers()
+        {
+            return GetMapObjectsInRange(new Point(0, 0), double.PositiveInfinity, new List<MapleMapObjectType> { MapleMapObjectType.Player});
+        }
+
+        public bool damageMonster(MapleCharacter chr, MapleMonster monster, int damage)
+        {
+            if (monster.Id == 8500000 || monster.Id == 8800000)
+            {
+                //SpeedRankings.setStartTime(monster.Id == 8500000 ? 1 : 0, monster.Id, DateTime.Now.GetTimeMilliseconds());
+            }
+            if (monster.Id == 8800000)
+            {
+                var objects = chr.Map.Mapobjects.Values;
+                foreach (var mapobject in objects)
+                {
+                    MapleMonster mons = chr.Map.getMonsterByOid(mapobject.ObjectId);
+                    if (mons != null && mons.Id >= 8800003 && mons.Id <= 8800010)
+                    {
+                        return true;
+                    }
+                }
+            }
+            Console.WriteLine(monster.Hp);
+            if (monster.IsAlive)
+            {
+                lock (monster)
+                {
+                    if (!monster.IsAlive)
+                    {
+                        return false;
+                    }
+                    if (damage > 0)
+                    {
+                        int monsterhp = monster.Hp;
+                        monster.damage(chr, damage, true);
+                        if (!monster.IsAlive)
+                        {
+                            // monster just died
+                            killMonster(monster, chr, true);
+                            if (monster.Id >= 8810002 && monster.Id <= 8810009)
+                            {
+                                foreach (var mapobject in chr.Map.Mapobjects.Values)
+                                {
+                                    MapleMonster mons = chr.Map.getMonsterByOid(mapobject.ObjectId);
+                                    if (mons != null)
+                                    {
+                                        if (mons.Id == 8810018 || mons.Id == 8810026)
+                                        {
+                                            damageMonster(chr, mons, monsterhp);
+                                        }
+                                    }
+                                }
+                            }
+                            else if ((monster.Id >= 8820002 && monster.Id <= 8820006) || (monster.Id >= 8820015 && monster.Id <= 8820018))
+                            {
+                                foreach (var mapobject in chr.Map.Mapobjects.Values)
+                                {
+                                    MapleMonster mons = chr.Map.getMonsterByOid(mapobject.ObjectId);
+                                    if (mons?.Id >= 8820010 && mons.Id <= 8820014)
+                                    {
+                                        damageMonster(chr, mons, monsterhp);
+                                    }
+                                }
+                            }
+                        }
+                        else if (monster.Id >= 8810002 && monster.Id <= 8810009)
+                        {
+                            foreach (var mapobject in chr.Map.Mapobjects.Values)
+                            {
+                                MapleMonster mons = chr.Map.getMonsterByOid(mapobject.ObjectId);
+                                if (mons != null)
+                                {
+                                    if (mons.Id == 8810018 || mons.Id == 8810026)
+                                    {
+                                        damageMonster(chr, mons, damage);
+                                    }
+                                }
+                            }
+                        }
+                        else if ((monster.Id >= 8820002 && monster.Id <= 8820006) || (monster.Id >= 8820015 && monster.Id <= 8820018))
+                        {
+                            foreach (var mapobject in chr.Map.Mapobjects.Values)
+                            {
+                                MapleMonster mons = chr.Map.getMonsterByOid(mapobject.ObjectId);
+                                if (mons?.Id >= 8820010 && mons.Id <= 8820014)
+                                {
+                                    damageMonster(chr, mons, damage);
+                                }
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        public void killMonster( MapleMonster monster, MapleCharacter chr,bool withDrops)
+        {
+            killMonster(monster, chr, withDrops, false, 1);
+        }
+
+        public void killMonster(MapleMonster monster, MapleCharacter chr, bool withDrops, bool secondTime)
+        {
+            killMonster(monster, chr, withDrops, secondTime, 1);
+        }
+
+        public void killMonster(int monsId)
+        {
+            foreach (var mmo in Mapobjects.Values)
+            {
+                var monster = mmo as MapleMonster;
+                if (monster?.Id == monsId)
+                {
+                    var playerObjects = getAllPlayers();
+                    killMonster(monster, (MapleCharacter)playerObjects[0], false);
+                }
+            }
+        }
+
         public void killMonster(MapleMonster monster, MapleCharacter chr, bool withDrops, bool secondTime,
             int animation)
         {
@@ -470,42 +593,71 @@ namespace NeoMapleStory.Game.Map
             //}
             //}
             SpawnedMonstersOnMap.Decrement();
-            monster.Stats.Hp = 0;
+            monster.Hp = 0;
             BroadcastMessage(PacketCreator.killMonster(monster.ObjectId, true), monster.Position);
             removeMapObject(monster);
 
-            //        if (monster.Id >= 8800003 && monster.Id <= 8800010) {
-            //            boolean makeZakReal = true;
-            //Collection<MapleMapObject> objects = getMapObjects();
-            //            for (MapleMapObject object : objects) {
-            //                MapleMonster mons = getMonsterByOid(object.getObjectId());
-            //                if (mons != null) {
-            //                    if (mons.getId() >= 8800003 && mons.getId() <= 8800010) {
-            //                        makeZakReal = false;
-            //                    }
-            //                }
-            //            }
-            //            if (makeZakReal) {
-            //                for (MapleMapObject object : objects) {
-            //                    MapleMonster mons = chr.getMap().getMonsterByOid(object.getObjectId());
-            //                    if (mons != null) {
-            //                        if (mons.getId() == 8800000) {
-            //                            makeMonsterReal(mons);
-            //                            updateMonsterController(mons);
-            //                        }
-            //                    }
-            //                }
-            //            }
-            //        }
-            //MapleCharacter dropOwner = monster.killBy(chr);
-            //if (withDrops && !monster.dropsDisabled())
-            //{
-            //    if (dropOwner == null)
-            //    {
-            //        dropOwner = chr;
-            //    }
-            //    dropFromMonster(dropOwner, monster);
-            //}
+            if (monster.Id >= 8800003 && monster.Id <= 8800010)
+            {
+                bool makeZakReal = true;
+                foreach (var mobj in Mapobjects.Values)
+                {
+                    MapleMonster mons = getMonsterByOid(mobj.ObjectId);
+                    if (mons != null)
+                    {
+                        if (mons.Id >= 8800003 && mons.Id <= 8800010)
+                        {
+                            makeZakReal = false;
+                        }
+                    }
+                }
+                if (makeZakReal)
+                {
+                    foreach (var mobj in Mapobjects.Values)
+                    {
+                        MapleMonster mons = chr.Map.getMonsterByOid(mobj.ObjectId);
+                        if (mons != null)
+                        {
+                            if (mons.Id == 8800000)
+                            {
+                                //makeMonsterReal(mons);
+                                //updateMonsterController(mons);
+                            }
+                        }
+                    }
+                }
+            }
+            MapleCharacter dropOwner = monster.killBy(chr);
+            if (withDrops /*&& !monster.dropdisabled*/)
+            {
+                if (dropOwner == null)
+                {
+                    dropOwner = chr;
+                }
+                //dropFromMonster(dropOwner, monster);
+            }
+        }
+
+        public MapleMonster getMonsterByOid(int oid)
+        {
+            return
+                Mapobjects.Values.FirstOrDefault(x => x.ObjectId == oid && x.GetType() == MapleMapObjectType.Monster) as
+                    MapleMonster;
+        }
+
+        public MapleMonster getMonsterById(int id)
+        {
+            lock(Mapobjects) {
+                foreach (var obj in Mapobjects.Values)
+                {
+                    if (obj.GetType() != MapleMapObjectType.Monster) continue;
+                    if (((MapleMonster)obj).Id  == id)
+                    {
+                        return (MapleMonster)obj;
+                    }
+                }
+            }
+            return null;
         }
 
         public bool ContainsNpc(int npcid)
@@ -728,6 +880,24 @@ namespace NeoMapleStory.Game.Map
             }
         }
 
+        public void spawnMesoDrop(int meso, Point position, IMapleMapObject dropper, MapleCharacter owner, bool ffaLoot)
+        {
+            Point droppos = calcDropPos(position, position);
+            MapleMapItem mdrop = new MapleMapItem(meso, droppos, dropper, owner);
+            SpawnAndAddRangedMapObject(mdrop, client =>
+            {
+                client.Send(PacketCreator.dropMesoFromMapObject(meso, mdrop.ObjectId, dropper.ObjectId,
+                    ffaLoot ? 0 : owner.Id, dropper.Position, droppos, 1));
+            }, null);
+            TimerManager.Instance.ScheduleJob(() => ExpireMapItemJob(mdrop), _dropLife);
+        }
+
+        private Point calcDropPos(Point initial, Point fallback)
+        {
+            Point ret = calcPointBelow(new Point(initial.X, initial.Y - 99));
+            return ret == Point.Empty ? fallback : ret;
+        }
+
         public void AddPlayer(MapleCharacter chr)
         {
             lock (Characters)
@@ -893,7 +1063,8 @@ namespace NeoMapleStory.Game.Map
             {
                 if (mo != null)
                 {
-                    if (Mapobjects[mo.ObjectId] == mo)
+                    IMapleMapObject tempMapObject;                 
+                    if (Mapobjects.TryGetValue(mo.ObjectId, out tempMapObject) && tempMapObject == mo)
                     {
                         UpdateMapObjectVisibility(player, mo);
                     }
@@ -1101,7 +1272,27 @@ namespace NeoMapleStory.Game.Map
                 throw new Exception("SpawnMonsterWithEffect 出错！");
             }
         }
+
+        private void ExpireMapItemJob(MapleMapItem mapitem)
+        {
+            if (mapitem != null && mapitem == Mapobjects[mapitem.ObjectId])
+            {
+                lock (mapitem)
+                {
+                    if (mapitem.IsPickedUp)
+                    {
+                        return;
+                    }
+                    BroadcastMessage(PacketCreator.removeItemFromMap(mapitem.ObjectId, 0, 0), mapitem.Position);
+                    removeMapObject(mapitem);
+                    mapitem.IsPickedUp = true;
+                }
+            }
+
+        }
     }
+
+    
 
     interface ISpawnCondition
     {

@@ -10,7 +10,7 @@ namespace NeoMapleStory.Game.Quest
     {
         private static readonly Dictionary<int, MapleQuest> Quests = new Dictionary<int, MapleQuest>();
 
-        protected int QuestId { get; set; }
+        public int QuestId { get; set; }
         protected List<int> RelevantMobs { get; set; }
         protected List<MapleQuestRequirement> StartReqs;
         protected List<MapleQuestRequirement> CompleteReqs;
@@ -131,7 +131,7 @@ namespace NeoMapleStory.Game.Quest
             if (Quests.ContainsKey(questid))
                 Quests.Remove(questid);
         }
-        public bool CanComplete(MapleCharacter c, int npcid)
+        public bool CanComplete(MapleCharacter c, int? npcid)
         {
             if (c.GetQuest(this).Status != MapleQuestStatusType.Started)
             {

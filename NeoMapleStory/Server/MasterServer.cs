@@ -43,8 +43,8 @@ namespace NeoMapleStory.Server
                 }
                 Console.WriteLine("数据库连接成功");
 
-                JobManager.Initialize(new Core.TimeManager.TimerManager());
-                Core.TimeManager.TimerManager.Instance.Start();
+                JobManager.Initialize(new TimerManager());
+                TimerManager.Instance.Start();
             }
             catch (SqlException ex)
             {
