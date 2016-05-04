@@ -47,7 +47,7 @@ namespace NeoMapleStory.Game.Shop
 
         public void SendShop(MapleClient c)
         {
-            c.Character.Shop = this;
+            c.Player.Shop = this;
             c.Send(PacketCreator.GetNpcShop(c, Npcid, _mItems));
         }
 
@@ -141,13 +141,13 @@ namespace NeoMapleStory.Game.Shop
         {
             MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
 
-            IMapleItem item = c.Character.Inventorys[MapleInventoryType.Use.Value].Inventory[slot];
+            IMapleItem item = c.Player.Inventorys[MapleInventoryType.Use.Value].Inventory[slot];
 
             if (item == null || (!ii.IsThrowingStar(item.ItemId) && !ii.IsBullet(item.ItemId)))
             {
                 if (item != null && (!ii.IsThrowingStar(item.ItemId) || !ii.IsBullet(item.ItemId)))
                 {
-                    Console.WriteLine($"{c.Character.Name } is trying to recharge { item.ItemId}");
+                    Console.WriteLine($"{c.Player.Name } is trying to recharge { item.ItemId}");
                 }
                 return;
             }
@@ -155,16 +155,16 @@ namespace NeoMapleStory.Game.Shop
 
             if (item.Quantity < 0)
             {
-                Console.WriteLine($"{c.Character.Name } is trying to recharge { item.ItemId} with quantity { item.Quantity}");
+                Console.WriteLine($"{c.Player.Name } is trying to recharge { item.ItemId} with quantity { item.Quantity}");
             }
             if (item.Quantity < slotMax)
             {
                 int price = (int)Math.Round(ii.GetPrice(item.ItemId) * (slotMax - item.Quantity));
-                if (c.Character.Money.Value >= price)
+                if (c.Player.Money.Value >= price)
                 {
                     item.Quantity = slotMax;
                     c.Send(PacketCreator.UpdateInventorySlot(MapleInventoryType.Use, (Item)item));
-                    c.Character.GainMeso(-price, false, true, false);
+                    c.Player.GainMeso(-price, false, true, false);
                     c.Send(PacketCreator.ConfirmShopTransaction(0x8));
                 }
             }

@@ -581,8 +581,8 @@ namespace NeoMapleStory.Game.Client
                             {
                                 mob.Mp -= absorbMp;
                                 applyto.Mp += (short) absorbMp;
-                                applyto.Client.Send(PacketCreator.showOwnBuffEffect(_sourceid, 1));
-                                applyto.Map.BroadcastMessage(applyto, PacketCreator.showBuffeffect(applyto.Id, _sourceid, 1, 3), false);
+                                applyto.Client.Send(PacketCreator.ShowOwnBuffEffect(_sourceid, 1));
+                                applyto.Map.BroadcastMessage(applyto, PacketCreator.ShowBuffeffect(applyto.Id, _sourceid, 1, 3), false);
                             }
                         }
                         break;
@@ -610,7 +610,7 @@ namespace NeoMapleStory.Game.Client
                 if (_itemConNo != 0)
                 {
                     MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(_itemCon);
-                    MapleInventoryManipulator.removeById(applyto.Client, type, _itemCon, _itemConNo, false, true);
+                    MapleInventoryManipulator.RemoveById(applyto.Client, type, _itemCon, _itemConNo, false, true);
                 }
             }
             if (_cureDebuffs.Any())
@@ -725,7 +725,7 @@ namespace NeoMapleStory.Game.Client
                 }
                 else
                 {
-                    MapleInventoryManipulator.removeById(applyto.Client, MapleInventoryType.Use, projectile, 200, false, true);
+                    MapleInventoryManipulator.RemoveById(applyto.Client, MapleInventoryType.Use, projectile, 200, false, true);
                 }
             }
             if (_overTime)
@@ -794,11 +794,11 @@ namespace NeoMapleStory.Game.Client
                 if (applyto.IsHidden)
                 {
                     applyto.Map.BroadcastMessage(applyto, PacketCreator.RemovePlayerFromMap(applyto.Id), false);
-                    applyto.Client.Send(PacketCreator.giveGmHide(true));
+                    applyto.Client.Send(PacketCreator.GiveGmHide(true));
                 }
                 else
                 {
-                    applyto.Client.Send(PacketCreator.giveGmHide(false));
+                    applyto.Client.Send(PacketCreator.GiveGmHide(false));
                     applyto.Map.BroadcastMessage(applyto, PacketCreator.SpawnPlayerMapobject(applyto), false);
                     foreach (MaplePet pet in applyto.Pets)
                     {
@@ -890,8 +890,8 @@ namespace NeoMapleStory.Game.Client
                     // for heal this is an actual bug since heal hp is decreased with the number
                     // of affected players
                     applyTo(applyfrom, affected, false, null);
-                    affected.Client.Send(PacketCreator.showOwnBuffEffect(_sourceid, 2));
-                    affected.Map.BroadcastMessage(affected,PacketCreator.showBuffeffect(affected.Id, _sourceid, 2, 3), false);
+                    affected.Client.Send(PacketCreator.ShowOwnBuffEffect(_sourceid, 2));
+                    affected.Map.BroadcastMessage(affected,PacketCreator.ShowBuffeffect(affected.Id, _sourceid, 2, 3), false);
                 }
             }
         }
@@ -941,8 +941,8 @@ namespace NeoMapleStory.Game.Client
             localDuration = AlchemistModifyVal(chr, localDuration, false);
             CancelEffectAction cancelAction = new CancelEffectAction(chr, this, starttime);
 
-            var schedule = TimerManager.Instance.ScheduleJob(cancelAction.run, starttime + localDuration);
-            //chr.registerEffect(this, starttime, schedule);
+            var schedule = TimerManager.Instance.RunOnceTask(cancelAction.run, starttime + localDuration);
+            chr.registerEffect(this, starttime, schedule);
 
             SummonMovementType? summonMovementType = GetSummonMovementType();
             if (summonMovementType.HasValue)

@@ -6,17 +6,21 @@ using NeoMapleStory.Packet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SuperSocket.SocketBase;
+using NeoMapleStory.Core;
+using Quartz;
 
 namespace NeoMapleStory.Server
 {
-    
+
     public sealed class ChannelServer : BaseServer
     {
         public int ChannelId { get; private set; }
         public List<MapleCharacter> Characters { get; } = new List<MapleCharacter>();
 
         public int ExpRate { get; private set; } = 1;
+        public int BossDropRate { get; private set; } = 1;
+        public int DropRate { get; private set; } = 1;
+        public int MesoRate { get; private set; } = 1;
 
         public MapleMapFactory MapFactory { get; private set; }
         public int UserLogged => ClientCount;
@@ -27,6 +31,8 @@ namespace NeoMapleStory.Server
         {
             MapFactory= new MapleMapFactory(MapleDataProviderFactory.GetDataProvider("Map.wz"), MapleDataProviderFactory.GetDataProvider("String.wz"));
             ChannelId = id;
+
+            TimerManager.Instance.RepeatTask(RespawnMaps, 10*1000);
         }
 
         protected override void OnNewClientConnected(MapleClient client)
@@ -37,35 +43,37 @@ namespace NeoMapleStory.Server
 
         protected override void OnPacketHandlers()
         {
-            MProcessor = new PacketProcessor("频道服务器");
+            Processor = new PacketProcessor("频道服务器");
 
-            MProcessor.AppendHandler(RecvOpcodes.PlayerLoggedin, ChannelPacketHandlers.PLAYER_LOGGEDIN);
-            MProcessor.AppendHandler(RecvOpcodes.PlayerUpdate, ChannelPacketHandlers.PLAYER_UPDATE);
-            MProcessor.AppendHandler(RecvOpcodes.ChangeMapSpecial, ChannelPacketHandlers.CHANGE_MAP_SPECIAL);
-            MProcessor.AppendHandler(RecvOpcodes.NpcAction, ChannelPacketHandlers.NPC_ACTION);
-            MProcessor.AppendHandler(RecvOpcodes.MovePlayer, ChannelPacketHandlers.MOVE_PLAYER);
-            MProcessor.AppendHandler(RecvOpcodes.ChangeMap, ChannelPacketHandlers.CHANGE_MAP);
-            MProcessor.AppendHandler(RecvOpcodes.GeneralChat, ChannelPacketHandlers.GENERAL_CHAT);
-            MProcessor.AppendHandler(RecvOpcodes.NpcTalk, ChannelPacketHandlers.NPC_TALK);
-            MProcessor.AppendHandler(RecvOpcodes.MoveLife, ChannelPacketHandlers.MOVE_LIFE);
-            MProcessor.AppendHandler(RecvOpcodes.CloseRangeAttack, ChannelPacketHandlers.CLOSE_RANGE_ATTACK);
+            Processor.AppendHandler(RecvOpcodes.PlayerLoggedin, ChannelPacketHandlers.PLAYER_LOGGEDIN);
+            Processor.AppendHandler(RecvOpcodes.PlayerUpdate, ChannelPacketHandlers.PLAYER_UPDATE);
+            Processor.AppendHandler(RecvOpcodes.ChangeMapSpecial, ChannelPacketHandlers.CHANGE_MAP_SPECIAL);
+            Processor.AppendHandler(RecvOpcodes.NpcAction, ChannelPacketHandlers.NPC_ACTION);
+            Processor.AppendHandler(RecvOpcodes.MovePlayer, ChannelPacketHandlers.MOVE_PLAYER);
+            Processor.AppendHandler(RecvOpcodes.ChangeMap, ChannelPacketHandlers.CHANGE_MAP);
+            Processor.AppendHandler(RecvOpcodes.GeneralChat, ChannelPacketHandlers.GENERAL_CHAT);
+            Processor.AppendHandler(RecvOpcodes.NpcTalk, ChannelPacketHandlers.NPC_TALK);
+            Processor.AppendHandler(RecvOpcodes.MoveLife, ChannelPacketHandlers.MOVE_LIFE);
+            Processor.AppendHandler(RecvOpcodes.CloseRangeAttack, ChannelPacketHandlers.CLOSE_RANGE_ATTACK);
+            Processor.AppendHandler(RecvOpcodes.TakeDamage, ChannelPacketHandlers.TAKE_DAMAGE);
+            Processor.AppendHandler(RecvOpcodes.ItemPickup, ChannelPacketHandlers.ITEM_PICKUP);
         }
 
         public override bool Start()
         {
-            Console.WriteLine($"正在启动 {MProcessor.Label} {ChannelId + 1}线 监听端口: {Config.Port}");
+            Console.WriteLine($"正在启动 {Processor.Label} {ChannelId + 1}线 监听端口: {Config.Port}");
             bool result = base.Start();
             if (result)
-                Console.WriteLine($"{MProcessor.Label} {ChannelId + 1}线 启动成功");
+                Console.WriteLine($"{Processor.Label} {ChannelId + 1}线 启动成功");
             else
-                Console.WriteLine($"{MProcessor.Label} {ChannelId + 1}线 启动失败");
+                Console.WriteLine($"{Processor.Label} {ChannelId + 1}线 启动失败");
             return result;
         }
         public override void Stop()
         {
-            Console.WriteLine($"正在停止 {MProcessor.Label} {ChannelId + 1}线");
+            Console.WriteLine($"正在停止 {Processor.Label} {ChannelId + 1}线");
             base.Stop();
-            Console.WriteLine($"{MProcessor.Label} {ChannelId + 1}线 已停止");
+            Console.WriteLine($"{Processor.Label} {ChannelId + 1}线 已停止");
         }
 
         public List<MapleCharacter> GetPartyMembers(MapleParty party)
@@ -115,5 +123,12 @@ namespace NeoMapleStory.Server
             return false;
         }
 
+        private void RespawnMaps()
+        {
+            foreach (var map in MapFactory.Maps.Values)
+            {
+                map.respawn();
+            }          
+        }
     }
 }

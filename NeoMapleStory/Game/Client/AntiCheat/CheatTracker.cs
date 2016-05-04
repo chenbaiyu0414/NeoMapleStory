@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using FluentScheduler;
+using Quartz;
 
 namespace NeoMapleStory.Game.Client.AntiCheat
 {
-     public class CheatTracker
+    public class CheatTracker
     {
         public static Dictionary<CheatingOffense, CheatingOffenseEntry> Offenses { get; } =
             new Dictionary<CheatingOffense, CheatingOffenseEntry>();
@@ -36,12 +36,12 @@ namespace NeoMapleStory.Game.Client.AntiCheat
         private readonly string[] _lastText = {"", "", ""};
         private int _mobsOwned;
         private bool _ispickupComplete = true;
-        private static string _invalidationTaskToken;
+        private static TriggerKey _invalidationTaskToken;
 
         public CheatTracker(MapleCharacter chr)
         {
             _chr = new WeakReference(chr);
-            _invalidationTaskToken = TimerManager.Instance.RegisterJob<InvalidationTask>(60);
+            _invalidationTaskToken = TimerManager.Instance.RepeatTask<InvalidationTask>(60*1000);
             _takingDamageSince = _attackingSince = _regenMpSince = _regenHpSince = DateTime.Now.GetTimeMilliseconds();
         }
 
@@ -370,17 +370,11 @@ namespace NeoMapleStory.Game.Client.AntiCheat
             return ret.ToString();
         }
 
-        public static void Dispose()
-        {
-            TimerManager.Instance.CancelJob(_invalidationTaskToken);
-
-        }
-
         private class InvalidationTask :IJob
         {
-            public void Execute()
+            public void Execute(IJobExecutionContext context)
             {
-                 CheatingOffenseEntry[] offensesCopy = new CheatingOffenseEntry[Offenses.Count];
+                CheatingOffenseEntry[] offensesCopy = new CheatingOffenseEntry[Offenses.Count];
                 lock (Offenses)
                 {
                     Offenses.Values.CopyTo(offensesCopy, 0);
@@ -393,9 +387,9 @@ namespace NeoMapleStory.Game.Client.AntiCheat
 
                 if (!_chr.IsAlive)
                 {
-                    Dispose();
+                    TimerManager.Instance.CancelTask(_invalidationTaskToken);
                 }
-            }    
+            }
         }
     }
 }

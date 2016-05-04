@@ -119,9 +119,9 @@ namespace NeoMapleStory.Game.Map
 
         public override void SendDestroyData(MapleClient client)
         {
-            if (TargetMap.MapId == client.Character.Map.MapId || Owner == client.Character || Owner.Party != null && Owner.Party.ContainsMember(new MaplePartyCharacter(client.Character)))
+            if (TargetMap.MapId == client.Player.Map.MapId || Owner == client.Player || Owner.Party != null && Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player)))
             {
-                if (Owner.Party != null && (Owner == client.Character || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Character))))
+                if (Owner.Party != null && (Owner == client.Player || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player))))
                 {
                     client.Send(PacketCreator.PartyPortal(999999999, 999999999, new Point(-1, -1)));
                 }
@@ -132,10 +132,10 @@ namespace NeoMapleStory.Game.Map
 
         public override void SendSpawnData(MapleClient client)
         {
-            if (TargetMap.MapId == client.Character.Map.MapId || Owner == client.Character && Owner.Party == null)
+            if (TargetMap.MapId == client.Player.Map.MapId || Owner == client.Player && Owner.Party == null)
             {
-                client.Send(PacketCreator.SpawnDoor(Owner.Id, Town.MapId == client.Character.Map.MapId ? TownPortal.Position : TargetMapPosition, true));
-                if (Owner.Party != null && (Owner == client.Character || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Character))))
+                client.Send(PacketCreator.SpawnDoor(Owner.Id, Town.MapId == client.Player.Map.MapId ? TownPortal.Position : TargetMapPosition, true));
+                if (Owner.Party != null && (Owner == client.Player || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player))))
                 {
                     client.Send(PacketCreator.PartyPortal(Town.MapId, TargetMap.MapId, TargetMapPosition));
                 }

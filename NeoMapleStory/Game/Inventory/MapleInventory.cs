@@ -42,8 +42,8 @@ namespace NeoMapleStory.Game.Inventory
         {
             byte slotId = GetNextFreeSlot();
 
-            if (slotId == 0)
-                return 0;
+            if (slotId == 0xFF)
+                return 0xFF;
 
             Inventory.Add(slotId, item);
             item.Position = slotId;
@@ -53,7 +53,7 @@ namespace NeoMapleStory.Game.Inventory
         public byte GetNextFreeSlot()
         {
             if (IsFull())
-                return 0;
+                return 0xFF;
 
             for (byte i = 1; i <= SlotLimit; i++)
             {
@@ -62,7 +62,7 @@ namespace NeoMapleStory.Game.Inventory
                     return i;
                 }
             }
-            return 0;
+            return 0xFF;
         }
 
         public void AddFromDb(IMapleItem item)

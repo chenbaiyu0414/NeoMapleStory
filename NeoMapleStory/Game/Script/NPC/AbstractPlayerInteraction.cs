@@ -19,7 +19,7 @@ namespace NeoMapleStory.Game.Script.NPC
         public AbstractPlayerInteraction(MapleClient c)
         {
             Client = c;
-            Player = c.Character;
+            Player = c.Player;
         }
 
         public string ServerName
@@ -49,7 +49,7 @@ namespace NeoMapleStory.Game.Script.NPC
         public MapleMap GetMap(int map) => GetWarpMap(map);
 
         public bool ContainItem(int itemid, int quantity = 1, bool checkEquipped = false, bool exact = false)
-            => Player.haveItem(itemid, quantity, checkEquipped, exact);
+            => Player.HaveItem(itemid, quantity, checkEquipped, exact);
 
         public bool CanHold(int itemid)
             =>
@@ -64,7 +64,7 @@ namespace NeoMapleStory.Game.Script.NPC
         public bool IsQuestFinished(int id)
             => Player.GetQuest(MapleQuest.GetInstance(id)).Status == MapleQuestStatusType.Completed;
 
-        public void SetTimeOut(int time, int mapId) => TimerManager.Instance.ScheduleJob(() =>
+        public void SetTimeOut(int time, int mapId) => TimerManager.Instance.RunOnceTask(() =>
         {
             MapleMap map = Player.Map;
             MapleMap outMap = Client.ChannelServer.MapFactory.GetMap(mapId);
@@ -95,7 +95,7 @@ namespace NeoMapleStory.Game.Script.NPC
                 string logInfo =
                     $"{Player.Name} received {quantity} frome a scripted PlayerInteraction ({ToString()})";
 
-                if (!MapleInventoryManipulator.checkSpace(Client, id, quantity, ""))
+                if (!MapleInventoryManipulator.CheckSpace(Client, id, quantity, ""))
                 {
                     Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.Popup, "你的背包已满"));
                     return;
@@ -104,21 +104,21 @@ namespace NeoMapleStory.Game.Script.NPC
                 {
                     if (randomStats)
                     {
-                        MapleInventoryManipulator.addFromDrop(Client, ii.RandomizeStats((Equip)item), logInfo, false);
+                        MapleInventoryManipulator.AddFromDrop(Client, ii.RandomizeStats((Equip)item),false ,logInfo );
                     }
                     else
                     {
-                        MapleInventoryManipulator.addFromDrop(Client, (Equip)item, logInfo, false);
+                        MapleInventoryManipulator.AddFromDrop(Client, (Equip)item, false, logInfo);
                     }
                 }
                 else
                 {
-                    MapleInventoryManipulator.addById(Client, id, quantity, logInfo);
+                    MapleInventoryManipulator.AddById(Client, id, quantity, logInfo);
                 }
             }
             else
             {
-                MapleInventoryManipulator.removeById(Client, MapleItemInformationProvider.Instance.GetInventoryType(id),
+                MapleInventoryManipulator.RemoveById(Client, MapleItemInformationProvider.Instance.GetInventoryType(id),
                     id, -quantity, true, false);
             }
             Client.Send(PacketCreator.GetShowItemGain(id, quantity, true));
@@ -134,7 +134,7 @@ namespace NeoMapleStory.Game.Script.NPC
                 string logInfo =
                     $"{Player.Name} received {quantity} frome a scripted PlayerInteraction ({ToString()})";
 
-                if (!MapleInventoryManipulator.checkSpace(Client, id, quantity, ""))
+                if (!MapleInventoryManipulator.CheckSpace(Client, id, quantity, ""))
                 {
                     MapleInventoryType invtype = ii.GetInventoryType(id);
                     Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.Popup, "你的背包已满"));
@@ -143,25 +143,25 @@ namespace NeoMapleStory.Game.Script.NPC
                 if (type == MapleInventoryType.Equip && !ii.IsThrowingStar(item.ItemId) && !ii.IsBullet(item.ItemId))
                 {
                     if (randomStats)
-                        MapleInventoryManipulator.addFromDrop(Client, ii.RandomizeStats((Equip)item), logInfo, false);
+                        MapleInventoryManipulator.AddFromDrop(Client, ii.RandomizeStats((Equip)item),false ,logInfo );
                     else
-                        MapleInventoryManipulator.addFromDrop(Client, (Equip)item, logInfo, false);
+                        MapleInventoryManipulator.AddFromDrop(Client, (Equip)item, false, logInfo);
                 }
                 else
                 {
-                    MapleInventoryManipulator.addById(Client, id, quantity, logInfo);
+                    MapleInventoryManipulator.AddById(Client, id, quantity, logInfo);
                 }
             }
             else
             {
-                MapleInventoryManipulator.removeById(Client, MapleItemInformationProvider.Instance.GetInventoryType(id),
+                MapleInventoryManipulator.RemoveById(Client, MapleItemInformationProvider.Instance.GetInventoryType(id),
                     id, -quantity, true, false);
             }
             Client.Send(PacketCreator.GetShowItemGain(id, quantity, true));
             return true;
         }
 
-        public void ChangeMusic(string songName) => Player.Map.BroadcastMessage(PacketCreator.musicChange(songName));
+        public void ChangeMusic(string songName) => Player.Map.BroadcastMessage(PacketCreator.MusicChange(songName));
 
 
         public void PlayerMessage(string message,
@@ -228,13 +228,13 @@ namespace NeoMapleStory.Game.Script.NPC
                 if (quantity >= 0)
                 {
                     string logInfo =
-                        $"{cl.Character.Name} received {quantity} from event {chr.EventInstanceManager.Name}";
+                        $"{cl.Player.Name} received {quantity} from event {chr.EventInstanceManager.Name}";
 
-                    MapleInventoryManipulator.addById(cl, id, quantity, logInfo);
+                    MapleInventoryManipulator.AddById(cl, id, quantity, logInfo);
                 }
                 else
                 {
-                    MapleInventoryManipulator.removeById(cl, MapleItemInformationProvider.Instance.GetInventoryType(id),
+                    MapleInventoryManipulator.RemoveById(cl, MapleItemInformationProvider.Instance.GetInventoryType(id),
                         id, -quantity, true, false);
                 }
                 cl.Send(PacketCreator.GetShowItemGain(id, quantity, true));
@@ -256,12 +256,12 @@ namespace NeoMapleStory.Game.Script.NPC
             {
                 MapleClient cl = chr.Client;
                 MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(id);
-                MapleInventory iv = cl.Character.Inventorys[type.Value];
+                MapleInventory iv = cl.Player.Inventorys[type.Value];
                 int possesed = iv.CountById(id);
 
                 if (possesed > 0)
                 {
-                    MapleInventoryManipulator.removeById(Client,
+                    MapleInventoryManipulator.RemoveById(Client,
                         MapleItemInformationProvider.Instance.GetInventoryType(id), id, possesed, true, false);
                     cl.Send(PacketCreator.GetShowItemGain(id, (short)-possesed, true));
                 }
@@ -273,10 +273,10 @@ namespace NeoMapleStory.Game.Script.NPC
         public void removeAll(int id, MapleClient cl)
         {
             int possessed =
-                cl.Character.Inventorys[MapleItemInformationProvider.Instance.GetInventoryType(id).Value].CountById(id);
+                cl.Player.Inventorys[MapleItemInformationProvider.Instance.GetInventoryType(id).Value].CountById(id);
             if (possessed > 0)
             {
-                MapleInventoryManipulator.removeById(cl, MapleItemInformationProvider.Instance.GetInventoryType(id), id,
+                MapleInventoryManipulator.RemoveById(cl, MapleItemInformationProvider.Instance.GetInventoryType(id), id,
                     possessed, true, false);
                 cl.Send(PacketCreator.GetShowItemGain(id, (short)-possessed, true));
             }

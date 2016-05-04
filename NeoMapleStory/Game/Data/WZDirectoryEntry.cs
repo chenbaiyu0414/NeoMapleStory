@@ -23,13 +23,19 @@ namespace NeoMapleStory.Game.Data
         public void AddDirectory(IMapleDataDirectoryEntry dir)
         {
             _mSubDirs.Add(dir);
-            _mEntries.Add(dir.Name, dir);
+            if (_mEntries.ContainsKey(dir.Name))
+                _mEntries[dir.Name] = dir;
+            else
+                _mEntries.Add(dir.Name, dir);
         }
 
         public void AddFile(IMapleDataFileEntry fileEntry)
         {
             _mFiles.Add(fileEntry);
-            _mEntries.Add(fileEntry.Name, fileEntry);
+            if (_mEntries.ContainsKey(fileEntry.Name))
+                _mEntries[fileEntry.Name] = fileEntry;
+            else
+                _mEntries.Add(fileEntry.Name, fileEntry);
         }
 
         public IMapleDataEntry GetEntry(string name) => _mEntries[name];

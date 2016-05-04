@@ -19,7 +19,7 @@ namespace NeoMapleStory.Server
             byte gender = p.ReadByte();//00 男 01女
             string username = p.ReadMapleString();//username 
             DatabaseHelper.ChangeGender(username, gender);
-            c.Send(LoginPacket.GenderChanged(username, c.Account.Id.ToString()));
+            c.Send(LoginPacket.GenderChanged(username, c.AccountId.ToString()));
             c.Send(LoginPacket.LicenseRequest());
         }
 
@@ -37,18 +37,20 @@ namespace NeoMapleStory.Server
             string username = p.ReadMapleString();
             string password = p.ReadMapleString();
 
-            var result = DatabaseHelper.Login(username, password);
-            c.Account = DatabaseHelper.LoadAccount(username);
+
+            var result = DatabaseHelper.Login(c, username, password);
 
             switch (result)
             {
                 case DatabaseHelper.LoginResultCode.GenderNeeded:
+                    c.State = MapleClient.LoginState.WaitingForDetail;
                     c.Send(LoginPacket.GenderNeeded(username));
                     break;
                 case DatabaseHelper.LoginResultCode.Success:
                     var userLogged = new List<int>(ServerSettings.ChannelCount);
                     MasterServer.Instance.ChannelServers.ForEach(x => userLogged.Add(x.UserLogged));
-                    c.Send(LoginPacket.AuthSuccess(username, c.Account.Id, (byte)(c.Account.Gender.Value ? 1 : 0), (byte)(c.Account.IsGm ? 1 : 0)));
+                    c.Send(LoginPacket.AuthSuccess(username, c.AccountId, c.Gender));
+                    c.State = MapleClient.LoginState.LoggedIn;
                     c.Send(LoginPacket.ServerList(userLogged.ToArray()));
                     c.Send(LoginPacket.ServerListEnd());
                     break;
@@ -91,9 +93,12 @@ namespace NeoMapleStory.Server
 
         public static void CHARLIST_REQUEST(MapleClient c, InPacket p)
         {
-            c.WorldId = p.ReadByte();
-            c.ChannelId = p.ReadByte();
-            c.Send(LoginPacket.GetCharList(c));
+            if (c.State == MapleClient.LoginState.LoggedIn)
+            {
+                c.WorldId = p.ReadByte();
+                c.ChannelId = p.ReadByte();
+                c.Send(LoginPacket.GetCharList(c));
+            }
         }
 
         public static void CHECK_CHAR_NAME(MapleClient c, InPacket p)
@@ -130,8 +135,8 @@ namespace NeoMapleStory.Server
             int shoes = p.ReadInt();
             int weapon = p.ReadInt();
 
-            MapleCharacter newchar = MapleCharacter.GetDefault(c.Account);
-            if (c.Account.IsGm)
+            MapleCharacter newchar = MapleCharacter.GetDefault(c);
+            if (c.IsGm)
             {
                 newchar.GmLevel = 1;
             }
@@ -139,7 +144,7 @@ namespace NeoMapleStory.Server
             newchar.WorldId = c.WorldId;
             newchar.Face = face;
             newchar.Hair = hair + hairColor;
-            newchar.Gender = c.Account.Gender.Value;
+            newchar.Gender = c.Gender;
 
             if (job == 2)
             {
@@ -213,7 +218,12 @@ namespace NeoMapleStory.Server
 
         public static void CHAR_SELECT(MapleClient c,InPacket p)
         {
+            if (c.State != MapleClient.LoginState.LoggedIn)
+                return;
+
             int charId = p.ReadInt();
+
+            c.State = MapleClient.LoginState.ServerTransition;
             c.Send(LoginPacket.GetServerIp(System.Net.IPAddress.Parse("127.0.0.1"), 7575, charId));
         }
 
@@ -223,7 +233,7 @@ namespace NeoMapleStory.Server
         }
         public static void PLAYER_UPDATE(MapleClient c, InPacket p)
         {
-            c.Character.SaveToDb(true);
+            c?.Player?.SaveToDb(true);
         }
     }
 }

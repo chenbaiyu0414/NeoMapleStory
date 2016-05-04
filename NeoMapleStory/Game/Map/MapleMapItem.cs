@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Drawing;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Packet;
@@ -42,18 +37,18 @@ namespace NeoMapleStory.Game.Map
 
         public override void SendDestroyData(MapleClient client)
         {
-            client.Send(PacketCreator.removeItemFromMap(ObjectId, 1, 0));
+            client.Send(PacketCreator.RemoveItemFromMap(ObjectId, 1, 0));
         }
 
         public override void SendSpawnData(MapleClient client)
         {
             if (Money > 0)
             {
-                client.Send(PacketCreator.dropMesoFromMapObject(Money, ObjectId, Dropper.ObjectId, Owner.Id, Point.Empty, Position, 2));
+                client.Send(PacketCreator.DropMesoFromMapObject(Money, ObjectId, Dropper.ObjectId, Owner.Id, Point.Empty, Position, 2));
             }
             else
             {
-                client.Send(PacketCreator.dropItemFromMapObject(Item.ItemId, ObjectId, 0, Owner.Id, Point.Empty, Position, 2));
+                client.Send(PacketCreator.DropItemFromMapObject(Item.ItemId, ObjectId, 0, Owner.Id, Point.Empty, Position, 2));
             }
         }
 

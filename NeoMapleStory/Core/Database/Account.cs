@@ -4,7 +4,7 @@
     {
         public int Id { get; set; }
         public string Username { get; set; }
-        public bool? Gender { get; set; }
+        public bool Gender { get; set; }
         public bool IsGm { get; set; }
 
         /// <summary>

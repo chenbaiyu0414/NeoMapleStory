@@ -28,7 +28,7 @@ namespace NeoMapleStory.Game.Map
 
         public void EnterPortal(MapleClient c)
         {
-            MapleCharacter player = c.Character;
+            MapleCharacter player = c.Player;
 
             double distanceSq = Position.DistanceSquare(player.Position);
             if (distanceSq > 22500)

@@ -358,7 +358,7 @@ namespace NeoMapleStory.Game.Inventory
         protected IMapleData GetItemData(int itemId)
         {
             IMapleData ret = null;
-            string idStr = "0" + itemId.ToString();
+            string idStr = "0" + itemId;
             IMapleDataDirectoryEntry root = ItemData.GetRoot();
             foreach (IMapleDataDirectoryEntry topDir in root.GetSubDirectories())
             {
@@ -367,7 +367,7 @@ namespace NeoMapleStory.Game.Inventory
                 {
                     if (iFile.Name.Equals(idStr.Substring(0, 4) + ".img"))
                     {
-                        ret = ItemData.GetData(topDir.Name + "/" + iFile.Name);
+                        ret = ItemData.GetData(topDir.Name + "//" + iFile.Name);
                         if (ret == null)
                         {
                             return null;
@@ -375,7 +375,7 @@ namespace NeoMapleStory.Game.Inventory
                         ret = ret.GetChildByPath(idStr);
                         return ret;
                     }
-                    else if (iFile.Name.Equals(idStr.Substring(1) + ".img"))
+                    if (iFile.Name.Equals(idStr.Substring(1) + ".img"))
                     {
                         return ItemData.GetData(topDir.Name + "/" + iFile.Name);
                     }
@@ -559,11 +559,7 @@ namespace NeoMapleStory.Game.Inventory
             }
             Dictionary<string, int> ret = new Dictionary<string, int>();
             IMapleData item = GetItemData(itemId);
-            if (item == null)
-            {
-                return null;
-            }
-            IMapleData info = item.GetChildByPath("info");
+            IMapleData info = item?.GetChildByPath("info");
             if (info == null)
             {
                 return null;

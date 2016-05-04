@@ -13,7 +13,7 @@ namespace NeoMapleStory.Server
     
     public abstract class BaseServer : AppServer<MapleClient, PacketRequestInfo>
     {
-        protected PacketProcessor MProcessor;
+        protected PacketProcessor Processor;
 
         public BaseServer()
             : base(new DefaultReceiveFilterFactory<PacketReceiveFilter, PacketRequestInfo>())
@@ -21,6 +21,7 @@ namespace NeoMapleStory.Server
             NewSessionConnected += OnNewClientConnected;
             NewRequestReceived += OnNewRequestReceived;
             OnPacketHandlers();
+            
         }
 
         public List<MapleClient> Clients => GetAllSessions().ToList();
@@ -40,7 +41,7 @@ namespace NeoMapleStory.Server
             client.RecvCipher.Transform(data);
 
             var p = new InPacket(data);
-            PacketHandler handler = MProcessor[p.ReadShort()];
+            PacketHandler handler = Processor[p.ReadShort()];
 
             if (handler != null)
                 handler(client, p);
@@ -50,10 +51,16 @@ namespace NeoMapleStory.Server
 
         protected override void OnSessionClosed(MapleClient session, CloseReason reason)
         {
-            Console.WriteLine($"玩家 {session.SocketSession.RemoteEndPoint.Address}:{session.SocketSession.RemoteEndPoint.Port} 已断开连接 CloseReason:{reason}");
 
-            if (session.Account != null)
-                DatabaseHelper.PlayerExit(session.Account);
+            //if (session.Account != null)
+            //    DatabaseHelper.PlayerExit(session.Account);
+
+            lock (session)
+            {
+                session.Disconnect();
+            }
+
+            base.OnSessionClosed(session, reason);
         }
     }
 }

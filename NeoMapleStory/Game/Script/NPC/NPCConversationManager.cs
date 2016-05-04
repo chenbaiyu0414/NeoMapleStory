@@ -129,34 +129,34 @@ namespace NeoMapleStory.Game.Script.NPC
         }
 
 
-        public void SendNext(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.Next, NpcId, text, (byte)speaker));
+        public void SendNext(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Next, NpcId, text, (byte)speaker));
 
 
-        public void SendPrev(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.Prve, NpcId, text, (byte)speaker));
+        public void SendPrev(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Prve, NpcId, text, (byte)speaker));
 
 
-        public void SendNextPrev(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.NextPrve, NpcId, text, (byte)speaker));
+        public void SendNextPrev(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.NextPrve, NpcId, text, (byte)speaker));
 
 
-        public void SendOk(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.OK, NpcId, text, (byte)speaker));
+        public void SendOk(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Ok, NpcId, text, (byte)speaker));
 
 
-        public void SendYesNo(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.YesNo, NpcId, text, (byte)speaker));
+        public void SendYesNo(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.YesNo, NpcId, text, (byte)speaker));
 
 
-        public void SendAcceptDecline(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.AcceptDecline, NpcId, text, (byte)speaker));
+        public void SendAcceptDecline(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.AcceptDecline, NpcId, text, (byte)speaker));
 
 
-        public void SendSimple(string text, int speaker = 0) => Client.Send(PacketCreator.NPCTalk(PacketCreator.NpcTalkType.Simple, NpcId, text, (byte)speaker));
+        public void SendSimple(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Simple, NpcId, text, (byte)speaker));
 
 
-        public void SendStyle(string text, int[] styles, int card) => Client.Send(PacketCreator.NPCTalkStyle(NpcId, text, styles, card));
+        public void SendStyle(string text, int[] styles, int card) => Client.Send(PacketCreator.NpcTalkStyle(NpcId, text, styles, card));
 
 
-        public void SendGetNumber(string text, int def, int min, int max) => Client.Send(PacketCreator.NPCTalkNum(NpcId, text, def, min, max));
+        public void SendGetNumber(string text, int def, int min, int max) => Client.Send(PacketCreator.NpcTalkNum(NpcId, text, def, min, max));
 
 
-        public void SendGetText(string text) => Client.Send(PacketCreator.NPCTalkText(NpcId, text));
+        public void SendGetText(string text) => Client.Send(PacketCreator.NpcTalkText(NpcId, text));
 
 
         //        public void setGetText(String text)

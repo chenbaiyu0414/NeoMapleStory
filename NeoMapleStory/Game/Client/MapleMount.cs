@@ -1,5 +1,6 @@
 ﻿using NeoMapleStory.Core;
 using NeoMapleStory.Packet;
+using Quartz;
 
 namespace NeoMapleStory.Game.Client
 {
@@ -22,7 +23,7 @@ namespace NeoMapleStory.Game.Client
         public bool Active { get; set; }
 
         private static MapleCharacter _mOwner;
-        private string _mTokenSource;
+        private TriggerKey _mTokenSource;
 
         public MapleMount(MapleCharacter owner, int id, int skillid)
         {
@@ -37,12 +38,12 @@ namespace NeoMapleStory.Game.Client
 
         public void StartTask()
         {
-            _mTokenSource = TimerManager.Instance.RegisterJob(IncreaseTirednessJob, 60, 60);         
+            _mTokenSource = TimerManager.Instance.RepeatTask(IncreaseTirednessJob, 60 * 1000, 60 * 1000);
         }
 
         public void CancelTask()
         {
-            TimerManager.Instance.CancelJob(_mTokenSource);
+            TimerManager.Instance.CancelTask(_mTokenSource);
         }
 
         public void IncreaseTirednessJob()

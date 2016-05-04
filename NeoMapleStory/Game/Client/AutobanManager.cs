@@ -37,7 +37,7 @@ namespace NeoMapleStory.Game.Client
 
         public void Autoban(MapleClient c, string reason)
         {
-            if (c.Character.GmLevel > 0)
+            if (c.Player.GmLevel > 0)
             {
                 return;
             }
@@ -57,11 +57,11 @@ namespace NeoMapleStory.Game.Client
 
         public void AddPoints(MapleClient c, int points, long expiration, string reason)
         {
-            if (c.Character.GmLevel > 0)
+            if (c.Player.GmLevel > 0)
             {
                 return;
             }
-            int acc = c.Character.Account.Id;
+            int acc = c.Player.AccountId;
             List<string> reasonList;
             if (_mPoints.ContainsKey(acc))
             {
@@ -81,7 +81,7 @@ namespace NeoMapleStory.Game.Client
             }
             if (_mPoints[acc] >= AutobanPoints)
             {
-                string name = c.Character.Name;
+                string name = c.Player.Name;
                 StringBuilder banReason = new StringBuilder("Autoban for Character ");
                 banReason.Append(name);
                 banReason.Append(" (IP ");
@@ -92,7 +92,7 @@ namespace NeoMapleStory.Game.Client
                     banReason.Append(s);
                     banReason.Append(", ");
                 }
-                if (c.Character.GmLevel == 0)
+                if (c.Player.GmLevel == 0)
                 {
                     //c.ChannelServer.getWorldInterface().broadcastGMMessage(null, PacketCreator.ServerNotice( PacketCreator.ServerMessageType.LightBlueText, $"[系统警告] { name } 检测到使用非法程序.如继续使用将封号处理!").getBytes());
                 }

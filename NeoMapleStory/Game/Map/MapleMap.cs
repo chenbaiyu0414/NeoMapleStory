@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using FluentScheduler;
 using NeoMapleStory.Game.Life;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Game.Mob;
@@ -14,7 +13,9 @@ using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Skill;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Client.AntiCheat;
+using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.World;
+using Quartz;
 
 namespace NeoMapleStory.Game.Map
 {
@@ -108,6 +109,8 @@ namespace NeoMapleStory.Game.Map
 
         public bool HasEvent { get; set; }
 
+        public bool IsLootable { get; set; } = true;
+
         private static readonly int MaxOid = 20000;
 
         private static readonly List<MapleMapObjectType> RangedMapobjectTypes = new List<MapleMapObjectType>()
@@ -148,7 +151,7 @@ namespace NeoMapleStory.Game.Map
         private bool _hasEvent;
         private float _origMobRate;
         //private MapleOxQuiz ox = null;
-        private string _spawnWorker = null;
+        private TriggerKey _spawnWorker;
 
         private bool _cannotInvincible = false;
         private bool _canVipRock = true;
@@ -164,7 +167,7 @@ namespace NeoMapleStory.Game.Map
 
             if (monsterRate > 0)
             {
-                _spawnWorker = TimerManager.Instance.RegisterJob(RespawnWorker, 7);
+                _spawnWorker = TimerManager.Instance.RepeatTask(RespawnWorker, 7*1000);
             }
         }
 
@@ -391,7 +394,7 @@ namespace NeoMapleStory.Game.Map
             int removeAfter = monster.Stats.RemoveAfter;
             if (removeAfter > 0)
             {
-                TimerManager.Instance.ScheduleJob(() =>
+                TimerManager.Instance.RunOnceTask(() =>
                 {
                     killMonster(monster, Characters[0], false, false, 3);
                 }, removeAfter);
@@ -400,7 +403,7 @@ namespace NeoMapleStory.Game.Map
             {
                 SpawnAndAddRangedMapObject(monster, mc =>
                 {
-                    mc.Send(PacketCreator.spawnMonster(monster, true));
+                    mc.Send(PacketCreator.SpawnMonster(monster, true));
                 }, null);
                 UpdateMonsterController(monster);
             }
@@ -430,7 +433,7 @@ namespace NeoMapleStory.Game.Map
                     }
                 }
             }
-            Console.WriteLine(monster.Hp);
+
             if (monster.IsAlive)
             {
                 lock (monster)
@@ -559,7 +562,7 @@ namespace NeoMapleStory.Game.Map
             }
             if (monster.Id == 8810018 && !secondTime)
             {
-                TimerManager.Instance.ScheduleJob(() =>
+                TimerManager.Instance.RunOnceTask(() =>
                 {
                     killMonster(monster, chr, withDrops, true, 1);
                     //killAllMonsters();
@@ -594,7 +597,7 @@ namespace NeoMapleStory.Game.Map
             //}
             SpawnedMonstersOnMap.Decrement();
             monster.Hp = 0;
-            BroadcastMessage(PacketCreator.killMonster(monster.ObjectId, true), monster.Position);
+            BroadcastMessage(PacketCreator.KillMonster(monster.ObjectId, true), monster.Position);
             removeMapObject(monster);
 
             if (monster.Id >= 8800003 && monster.Id <= 8800010)
@@ -634,9 +637,260 @@ namespace NeoMapleStory.Game.Map
                 {
                     dropOwner = chr;
                 }
-                //dropFromMonster(dropOwner, monster);
+                dropFromMonster(dropOwner, monster);
             }
         }
+
+        private void dropFromMonster(MapleCharacter dropOwner, MapleMonster monster)
+        {
+            //if (dropsDisabled || monster.dropsDisabled())
+            //{
+            //    return;
+            //}
+
+            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+
+            int maxDrops = monster.getMaxDrops(dropOwner);
+            bool explosive = monster.Stats.IsExplosive;
+
+            List<int> toDrop = new List<int>();
+
+            for (int i = 0; i < maxDrops; i++)
+            {
+                toDrop.Add(monster.getDrop(dropOwner));
+            }
+
+            if (dropOwner.EventInstanceManager == null)
+            {
+                int chance = (int) (Randomizer.NextDouble()*100);
+                if (chance < 20)
+                {
+                    //20% chance of getting a maple leaf
+                    toDrop.Add(4001126);
+                }
+            }
+
+            if (monster.Id == 8810018)
+            {
+                toDrop.Add(2290096); //force add one MW per HT
+            }
+
+            List<int> alreadyDropped = new List<int>();
+            int htpendants = 0;
+            int htstones = 0;
+            for (int i = 0; i < toDrop.Count; i++)
+            {
+                if (toDrop[i] == 1122000)
+                {
+                    if (htpendants > 3)
+                    {
+                        toDrop[i] = -1;
+                    }
+                    else
+                    {
+                        htpendants++;
+                    }
+                }
+                else if (toDrop[i] == 4001094)
+                {
+                    if (htstones > 2)
+                    {
+                        toDrop[i] = 1;
+                    }
+                    else
+                    {
+                        htstones++;
+                    }
+                }
+                else if (alreadyDropped.Contains(toDrop[i]) && !explosive)
+                {
+                    toDrop.RemoveAt(i);
+                    i--;
+                }
+                else
+                {
+                    alreadyDropped.Add(toDrop[i]);
+                }
+            }
+
+            if (toDrop.Count > maxDrops)
+            {
+                toDrop = toDrop.Take(maxDrops).ToList();
+            }
+
+            Point[] toPoint = new Point[toDrop.Count];
+            int shiftDirection = 0;
+            int shiftCount = 0;
+
+            int curX = Math.Min(Math.Max(monster.Position.X - 25*(toDrop.Count/2), Footholds.MinDropX + 25),
+                Footholds.MaxDropX - toDrop.Count*25);
+            int curY = Math.Max(monster.Position.Y, Footholds.Point1.Y);
+
+            while (shiftDirection < 3 && shiftCount < 1000)
+            {
+                if (shiftDirection == 1)
+                {
+                    curX += 25;
+                }
+                else if (shiftDirection == 2)
+                {
+                    curX -= 25;
+                }
+                for (int i = 0; i < toDrop.Count; i++)
+                {
+                    MapleFoothold wall = Footholds.FindWall(new Point(curX, curY),
+                        new Point(curX + toDrop.Count*25, curY));
+                    if (wall != null)
+                    {
+                        if (wall.Point1.X < curX)
+                        {
+                            shiftDirection = 1;
+                            shiftCount++;
+                            break;
+                        }
+                        if (wall.Point1.X == curX)
+                        {
+                            if (shiftDirection == 0)
+                            {
+                                shiftDirection = 1;
+                            }
+                            shiftCount++;
+                            break;
+                        }
+
+                        shiftDirection = 2;
+                        shiftCount++;
+                        break;
+                    }
+                    if (i == toDrop.Count - 1)
+                    {
+                        shiftDirection = 3;
+                    }
+                    Point dropPos = calcDropPos(new Point(curX + i*25, curY), monster.Position);
+                    toPoint[i] = new Point(curX + i*25, curY);
+                    int drop = toDrop[i];
+
+                    if (drop == -1)
+                    {
+                        int mesoRate = dropOwner.Client.ChannelServer.MesoRate;
+                        double mesoDecrease = Math.Pow(0.93, monster.Stats.Exp/300.0);
+                        if (mesoDecrease > 1.0)
+                        {
+                            mesoDecrease = 1.0;
+                        }
+                        int tempmeso = Math.Min(30000,
+                            (int) (mesoDecrease*(monster.Stats.Exp)*(1.0 + Randomizer.NextDouble()*20)/10.0));
+                        if (dropOwner.GetBuffedValue(MapleBuffStat.Mesoup) != null)
+                        {
+                            var buffedValue = dropOwner.GetBuffedValue(MapleBuffStat.Mesoup);
+                            if (buffedValue != null)
+                                tempmeso = (int) ((double) tempmeso*buffedValue.Value/100.0);
+                        }
+
+                        int meso = tempmeso;
+
+                        if (meso > 0)
+                        {
+                            MapleMonster dropMonster = monster;
+                            MapleCharacter dropChar = dropOwner;
+                            TimerManager.Instance.RunOnceTask(() =>
+                            {
+                                spawnMesoDrop(meso*mesoRate, dropPos, dropMonster, dropChar, explosive);
+                            }, monster.Stats.GetAnimationTime("die1"));
+                        }
+                    }
+                    else
+                    {
+                        IMapleItem idrop;
+                        MapleInventoryType type = ii.GetInventoryType(drop);
+                        if (type == MapleInventoryType.Equip)
+                        {
+                            Equip nEquip = ii.RandomizeStats((Equip) ii.GetEquipById(drop));
+                            idrop = nEquip;
+                        }
+                        else
+                        {
+                            idrop = new Item(drop, 0, 1);
+                            if (ii.IsArrowForBow(drop) || ii.IsArrowForCrossBow(drop))
+                            {
+                                // Randomize quantity for certain items
+                                idrop.Quantity = (short) (1 + 100*Randomizer.NextDouble());
+                            }
+                            else if (ii.IsThrowingStar(drop) || ii.IsBullet(drop))
+                            {
+                                idrop.Quantity = 1;
+                            }
+                        }
+
+                        Console.WriteLine(
+                            "Created as a drop from monster " + monster.ObjectId + " (" + monster.Id + ") at " +
+                            dropPos.ToString() + " on map " + MapId);
+
+                        MapleMapItem mdrop = new MapleMapItem(idrop, dropPos, monster, dropOwner);
+                        IMapleMapObject dropMonster = monster;
+                        MapleCharacter dropChar = dropOwner;
+                        TimerManager.Instance.RunOnceTask(() =>
+                        {
+                                SpawnAndAddRangedMapObject(mdrop, mc=>
+                                {
+                                    Console.WriteLine("run spawnandadd");
+                                    mc.Send(PacketCreator.DropItemFromMapObject(drop,
+                                        mdrop.ObjectId,
+                                        dropMonster.ObjectId,
+                                        explosive ? 0 : dropChar.Id,
+                                        dropMonster.Position,
+                                        dropPos,
+                                        1));
+                                    activateItemReactors(mdrop);
+                                } ,null);
+
+                                TimerManager.Instance.RunOnceTask(()=> ExpireMapItemJob(mdrop), _dropLife);
+                            
+                        }, monster.Stats.GetAnimationTime("die1"));
+
+                    }
+                }
+            }
+        }
+
+        private void activateItemReactors(MapleMapItem drop)
+        {
+            IMapleItem item = drop.Item;
+            TimerManager tMan = TimerManager.Instance; //check for reactors on map that might use this item
+            foreach (var o in Mapobjects.Values)
+            {
+                if (o.GetType() == MapleMapObjectType.Reactor)
+                {
+                    MapleReactor reactor = o as MapleReactor;
+                    if (reactor == null)
+                        continue;
+
+                    if (reactor.ReactorType == 100)
+                    {
+                        if (reactor.ReactorItem.Item1 == item.ItemId && reactor.ReactorItem.Item2 <= item.Quantity)
+                        {
+                            Rectangle area = reactor.Area;
+
+                            if (area.Contains(drop.Position))
+                            {
+                                MapleClient ownerClient = null;
+                                if (drop.Owner != null)
+                                {
+                                    ownerClient = drop.Owner.Client;
+                                }
+
+                                if (!reactor.IsTimerActive)
+                                {
+                                    tMan.RunOnceTask(() => ActivateItemReactor(drop, reactor, ownerClient), 5000);
+                                    reactor.IsTimerActive = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
 
         public MapleMonster getMonsterByOid(int oid)
         {
@@ -784,7 +1038,7 @@ namespace NeoMapleStory.Game.Map
                     UpdateMonsterController((MapleMonster)o);
                 }
             }
-            MapleCharacter chr = mapleClient.Character;
+            MapleCharacter chr = mapleClient.Player;
 
             if (chr != null)
             {
@@ -886,10 +1140,10 @@ namespace NeoMapleStory.Game.Map
             MapleMapItem mdrop = new MapleMapItem(meso, droppos, dropper, owner);
             SpawnAndAddRangedMapObject(mdrop, client =>
             {
-                client.Send(PacketCreator.dropMesoFromMapObject(meso, mdrop.ObjectId, dropper.ObjectId,
+                client.Send(PacketCreator.DropMesoFromMapObject(meso, mdrop.ObjectId, dropper.ObjectId,
                     ffaLoot ? 0 : owner.Id, dropper.Position, droppos, 1));
             }, null);
-            TimerManager.Instance.ScheduleJob(() => ExpireMapItemJob(mdrop), _dropLife);
+            TimerManager.Instance.RunOnceTask(() => ExpireMapItemJob(mdrop), _dropLife);
         }
 
         private Point calcDropPos(Point initial, Point fallback)
@@ -997,11 +1251,11 @@ namespace NeoMapleStory.Game.Map
             }
             if (HasBoat.HasValue && HasBoat.Value)
             {
-                chr.Client.Send(PacketCreator.boatPacket(true));
+                chr.Client.Send(PacketCreator.BoatPacket(true));
             }
             else if (HasBoat.HasValue && !HasBoat.Value && (chr.Map.MapId != 200090000 || chr.Map.MapId != 200090010))
             {
-                chr.Client.Send(PacketCreator.boatPacket(false));
+                chr.Client.Send(PacketCreator.BoatPacket(false));
             }
             chr.ReceivePartyMemberHp();
         }
@@ -1137,7 +1391,7 @@ namespace NeoMapleStory.Game.Map
             reactor.IsTimerActive = false;
             if (reactor.Delay > 0)
             {
-                tMan.ScheduleJob(() =>
+                tMan.RunOnceTask(() =>
                 {
                     RespawnReactor(reactor);
                 }, reactor.Delay);
@@ -1225,7 +1479,7 @@ namespace NeoMapleStory.Game.Map
             List<MapleCharacter> character = new List<MapleCharacter>();
             lock (Characters)
             {
-                character.AddRange(Characters.Where(x => chr.Contains(x.Client.Character) && box.Contains(x.Position)));
+                character.AddRange(Characters.Where(x => chr.Contains(x.Client.Player) && box.Contains(x.Position)));
             }
             return character;
         }
@@ -1257,7 +1511,7 @@ namespace NeoMapleStory.Game.Map
                 {
                     SpawnAndAddRangedMapObject(monster, mc =>
                     {
-                        mc.Send(PacketCreator.spawnMonster(monster, true, (byte)effect));
+                        mc.Send(PacketCreator.SpawnMonster(monster, true, (byte)effect));
                     }, null);
                     if (monster.HasBossHPBar)
                     {
@@ -1275,7 +1529,7 @@ namespace NeoMapleStory.Game.Map
 
         private void ExpireMapItemJob(MapleMapItem mapitem)
         {
-            if (mapitem != null && mapitem == Mapobjects[mapitem.ObjectId])
+            if (mapitem != null && Mapobjects.ContainsKey(mapitem.ObjectId))
             {
                 lock (mapitem)
                 {
@@ -1283,12 +1537,69 @@ namespace NeoMapleStory.Game.Map
                     {
                         return;
                     }
-                    BroadcastMessage(PacketCreator.removeItemFromMap(mapitem.ObjectId, 0, 0), mapitem.Position);
+                    BroadcastMessage(PacketCreator.RemoveItemFromMap(mapitem.ObjectId, 0, 0), mapitem.Position);
                     removeMapObject(mapitem);
                     mapitem.IsPickedUp = true;
                 }
             }
 
+        }
+
+        private void ActivateItemReactor(MapleMapItem mapitem, MapleReactor reactor, MapleClient c)
+        {
+            Console.WriteLine("run Activate");
+            if (mapitem != null && mapitem == Mapobjects[mapitem.ObjectId])
+            {
+                lock(mapitem)
+                {
+                    if (mapitem.IsPickedUp)
+                    {
+                        return;
+                    }
+                   BroadcastMessage(PacketCreator.RemoveItemFromMap(mapitem.ObjectId, 0, 0), mapitem.Position);
+                    removeMapObject(mapitem);
+                    reactor.HitReactor(c);
+                    reactor.IsTimerActive = true;
+                    if (reactor.Delay > 0)
+                    { //This shit is negative.. Fix?
+                        TimerManager.Instance.RunOnceTask(()=>
+                        {
+                            reactor.State = 0;
+                            BroadcastMessage(PacketCreator.TriggerReactor(reactor, 0));
+                            Console.WriteLine("run reactor");
+                        }, reactor.Delay);
+                    }
+                }
+            }
+        }
+    
+
+        public void respawn()
+        {
+            if (!Characters.Any())
+            {
+                return;
+            }
+            int numShouldSpawn = (_monsterSpawn.Count - SpawnedMonstersOnMap.Value)*(int) Math.Round(_monsterRate);
+            if (numShouldSpawn > 0)
+            {
+                List<SpawnPoint> randomSpawn = new List<SpawnPoint>(_monsterSpawn);
+                randomSpawn.Shuffle();
+                int spawned = 0;
+
+                foreach (SpawnPoint spawnPoint in randomSpawn)
+                {
+                    if (spawnPoint.ShouldSpawn())
+                    {
+                        spawnPoint.spawnMonster(this);
+                        spawned++;
+                    }
+                    if (spawned >= numShouldSpawn)
+                    {
+                        break;
+                    }
+                }
+            }
         }
     }
 

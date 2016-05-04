@@ -56,8 +56,8 @@ namespace NeoMapleStory.Game.Mob
                         }
                         ret = new MobSkill(skillId, level);
                         ret.toSummon.AddRange(toSummon);
-                        ret.cooltime = cooltime;
-                        ret.duration = duration;
+                        ret.cooltime = cooltime * 1000;
+                        ret.duration = duration * 1000;
                         ret.hp = hp;
                         ret.mpCon = mpCon;
                         ret.spawnEffect = effect;

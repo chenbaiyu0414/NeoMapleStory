@@ -1,5 +1,6 @@
 ﻿using NeoMapleStory.Core;
 using System;
+using System.Diagnostics;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 
@@ -13,7 +14,7 @@ namespace NeoMapleStory
         }
 
         private bool _mIsRunning;
-        
+
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -78,6 +79,28 @@ namespace NeoMapleStory
         private void MainForm_Load(object sender, EventArgs e)
         {
             Console.SetOut(new TextBoxWriter(textBox1));
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (_mIsRunning)
+            {
+                MessageBox.Show("服务端运行中，请停止后再关闭!", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                e.Cancel = true;
+            }
+            else
+            {
+                e.Cancel = MessageBox.Show("确定要关闭吗？", "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes;
+            }
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            Process proc = Process.GetCurrentProcess();
+
+            double usedMemory = Math.Round(proc.PrivateMemorySize64 / 1024.00 / 1024.00, 2);
+
+            label1.Text = $"内存：{usedMemory} MB\nCPU：0 %";
         }
     }
 }

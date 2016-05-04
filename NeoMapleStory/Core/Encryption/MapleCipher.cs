@@ -45,6 +45,7 @@ namespace NeoMapleStory.Core.Encryption
 
         public MapleCipher(short majorVersion, byte[] iv, CipherType transformDirection)
         {
+            Console.WriteLine(majorVersion);
             _mMajorVersion = (short)(((majorVersion >> 8) & 0xFF) | ((majorVersion << 8) & 0xFF00));
 
             MIv = new byte[IvLength];
@@ -56,11 +57,11 @@ namespace NeoMapleStory.Core.Encryption
                 transformDirection == CipherType.Encrypt ? new Action<byte[]>(EncryptTransform) : new Action<byte[]>(DecryptTransform);
         }
 
-        public unsafe void Transform(byte[] data)
+        public void Transform(byte[] data)
         {
             _mTransformer(data);
 
-            byte[] newIv = new byte[IvLength] { 0xF2, 0x53, 0x50, 0xC6 };
+            byte[] newIv = { 0xF2, 0x53, 0x50, 0xC6 };
 
             for (int i = 0; i < IvLength; i++)
             {
@@ -72,8 +73,14 @@ namespace NeoMapleStory.Core.Encryption
                 newIv[2] ^= (byte)(SShiftKey[newIv[3]] + input);
                 newIv[3] -= (byte)(newIv[0] - tableInput);
 
-                fixed (byte* ptr = newIv)
-                    *(uint*)ptr = (*(uint*)ptr << 3) | (*(uint*)ptr >> 32 - 3); //RC6 ROL 3
+                uint val = BitConverter.ToUInt32(newIv, 0);
+                uint val2 = val >> 0x1D;
+                val <<= 0x03;
+                val2 |= val;
+                newIv[0] = (byte)(val2 & 0xFF);
+                newIv[1] = (byte)((val2 >> 8) & 0xFF);
+                newIv[2] = (byte)((val2 >> 16) & 0xFF);
+                newIv[3] = (byte)((val2 >> 24) & 0xFF);
             }
 
             Buffer.BlockCopy(newIv, 0, MIv, 0, IvLength);

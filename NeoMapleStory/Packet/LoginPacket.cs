@@ -53,13 +53,13 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket AuthSuccess(string username, int accountId, byte gender, byte gmLevel)
+        public static OutPacket AuthSuccess(string username, int accountId, bool gender)
         {
             using (OutPacket packet = new OutPacket(SendOpcodes.LoginStatus))
             {
                 packet.WriteByte(0x00);
                 packet.WriteInt(accountId);
-                packet.WriteByte(gender);
+                packet.WriteBool(gender);
                 packet.WriteShort(0);
                 packet.WriteMapleString(username);
                 packet.WriteBytes(new byte[] { 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0xE2, 0xED, 0xA3, 0x7A, 0xFA, 0xC9, 0x01 });

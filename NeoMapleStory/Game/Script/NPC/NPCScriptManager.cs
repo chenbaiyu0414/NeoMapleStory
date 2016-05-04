@@ -17,9 +17,9 @@ namespace NeoMapleStory.Game.Script.NPC
         public void Start(MapleClient c, int npcId)
         {
 
-            if (c.Character.GmLevel > 0)
+            if (c.Player.GmLevel > 0)
             {
-                c.Character.DropMessage($"与NPC:{npcId}成功建立对话!");
+                c.Player.DropMessage($"与NPC:{npcId}成功建立对话!");
             }
 
             NPCConversationManager cm = new NPCConversationManager(c, npcId);

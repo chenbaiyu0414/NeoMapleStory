@@ -15,38 +15,38 @@ namespace NeoMapleStory.Server
 
         protected override void OnPacketHandlers()
         {
-            MProcessor = new PacketProcessor("登录服务器");
+            Processor = new PacketProcessor("登录服务器");
 
-            MProcessor.AppendHandler(RecvOpcodes.LoginPassword, LoginPacketHandlers.LOGIN_AUTH);
-            MProcessor.AppendHandler(RecvOpcodes.SetGender, LoginPacketHandlers.OnGENDER_RESULT);
-            MProcessor.AppendHandler(RecvOpcodes.LicenseRequest, LoginPacketHandlers.OnLISENCE_RESULT);
-            MProcessor.AppendHandler(RecvOpcodes.ServerstatusRequest, LoginPacketHandlers.SERVERSTATUS_REQUEST);
-            MProcessor.AppendHandler(RecvOpcodes.ServerlistRequest, LoginPacketHandlers.SERVER_LIST_REQUEST);
-            MProcessor.AppendHandler(RecvOpcodes.ServerlistRerequest, LoginPacketHandlers.SERVER_LIST_REQUEST);
-            MProcessor.AppendHandler(RecvOpcodes.CharlistRequest, LoginPacketHandlers.CHARLIST_REQUEST);
-            MProcessor.AppendHandler(RecvOpcodes.CheckCharName, LoginPacketHandlers.CHECK_CHAR_NAME);
-            MProcessor.AppendHandler(RecvOpcodes.CreateChar, LoginPacketHandlers.CREATE_CHAR);
-            MProcessor.AppendHandler(RecvOpcodes.CharSelect, LoginPacketHandlers.CHAR_SELECT);
+            Processor.AppendHandler(RecvOpcodes.LoginPassword, LoginPacketHandlers.LOGIN_AUTH);
+            Processor.AppendHandler(RecvOpcodes.SetGender, LoginPacketHandlers.OnGENDER_RESULT);
+            Processor.AppendHandler(RecvOpcodes.LicenseRequest, LoginPacketHandlers.OnLISENCE_RESULT);
+            Processor.AppendHandler(RecvOpcodes.ServerstatusRequest, LoginPacketHandlers.SERVERSTATUS_REQUEST);
+            Processor.AppendHandler(RecvOpcodes.ServerlistRequest, LoginPacketHandlers.SERVER_LIST_REQUEST);
+            Processor.AppendHandler(RecvOpcodes.ServerlistRerequest, LoginPacketHandlers.SERVER_LIST_REQUEST);
+            Processor.AppendHandler(RecvOpcodes.CharlistRequest, LoginPacketHandlers.CHARLIST_REQUEST);
+            Processor.AppendHandler(RecvOpcodes.CheckCharName, LoginPacketHandlers.CHECK_CHAR_NAME);
+            Processor.AppendHandler(RecvOpcodes.CreateChar, LoginPacketHandlers.CREATE_CHAR);
+            Processor.AppendHandler(RecvOpcodes.CharSelect, LoginPacketHandlers.CHAR_SELECT);
             //m_processor.AppendHandler(RecvOpcodes.RELOG, LoginPacketHandlers.RELOG);
-            MProcessor.AppendHandler(RecvOpcodes.ErrorLog, LoginPacketHandlers.ERROR_LOG);
-            MProcessor.AppendHandler(RecvOpcodes.PlayerUpdate, LoginPacketHandlers.PLAYER_UPDATE);
+            Processor.AppendHandler(RecvOpcodes.ErrorLog, LoginPacketHandlers.ERROR_LOG);
+            Processor.AppendHandler(RecvOpcodes.PlayerUpdate, LoginPacketHandlers.PLAYER_UPDATE);
         }
 
         public override bool Start()
         {
-            Console.WriteLine($"正在启动 {MProcessor.Label} 监听端口: {Config.Port}");
+            Console.WriteLine($"正在启动 {Processor.Label} 监听端口: {Config.Port}");
             bool result = base.Start();
             if (result)
-                Console.WriteLine($"{MProcessor.Label} 启动成功");
+                Console.WriteLine($"{Processor.Label} 启动成功");
             else
-                Console.WriteLine($"{MProcessor.Label} 启动失败");
+                Console.WriteLine($"{Processor.Label} 启动失败");
             return result;
         }
         public override void Stop()
         {
-            Console.WriteLine($"正在停止 {MProcessor.Label}");
+            Console.WriteLine($"正在停止 {Processor.Label}");
             base.Stop();
-            Console.WriteLine($"{MProcessor.Label}已停止");
+            Console.WriteLine($"{Processor.Label}已停止");
         }
     }
 }

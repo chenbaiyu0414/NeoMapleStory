@@ -37,7 +37,7 @@ namespace NeoMapleStory.Game.Mob
         public int GetAnimationTime(string name)
         {
             int ret;
-            if (_mAnimationTimes.TryGetValue(name, out ret))
+            if (!_mAnimationTimes.TryGetValue(name, out ret))
             {
                 return 500;
             }

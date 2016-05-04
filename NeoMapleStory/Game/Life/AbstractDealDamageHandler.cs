@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client;
@@ -110,7 +107,7 @@ namespace NeoMapleStory.Game.Life
             for (int i = 0; i < ret.numAttacked; ++i)
             {
                 int oid = p.ReadInt();
-                Console.WriteLine($"Monster ObjectID: {oid}");
+
                 p.Skip(14);
 
                 var allDamageNumbers = new List<int>();
@@ -197,7 +194,7 @@ namespace NeoMapleStory.Game.Life
             if (attack.skill == 4211006)
             {
                 // meso explosion
-                int delay = 0;
+                long delay = 0;
                 foreach (var oned in attack.allDamage)
                 {
                     var mapobject = map.Mapobjects[oned.Item1];
@@ -212,10 +209,10 @@ namespace NeoMapleStory.Game.Life
                                 {
                                     return;
                                 }
-                                TimerManager.Instance.ScheduleJob(() =>
+                                TimerManager.Instance.RunOnceTask(() =>
                                 {
                                     map.removeMapObject(mapitem);
-                                    map.BroadcastMessage(PacketCreator.removeItemFromMap(mapitem.ObjectId, 4, 0), mapitem.Position);
+                                    map.BroadcastMessage(PacketCreator.RemoveItemFromMap(mapitem.ObjectId, 4, 0), mapitem.Position);
                                     mapitem.IsPickedUp = (true);
                                 }, delay);
                                 delay += 100;
@@ -261,7 +258,7 @@ namespace NeoMapleStory.Game.Life
                         }
                     }
                     // �?测单次攻击�?�，这里不会�?!
-                    if (player.Account.IsGm || player.Job == (MapleJob.Ares) && player.Level <= 10)
+                    if (player.IsGm || player.Job == (MapleJob.Ares) && player.Level <= 10)
                     {
                         //log.info("这里不进行操�?");
                     }
@@ -603,11 +600,11 @@ namespace NeoMapleStory.Game.Life
                     Point tdpos = new Point((int)(monsterPosition.X + Randomizer.NextDouble() * 100 - 50), monsterPosition.Y);
                     MapleMonster tdmob = monster;
                     MapleCharacter tdchar = player;
-                    TimerManager.Instance.ScheduleJob(() =>
+                    TimerManager.Instance.RunOnceTask(() =>
                     {
                         tdmap.spawnMesoDrop(todrop, tdpos, tdmob, tdchar, false);
                     }, delay);
-                    delay += 1;
+                    delay += 1000;
                 }
             }
         }
@@ -699,7 +696,7 @@ namespace NeoMapleStory.Game.Life
                     // * 3 until implementation of lagsafe pingchecks for buff expiration
                     if (damageToMonster <= elementalMaxDamagePerMonster * 4) return;
 
-                    if (player.Account.IsGm || player.Job == MapleJob.Ares && player.Level <= 10)
+                    if (player.IsGm || player.Job == MapleJob.Ares && player.Level <= 10)
                     {
                         //log.info("这里不进行操�?");
                     }

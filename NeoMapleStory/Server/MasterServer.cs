@@ -2,9 +2,9 @@
 using NeoMapleStory.Settings;
 using SuperSocket.SocketBase.Config;
 using System.Collections.Generic;
-using FluentScheduler;
 using NeoMapleStory.Core;
 using System.Data.SqlClient;
+using Quartz;
 
 namespace NeoMapleStory.Server
 {
@@ -43,8 +43,7 @@ namespace NeoMapleStory.Server
                 }
                 Console.WriteLine("数据库连接成功");
 
-                JobManager.Initialize(new TimerManager());
-                TimerManager.Instance.Start();
+                
             }
             catch (SqlException ex)
             {
@@ -56,6 +55,7 @@ namespace NeoMapleStory.Server
         {
             bool result = LoginServer.Start();
             ChannelServers.ForEach(x => { result = result && x.Start(); });
+            TimerManager.Instance.Start();
             return result;
         }
 
@@ -63,6 +63,7 @@ namespace NeoMapleStory.Server
         {
             LoginServer.Stop();
             ChannelServers.ForEach(x => x.Stop());
+            TimerManager.Instance.Stop();
         }
     }
 }

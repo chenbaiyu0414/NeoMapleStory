@@ -11,6 +11,7 @@ using NeoMapleStory.Core.IO;
 using NeoMapleStory.Core;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Job;
+using NeoMapleStory.Game.Quest;
 using NeoMapleStory.Game.Skill;
 
 namespace NeoMapleStory.Game.Mob
@@ -40,7 +41,7 @@ namespace NeoMapleStory.Game.Mob
         public bool IsHpLock { get; set; } = false;
 
         public OutPacket BossHPBarPacket
-            => PacketCreator.showBossHP(Id, Hp, MaxHp, Stats.TagColor, Stats.TagBgColor);
+            => PacketCreator.ShowBossHp(Id, Hp, MaxHp, Stats.TagColor, Stats.TagBgColor);
 
         public EventInstanceManager EventInstanceManager { get; set; }
 
@@ -108,7 +109,7 @@ namespace NeoMapleStory.Game.Mob
 
         public override void SendDestroyData(MapleClient client)
         {
-            client.Send(PacketCreator.killMonster(ObjectId, false));
+            client.Send(PacketCreator.KillMonster(ObjectId, false));
         }
 
         public override void SendSpawnData(MapleClient client)
@@ -116,13 +117,13 @@ namespace NeoMapleStory.Game.Mob
             if (!IsAlive)
                 return;
 
-            client.Send(IsFake ? PacketCreator.spawnFakeMonster(this, 0) : PacketCreator.spawnMonster(this, false));
+            client.Send(IsFake ? PacketCreator.SpawnFakeMonster(this, 0) : PacketCreator.SpawnMonster(this, false));
 
             if (stati.Any())
             {
                 activeEffects.ForEach((mse) =>
                 {
-                    client.Send(PacketCreator.applyMonsterStatus(ObjectId, mse.stati, mse.getSkill().SkillId, false, 0));
+                    client.Send(PacketCreator.ApplyMonsterStatus(ObjectId, mse.stati, mse.getSkill().SkillId, false, 0));
                 });
             }
 
@@ -154,7 +155,7 @@ namespace NeoMapleStory.Game.Mob
             if (controllers != null)
             {
                 controllers.stopControllingMonster(this);
-                controllers.Client.Send(PacketCreator.stopControllingMonster(ObjectId));
+                controllers.Client.Send(PacketCreator.StopControllingMonster(ObjectId));
             }
             newController.controlMonster(this, immediateAggro);
             SetController(newController);
@@ -225,7 +226,7 @@ namespace NeoMapleStory.Game.Mob
                     skillsUsedTimes.Add(skillTuple, 1);
             }
 
-            TimerManager.Instance.ScheduleJob(() =>
+            TimerManager.Instance.RunOnceTask(() =>
             {
                 clearSkill(skillId, level);
             }, cooltime);
@@ -320,12 +321,86 @@ namespace NeoMapleStory.Game.Mob
                         {
                             if (cattacker.LastAttackTime >= okTime)
                             {
-                                cattacker.Attacker.Client.Send(PacketCreator.showMonsterHP(ObjectId, remhppercentage));
+                                cattacker.Attacker.Client.Send(PacketCreator.ShowMonsterHp(ObjectId, remhppercentage));
                             }
                         }
                     }
                 }
             }
+        }
+
+        public int getDrop(MapleCharacter killer)
+        {
+            MapleMonsterInformationProvider mi = MapleMonsterInformationProvider.Instance;
+            int lastAssigned = -1;
+            int minChance = 1;
+            List<MapleMonsterInformationProvider.DropEntry> dl = mi.RetrieveDropChances(Id);
+            foreach (var d in dl)
+            {
+                if (d.Chance > minChance)
+                {
+                    minChance = d.Chance;
+                }
+            }
+            foreach (var d in dl)
+            {
+                d.AssignedRangeStart = lastAssigned + 1;
+                d.AssignedRangeLength = (int) Math.Ceiling(1.0/d.Chance*minChance);
+                lastAssigned += d.AssignedRangeLength;
+            }
+            int c = (int) (Randomizer.NextDouble()*minChance);
+            foreach (var d in dl)
+            {
+                int itemid = d.ItemId;
+                if ((c >= d.AssignedRangeStart) && (c < d.AssignedRangeStart + d.AssignedRangeLength))
+                {
+                    if (d.QuestId != 0)
+                    {
+                        if (killer.GetQuest(MapleQuest.GetInstance(d.QuestId)).Status == MapleQuestStatusType.Started)
+                        {
+                            return itemid;
+                        }
+                    }
+                    else
+                    {
+                        return itemid;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        public int getMaxDrops(MapleCharacter chr)
+        {
+            ChannelServer cserv = chr.Client.ChannelServer;
+            int maxDrops;
+            if (isPQMonster())
+            {
+                maxDrops = 1; //PQ Monsters always drop a max of 1 item (pass) - I think? MonsterCarnival monsters don't count
+            }
+            else if (Stats.IsExplosive)
+            {
+                maxDrops = 10 * cserv.BossDropRate;
+            }
+            else if (IsBoss && !Stats.IsExplosive)
+            {
+                maxDrops = 7 * cserv.BossDropRate;
+            }
+            else
+            {
+                maxDrops = 4 * cserv.DropRate;
+                if (stati.ContainsKey(MonsterStatus.Taunt))
+                {
+                    int alterDrops = stati[MonsterStatus.Taunt].stati[MonsterStatus.Taunt];
+                    maxDrops *= 1 + (alterDrops / 100);
+                }
+            }
+            return maxDrops;
+        }
+
+        public bool isPQMonster()
+        {
+            return (Id >= 9300000 && Id <= 9300003) || (Id >= 9300005 && Id <= 9300010) || (Id >= 9300012 && Id <= 9300017) || (Id >= 9300169 && Id <= 9300171);
         }
 
         public void heal(int hp, int mp)
@@ -347,7 +422,7 @@ namespace NeoMapleStory.Game.Mob
             if (mp2Heal >= 0)
                 Mp = mp2Heal;
 
-            Map.BroadcastMessage(PacketCreator.healMonster(ObjectId, hp));
+            Map.BroadcastMessage(PacketCreator.HealMonster(ObjectId, hp));
         }
 
         public bool applyStatus(MapleCharacter from, MonsterStatusEffect status, bool poison, long duration)
@@ -428,7 +503,7 @@ namespace NeoMapleStory.Game.Mob
             {
                 if (IsAlive)
                 {
-                    OutPacket packet = PacketCreator.cancelMonsterStatus(ObjectId, status.stati);
+                    OutPacket packet = PacketCreator.CancelMonsterStatus(ObjectId, status.stati);
                     Map.BroadcastMessage(packet, Position);
                     if (GetController() != null && !GetController().VisibleMapObjects.Contains(this))
                     {
@@ -529,7 +604,7 @@ namespace NeoMapleStory.Game.Mob
                 activeEffects.Add(status);
 
                 int animationTime = status.getSkill().AnimationTime;
-                OutPacket packet = PacketCreator.applyMonsterStatus(ObjectId, status.stati, status.getSkill().SkillId, false, 0);
+                OutPacket packet = PacketCreator.ApplyMonsterStatus(ObjectId, status.stati, status.getSkill().SkillId, false, 0);
                 Map.BroadcastMessage(packet, Position);
                 if (GetController() != null && !GetController().VisibleMapObjects.Contains(this))
                 {
@@ -576,7 +651,7 @@ namespace NeoMapleStory.Game.Mob
             if (this.GetController() != null)
             { 
                 // this can/should only happen when a hidden gm attacks the monster
-                GetController().Client.Send(PacketCreator.stopControllingMonster(this.ObjectId));
+                GetController().Client.Send(PacketCreator.StopControllingMonster(this.ObjectId));
                 GetController().stopControllingMonster(this);
             }
             if (this.IsBoss)
@@ -639,7 +714,7 @@ namespace NeoMapleStory.Game.Mob
         {
             TimerManager timerManager = TimerManager.Instance;
 
-            var applyPacket = PacketCreator.applyMonsterStatus(ObjectId,
+            var applyPacket = PacketCreator.ApplyMonsterStatus(ObjectId,
                 new Dictionary<MonsterStatus, int> { { status, x } }, skillId, true, 0, skill);
 
             Map.BroadcastMessage(applyPacket, Position);
@@ -649,11 +724,11 @@ namespace NeoMapleStory.Game.Mob
             }
 
 
-            timerManager.ScheduleJob(() =>
+            timerManager.RunOnceTask(() =>
             {
                 if (IsAlive)
                 {
-                    OutPacket packet = PacketCreator.cancelMonsterStatus(ObjectId,
+                    OutPacket packet = PacketCreator.CancelMonsterStatus(ObjectId,
                         new Dictionary<MonsterStatus, int> { { status, x } });
                     Map.BroadcastMessage(packet, Position);
                     if (GetController() != null && !GetController().VisibleMapObjects.Contains(this))

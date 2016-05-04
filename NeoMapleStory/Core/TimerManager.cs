@@ -1,87 +1,98 @@
 ﻿using System;
-using FluentScheduler;
+using Quartz;
+using Quartz.Impl;
+using Quartz.Util;
+using static Quartz.MisfireInstruction;
 
 namespace NeoMapleStory.Core
 {
-    public class TimerManager : Registry
+    public class TimerManager
     {
-        public static TimerManager Instance { get; private set; }
+        public static TimerManager Instance { get; } = new TimerManager();
+        private readonly IScheduler _scheduler;
 
         public TimerManager()
         {
-            Instance = this;
+            _scheduler = StdSchedulerFactory.GetDefaultScheduler();
         }
 
-        public void Start() => JobManager.Start();
+        public void Start() => _scheduler.Start();
 
-        public void Stop() => JobManager.Stop();
+        public void Stop() => _scheduler.Shutdown();
 
-        /// <summary>
-        /// 注册一个任务并按指定的时间重复执行
-        /// </summary>
-        /// <typeparam name="T">任务</typeparam>
-        /// <param name="repeatTime">重复时间，以秒为单位</param>
-        /// <param name="delay">推迟时间，以秒为单位</param>
-        /// <returns></returns>
-        public string RegisterJob<T>(int repeatTime, int delay = 0) where T : IJob
+
+        public TriggerKey RepeatTask<T>(long repeatTime, long delay = 0) where T : IJob
         {
-            string name = nameof(T);
-            JobManager.AddJob<T>(s => s.WithName(name).ToRunNow().AndEvery(repeatTime).Seconds().DelayFor(delay).Seconds());
-            //Schedule<T>().WithName(name).ToRunNow().AndEvery(repeatTime).Seconds().DelayFor(delay).Seconds();
-            return name;
+            TimeSpan timespan = TimeSpan.FromMilliseconds(repeatTime);
+            IJobDetail job = JobBuilder.Create<T>().Build();
+            ITrigger trigger =
+                TriggerBuilder.Create()
+                    .StartAt(DateTime.Now.AddMilliseconds(delay))
+                    .WithSimpleSchedule(x => x.WithInterval(timespan).RepeatForever())
+                    .Build();
+
+            _scheduler.ScheduleJob(job, trigger);
+            _scheduler.Start();
+            return trigger.Key;
         }
 
-        public string RegisterJob(Action action, int repeatTime, int delay = 0)
+        public TriggerKey RepeatTask(Action task, long repeatTime, long delay = 0)
         {
-            string name = nameof(action);
-            JobManager.AddJob(action, s => s.WithName(name).ToRunNow().AndEvery(repeatTime).Seconds().DelayFor(delay).Seconds());
-            //Schedule(action).WithName(name).ToRunNow().AndEvery(repeatTime).Seconds().DelayFor(delay).Seconds();
-            return name;
+            TimeSpan timespan = TimeSpan.FromMilliseconds(repeatTime);
+
+            JobDataMap jobdata = new JobDataMap { { "Action", task } };
+
+            IJobDetail job = JobBuilder.Create<ActionToIJob>().UsingJobData(jobdata).Build();
+
+            ITrigger trigger =
+                TriggerBuilder.Create()
+                    .StartAt(DateTime.Now.AddMilliseconds(delay))
+                    .WithSimpleSchedule(x => x.WithInterval(timespan).RepeatForever())
+                    .Build();
+
+            _scheduler.ScheduleJob(job, trigger);
+            _scheduler.Start();
+            return trigger.Key;
         }
 
-
-        /// <summary>
-        /// 开始一个任务并立即执行，只执行一次
-        /// </summary>
-        /// <typeparam name="T">任务</typeparam>
-        /// <param name="delay">推迟时间，以秒为单位</param>
-        /// <returns></returns>
-        public string ScheduleJob<T>(int delay) where T : IJob
+        public TriggerKey RunOnceTask<T>(long delay = 0) where T : IJob
         {
-            string name = nameof(T);
-            JobManager.AddJob<T>(s => s.WithName(name).ToRunOnceIn(delay).Seconds());
-            //Schedule<T>().WithName(name).ToRunOnceIn(delay).Seconds();
-            return name;
+            IJobDetail job = JobBuilder.Create<T>().Build();
+            ITrigger trigger =
+                TriggerBuilder.Create()
+                    .StartAt(DateTime.Now.AddMilliseconds(delay))
+                    .Build();
+
+            _scheduler.ScheduleJob(job, trigger);
+            _scheduler.Start();
+            return trigger.Key;
         }
 
-        public string ScheduleJob(Action action, int delay)
+        public TriggerKey RunOnceTask(Action task, long delay = 0)
         {
-            string name = nameof(action);
-            JobManager.AddJob(action, s => s.WithName(name).ToRunOnceIn(delay).Seconds());
-            //Schedule(action).ToRunOnceIn(delay).Seconds();
-            return name;
+            JobDataMap jobdata = new JobDataMap { { "Action", task } };
+
+            IJobDetail job = JobBuilder.Create<ActionToIJob>().UsingJobData(jobdata).Build();
+
+            ITrigger trigger =
+                TriggerBuilder.Create()
+                    .StartAt(DateTime.Now.AddMilliseconds(delay))
+                    .Build();
+
+            _scheduler.ScheduleJob(job, trigger);
+            _scheduler.Start();
+            return trigger.Key;
         }
 
-        public string ScheduleJobAtTimeStamp(Action action, long timestamp)
+        public bool CancelTask(TriggerKey triggerKey) => _scheduler.UnscheduleJob(triggerKey);
+
+        public class ActionToIJob : IJob
         {
-            string name = nameof(action);
-            JobManager.AddJob(action,
-                s => s.WithName(name).ToRunOnceIn((int)(timestamp - DateTime.Now.GetTimeMilliseconds()) / 1000).Seconds());
-            //Schedule(action).ToRunOnceIn((int) (timestamp - DateTime.Now.GetTimeMilliseconds())/1000).Seconds();
-            return name;
+            public void Execute(IJobExecutionContext context)
+            {
+                Action action = context.JobDetail.JobDataMap.Get("Action") as Action;
+                action?.Invoke();
+            }
         }
-
-        public void CancelJob(string name) => JobManager.RemoveJob(name);
-
-        ///// <summary>
-        ///// 开始一个任务并立即执行，只执行一次
-        ///// </summary>
-        ///// <typeparam name="T">任务</typeparam>
-        ///// <param name="timestamp">Unix时间戳</param>
-        ///// <returns></returns>
-        //public void ScheduleJob<T>(long timestamp) where T : IJob
-        //{
-        //   Schedule<T>().ToRunOnceAt(time)
-        //}
     }
 }

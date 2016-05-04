@@ -29,7 +29,7 @@ namespace NeoMapleStory.Game.Map
 
         public int ReactorType => _stats.GetType(State);
 
-        public Tuple<int, int> ReactItem => _stats.GetReactItem(State);
+        public Tuple<int, int> ReactorItem => _stats.GetReactItem(State);
 
         public Rectangle Area => new Rectangle(Position.X + _stats.Tl.X, Position.Y + _stats.Tl.Y, _stats.Br.X - _stats.Tl.X, _stats.Br.Y - _stats.Tl.Y);
 
@@ -41,7 +41,7 @@ namespace NeoMapleStory.Game.Map
 
         public void DelayedHitReactor(MapleClient c, int delay)
         {
-            TimerManager.Instance.ScheduleJob(() =>
+            TimerManager.Instance.RunOnceTask(() =>
              {
                  HitReactor(c);
              }, delay);

@@ -296,7 +296,7 @@ namespace NeoMapleStory.Packet
             using (OutPacket p = new OutPacket(SendOpcodes.CharCash))
             {
                 p.WriteInt(chr.Id);
-                p.WriteInt(chr.Account.NexonPoint);
+                p.WriteInt(chr.NexonPoint);
                 //p.WriteInt(chr.getCSPoints(1));
                 return p;
             }
@@ -318,23 +318,56 @@ namespace NeoMapleStory.Packet
             }
         }
 
-
-        public static OutPacket musicChange(string song)
+        public static OutPacket DamagePlayer(byte skill, int monsteridfrom, int cid, int damage, int fake, byte direction, bool pgmr, byte pgmr1, bool isPg, int oid, short posX, short posY)
         {
-            return environmentChange(song, 6);
+            // 82 00 30 C0 23 00 FF 00 00 00 00 B4 34 03 00 01 00 00 00 00 00 00
+            using (var p = new OutPacket(SendOpcodes.DamagePlayer))
+            {
+                // mplew.writeShort(0x84); // 47 82
+                p.WriteInt(cid);
+                p.WriteByte(skill);
+                p.WriteInt(damage);
+                p.WriteInt(monsteridfrom);
+                p.WriteByte(direction);
+                if (pgmr)
+                {
+                    p.WriteByte(pgmr1);
+                    p.WriteBool(isPg);
+                    p.WriteInt(oid);
+                    p.WriteByte(6);
+                    p.WriteShort(posX);
+                    p.WriteShort(posY);
+                    p.WriteByte(0);
+                }
+                else
+                {
+                    p.WriteShort(0);
+                }
+                p.WriteInt(damage);
+                if (fake > 0)
+                {
+                    p.WriteInt(fake);
+                }
+                return p;
+            }
         }
 
-        public static OutPacket showEffect(string effect)
+        public static OutPacket MusicChange(string song)
         {
-            return environmentChange(effect, 3);
+            return EnvironmentChange(song, 6);
         }
 
-        public static OutPacket playSound(string sound)
+        public static OutPacket ShowEffect(string effect)
         {
-            return environmentChange(sound, 4);
+            return EnvironmentChange(effect, 3);
         }
 
-        public static OutPacket environmentChange(string env, byte mode)
+        public static OutPacket PlaySound(string sound)
+        {
+            return EnvironmentChange(sound, 4);
+        }
+
+        public static OutPacket EnvironmentChange(string env, byte mode)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.BossEnv))
             {
@@ -581,23 +614,23 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket closeRangeAttack(int cid, int skill, byte stance, byte numAttackedAndDamage, List<Tuple<int, List<int>>> damage,byte speed, byte pos)
+        public static OutPacket CloseRangeAttack(int cid, int skill, byte stance, byte numAttackedAndDamage, List<Tuple<int, List<int>>> damage,byte speed, byte pos)
         {
             using (var p = new OutPacket(SendOpcodes.CloseRangeAttack))
             {
                 if (skill == 4211006)
                 {
-                    addMesoExplosion(p, cid, skill, stance, numAttackedAndDamage, 0, damage, speed, pos);
+                    AddMesoExplosion(p, cid, skill, stance, numAttackedAndDamage, 0, damage, speed, pos);
                 }
                 else
                 {
-                    addAttackBody(p, cid, skill, stance, numAttackedAndDamage, 0, damage, speed, pos);
+                    AddAttackBody(p, cid, skill, stance, numAttackedAndDamage, 0, damage, speed, pos);
                 }
                 return p;
             }
         }
 
-        private static void addAttackBody(OutPacket lew, int cid, int skill, byte stance, byte numAttackedAndDamage, int projectile, List<Tuple<int, List<int>>> damage, byte speed, byte pos)
+        private static void AddAttackBody(OutPacket lew, int cid, int skill, byte stance, byte numAttackedAndDamage, int projectile, List<Tuple<int, List<int>>> damage, byte speed, byte pos)
         {
             lew.WriteInt(cid);
             lew.WriteByte(numAttackedAndDamage);
@@ -632,7 +665,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        private static void addMesoExplosion(OutPacket lew, int cid, int skill, byte stance, byte numAttackedAndDamage, int projectile, List<Tuple<int, List<int>>> damage,byte speed, byte pos)
+        private static void AddMesoExplosion(OutPacket lew, int cid, int skill, byte stance, byte numAttackedAndDamage, int projectile, List<Tuple<int, List<int>>> damage,byte speed, byte pos)
         {
             // BC 00 90 E5 2F 00 00 5A 1A 3E 41 40 00 00 3F 00 03 0A 00 00 00 00 //078
             lew.WriteInt(cid);
@@ -663,12 +696,12 @@ namespace NeoMapleStory.Packet
 
         }
 
-        public static OutPacket removeItemFromMap(int oid, byte animation, int cid)
+        public static OutPacket RemoveItemFromMap(int oid, byte animation, int cid)
         {
-            return removeItemFromMap(oid, animation, cid, false, 0);
+            return RemoveItemFromMap(oid, animation, cid, false, 0);
         }
 
-        public static OutPacket removeItemFromMap(int oid, byte animation, int cid, bool pet, byte slot)
+        public static OutPacket RemoveItemFromMap(int oid, byte animation, int cid, bool pet, byte slot)
         {
             using (var p = new OutPacket(SendOpcodes.RemoveItemFromMap))
             {
@@ -686,17 +719,17 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket dropMesoFromMapObject(int amount, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod)
+        public static OutPacket DropMesoFromMapObject(int amount, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod)
         {
-            return dropItemFromMapObjectInternal(amount, itemoid, dropperoid, ownerid, dropfrom, dropto, mod, true);
+            return DropItemFromMapObjectInternal(amount, itemoid, dropperoid, ownerid, dropfrom, dropto, mod, true);
         }
 
-        public static OutPacket dropItemFromMapObject(int itemid, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod)
+        public static OutPacket DropItemFromMapObject(int itemid, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod)
         {
-            return dropItemFromMapObjectInternal(itemid, itemoid, dropperoid, ownerid, dropfrom, dropto, mod, false);
+            return DropItemFromMapObjectInternal(itemid, itemoid, dropperoid, ownerid, dropfrom, dropto, mod, false);
         }
 
-        public static OutPacket dropItemFromMapObjectInternal(int itemid, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod, bool mesos)
+        public static OutPacket DropItemFromMapObjectInternal(int itemid, int itemoid, int dropperoid, int ownerid, Point dropfrom, Point dropto, byte mod, bool mesos)
         {
             using (var p = new OutPacket(SendOpcodes.DropItemFromMapobject))
             {
@@ -926,8 +959,6 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket UpdatePlayerStats(List<Tuple<MapleStat, int>> stats, bool itemReaction)
         {
-
-
             using (OutPacket p = new OutPacket(SendOpcodes.UpdateStats))
             {
                 p.WriteBool(itemReaction);
@@ -937,10 +968,9 @@ namespace NeoMapleStory.Packet
                 {
                     updateMask |= (int)statupdate.Item1;
                 }
-                p.WriteInt(updateMask);
 
                 var mystats = stats;
-                if (mystats.Any())
+                if (mystats.Count>1)
                 {
                     mystats.Sort((obj1, obj2) =>
                     {
@@ -950,6 +980,7 @@ namespace NeoMapleStory.Packet
                     });
                 }
 
+                p.WriteInt(updateMask);
                 foreach (var statupdate in mystats)
                 {
                     int valueleft = (int)statupdate.Item1;
@@ -959,7 +990,7 @@ namespace NeoMapleStory.Packet
                     {
                         if (valueleft == 0x1)
                         {
-                            p.WriteShort((short)statupdate.Item2);
+                            p.WriteShort(valueright);
                         }
                         else if (valueleft <= 0x4)
                         {
@@ -967,11 +998,11 @@ namespace NeoMapleStory.Packet
                         }
                         else if (valueleft < 0x80)
                         {
-                            p.WriteByte((byte)statupdate.Item2);
+                            p.WriteByte((byte)valueright);
                         }
                         else if (valueleft < 0x40000)
                         {
-                            p.WriteShort((short)statupdate.Item2);
+                            p.WriteShort(valueright);
                         }
                         else {
                             p.WriteInt(statupdate.Item2);
@@ -1315,9 +1346,9 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket boatPacket(bool type) => boatPacket(type ? 1 : 2);
+        public static OutPacket BoatPacket(bool type) => BoatPacket(type ? 1 : 2);
 
-        public static OutPacket boatPacket(int effect)
+        public static OutPacket BoatPacket(int effect)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.BoatEffect))
             {
@@ -1370,7 +1401,7 @@ namespace NeoMapleStory.Packet
         }
 
 
-        public static OutPacket getWarpToMap(MapleMap to, byte spawnPoint, MapleCharacter chr)
+        public static OutPacket GetWarpToMap(MapleMap to, byte spawnPoint, MapleCharacter chr)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.WarpToMap))
             {
@@ -1388,7 +1419,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket getWarpToMap(int to, byte spawnPoint, MapleCharacter chr)
+        public static OutPacket GetWarpToMap(int to, byte spawnPoint, MapleCharacter chr)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.WarpToMap))
             {
@@ -1624,13 +1655,13 @@ namespace NeoMapleStory.Packet
             Next,
             Prve,
             NextPrve,
-            OK,
+            Ok,
             YesNo,
             AcceptDecline,
             Simple
         }
 
-        public static OutPacket NPCTalk(NpcTalkType type, int npcId, string content, byte speaker = 0)
+        public static OutPacket NpcTalk(NpcTalkType type, int npcId, string content, byte speaker = 0)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.NpcTalk))
             {
@@ -1670,7 +1701,7 @@ namespace NeoMapleStory.Packet
                         p.WriteByte(0x01);
                         p.WriteByte(0x01);
                         break;
-                    case NpcTalkType.OK:
+                    case NpcTalkType.Ok:
                         p.WriteByte(0x00);
                         p.WriteByte(0x00);
                         break;
@@ -1680,7 +1711,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket NPCTalkStyle(int npc, string talk, int[] styles, int card)
+        public static OutPacket NpcTalkStyle(int npc, string talk, int[] styles, int card)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.NpcTalk))
             {
@@ -1700,7 +1731,7 @@ namespace NeoMapleStory.Packet
 
         }
 
-        public static OutPacket NPCTalkNum(int npc, string talk, int def, int min, int max)
+        public static OutPacket NpcTalkNum(int npc, string talk, int def, int min, int max)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.NpcTalk))
             {
@@ -1716,7 +1747,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket NPCTalkText(int npc, string talk)
+        public static OutPacket NpcTalkText(int npc, string talk)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.NpcTalk))
             {
@@ -1817,7 +1848,7 @@ namespace NeoMapleStory.Packet
                 p.WriteBytes(new byte[] { 0x01, 0x01 }); // update   // mode
                 p.WriteByte(type.Value); // iv type
                 p.WriteByte(item.Position); // slot id
-                p.WriteByte(0x01);
+                p.WriteByte(0x00);
                 p.WriteShort(item.Quantity);
                 return p;
             }
@@ -2397,7 +2428,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket giveDebuff(long mask, List<Tuple<MapleDisease, int>> statups, MobSkill skill)
+        public static OutPacket GiveDebuff(long mask, List<Tuple<MapleDisease, int>> statups, MobSkill skill)
         {
             // [1D 00] [00 00 00 00 00 00 00 00] [00 00 02 00 00 00 00 00] [00 00] [7B 00] [04 00] [B8 0B 00 00] [00 00] [84 03] [01]
             using (var p = new OutPacket(SendOpcodes.GiveBuff))
@@ -2419,7 +2450,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket giveForeignDebuff(int cid, long mask, MobSkill skill)
+        public static OutPacket GiveForeignDebuff(int cid, long mask, MobSkill skill)
         {
             using (var p = new OutPacket(SendOpcodes.GiveForeignBuff))
             {
@@ -2435,7 +2466,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket showOwnBuffEffect(int skillid, byte effectid)
+        public static OutPacket ShowOwnBuffEffect(int skillid, byte effectid)
         {
             using (var p = new OutPacket(SendOpcodes.ShowItemGainInchat))
             {
@@ -2447,12 +2478,12 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket showBuffeffect(int cid, int skillid, byte effectid)
+        public static OutPacket ShowBuffeffect(int cid, int skillid, byte effectid)
         {
-            return showBuffeffect(cid, skillid, effectid, 3, false);
+            return ShowBuffeffect(cid, skillid, effectid, 3, false);
         }
 
-        public static OutPacket showBuffeffect(int cid, int skillid, byte effectid, byte direction)
+        public static OutPacket ShowBuffeffect(int cid, int skillid, byte effectid, byte direction)
         {
             using (var p = new OutPacket(SendOpcodes.ShowForeignEffect))
             {
@@ -2470,7 +2501,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket showBuffeffect(int cid, int skillid, byte effectid, byte direction, bool morph)
+        public static OutPacket ShowBuffeffect(int cid, int skillid, byte effectid, byte direction, bool morph)
         {
             using (var p = new OutPacket(SendOpcodes.ShowForeignEffect))
             {
@@ -2492,7 +2523,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket giveGmHide(bool hidden)
+        public static OutPacket GiveGmHide(bool hidden)
         {
             using (var p = new OutPacket(SendOpcodes.Gm))
             {
@@ -2503,9 +2534,9 @@ namespace NeoMapleStory.Packet
         }
 
         #region 怪物
-        public static OutPacket killMonster(int oid, bool animation)
+        public static OutPacket KillMonster(int oid, bool animation)
         {
-            return killMonster(oid, (byte)(animation ? 1 : 0));
+            return KillMonster(oid, (byte)(animation ? 1 : 0));
         }
 
         /**
@@ -2515,7 +2546,7 @@ namespace NeoMapleStory.Packet
          * @param animation 0 = dissapear, 1 = fade out, 2+ = special
          * @return The kill monster packet.
          */
-        public static OutPacket killMonster(int oid, byte animation)
+        public static OutPacket KillMonster(int oid, byte animation)
         {
 
             using (OutPacket p = new OutPacket(SendOpcodes.KillMonster))
@@ -2526,7 +2557,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket spawnFakeMonster(MapleMonster life, int effect)
+        public static OutPacket SpawnFakeMonster(MapleMonster life, int effect)
         {
             using (OutPacket p = new OutPacket(SendOpcodes.SpawnMonsterControl))
             {
@@ -2559,22 +2590,22 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket spawnMonster(MapleMonster life, bool newSpawn)
+        public static OutPacket SpawnMonster(MapleMonster life, bool newSpawn)
         {
-            return spawnMonsterInternal(life, false, newSpawn, false, 0, false);
+            return SpawnMonsterInternal(life, false, newSpawn, false, 0, false);
         }
 
-        public static OutPacket spawnMonster(MapleMonster life, bool newSpawn, byte effect)
+        public static OutPacket SpawnMonster(MapleMonster life, bool newSpawn, byte effect)
         {
-            return spawnMonsterInternal(life, false, newSpawn, false, effect, false);
+            return SpawnMonsterInternal(life, false, newSpawn, false, effect, false);
         }
 
-        public static OutPacket controlMonster(MapleMonster life, bool newSpawn, bool aggro)
+        public static OutPacket ControlMonster(MapleMonster life, bool newSpawn, bool aggro)
         {
-            return spawnMonsterInternal(life, true, newSpawn, aggro, 0, false);
+            return SpawnMonsterInternal(life, true, newSpawn, aggro, 0, false);
         }
 
-        public static OutPacket stopControllingMonster(int oid)
+        public static OutPacket StopControllingMonster(int oid)
         {
             using (var p = new OutPacket(SendOpcodes.SpawnMonsterControl))
             {
@@ -2585,7 +2616,7 @@ namespace NeoMapleStory.Packet
         }
 
 
-        private static OutPacket spawnMonsterInternal(MapleMonster life, bool requestController, bool newSpawn, bool aggro, byte effect, bool makeInvis)
+        private static OutPacket SpawnMonsterInternal(MapleMonster life, bool requestController, bool newSpawn, bool aggro, byte effect, bool makeInvis)
         {
             if (makeInvis)
             {
@@ -2653,12 +2684,12 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket applyMonsterStatus(int oid, Dictionary<MonsterStatus, int> stats, int skill, bool monsterSkill, int delay)
+        public static OutPacket ApplyMonsterStatus(int oid, Dictionary<MonsterStatus, int> stats, int skill, bool monsterSkill, int delay)
         {
-            return applyMonsterStatus(oid, stats, skill, monsterSkill, delay, null);
+            return ApplyMonsterStatus(oid, stats, skill, monsterSkill, delay, null);
         }
 
-        public static OutPacket applyMonsterStatus(int oid, Dictionary<MonsterStatus, int> stats, int skill, bool monsterSkill, int delay, MobSkill mobskill)
+        public static OutPacket ApplyMonsterStatus(int oid, Dictionary<MonsterStatus, int> stats, int skill, bool monsterSkill, int delay, MobSkill mobskill)
         {
             // 9B 00 67 40 6F 00 80 00 00 00 01 00 FD FE 30 00 08 00 64 00 01
             // 1D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 10 00 01 00 79 00 01 00 B4 78 00 00 00 00 84 03
@@ -2700,7 +2731,7 @@ namespace NeoMapleStory.Packet
         }
 
 
-        public static OutPacket moveMonsterResponse(int objectid, short moveid, int currentMp, bool useSkills, byte skillId = 0, byte skillLevel = 0)
+        public static OutPacket MoveMonsterResponse(int objectid, short moveid, int currentMp, bool useSkills, byte skillId = 0, byte skillLevel = 0)
         {
             // A1 00 18 DC 41 00 01 00 00 1E 00 00 00
             // A1 00 22 22 22 22 01 00 00 00 00 00 00
@@ -2719,7 +2750,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket moveMonster(int useskill, int skill, int skill_1, int skill_2, int skill_3, int oid, Point startPos, List<ILifeMovementFragment> moves)
+        public static OutPacket MoveMonster(int useskill, int skill, int skill1, int skill2, int skill3, int oid, Point startPos, List<ILifeMovementFragment> moves)
         {
             using (var mplew = new OutPacket(SendOpcodes.MoveMonster))
             {
@@ -2727,9 +2758,9 @@ namespace NeoMapleStory.Packet
                 mplew.WriteByte(0x00);
                 mplew.WriteByte((byte)useskill); // 0
                 mplew.WriteByte((byte)skill); // -1
-                mplew.WriteByte((byte)skill_1); // 0
-                mplew.WriteByte((byte)skill_2); // 0
-                mplew.WriteByte((byte)skill_3); // 0
+                mplew.WriteByte((byte)skill1); // 0
+                mplew.WriteByte((byte)skill2); // 0
+                mplew.WriteByte((byte)skill3); // 0
                 mplew.WriteByte(0); // 0
                 mplew.WriteShort((short)startPos.X);
                 mplew.WriteShort((short)startPos.Y);
@@ -2748,7 +2779,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket showMonsterHP(int oid, byte remhppercentage)
+        public static OutPacket ShowMonsterHp(int oid, byte remhppercentage)
         {
             using (var p = new OutPacket(SendOpcodes.ShowMonsterHp))
             {
@@ -2758,7 +2789,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket showBossHP(int oid, int currHP, int maxHP, byte tagColor, byte tagBgColor)
+        public static OutPacket ShowBossHp(int oid, int currHp, int maxHp, byte tagColor, byte tagBgColor)
         {
             //53 00 05 21 B3 81 00 46 F2 5E 01 C0 F3 5E 01 04 01
             //00 81 B3 21 = 8500001 = Pap monster ID
@@ -2769,15 +2800,15 @@ namespace NeoMapleStory.Packet
             {
                 p.WriteByte(0x05);
                 p.WriteInt(oid);
-                p.WriteInt(currHP);
-                p.WriteInt(maxHP);
+                p.WriteInt(currHp);
+                p.WriteInt(maxHp);
                 p.WriteByte(tagColor);
                 p.WriteByte(tagBgColor);
                 return p;
             }
         }
 
-        public static OutPacket damageMonster(int oid, int damage)
+        public static OutPacket DamageMonster(int oid, int damage)
         {
             using (var p = new OutPacket(SendOpcodes.DamageMonster))
             {
@@ -2788,7 +2819,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket healMonster(int oid, int heal)
+        public static OutPacket HealMonster(int oid, int heal)
         {
             using (var p = new OutPacket(SendOpcodes.DamageMonster))
             {
@@ -2799,7 +2830,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket cancelMonsterStatus(int oid, Dictionary<MonsterStatus, int> stats)
+        public static OutPacket CancelMonsterStatus(int oid, Dictionary<MonsterStatus, int> stats)
         {
             // D9 00 EF AE F4 00 00 00 01 00 03 //074
             using (var p = new OutPacket(SendOpcodes.CancelMonsterStatus))

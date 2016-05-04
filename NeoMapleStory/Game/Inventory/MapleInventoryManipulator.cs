@@ -9,12 +9,11 @@ namespace NeoMapleStory.Game.Inventory
 {
      public class MapleInventoryManipulator
     {
-        public static bool addFromDrop(MapleClient c, IMapleItem item, bool show, string owner = null)
+        public static bool AddFromDrop(MapleClient c, IMapleItem item, bool show,string loginfo="")
         {
             MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
             MapleInventoryType type = ii.GetInventoryType(item.ItemId);
-            if (!c.ChannelServer.AllowMoreThanOne && ii.IsPickupRestricted(item.ItemId) &&
-                c.Character.haveItem(item.ItemId, 1, true, false))
+            if (!c.ChannelServer.AllowMoreThanOne && ii.IsPickupRestricted(item.ItemId) &&  c.Player.HaveItem(item.ItemId, 1, true, false))
             {
                 c.Send(PacketCreator.GetInventoryFull());
                 c.Send(PacketCreator.ShowItemUnavailable());
@@ -29,22 +28,31 @@ namespace NeoMapleStory.Game.Inventory
             if (type != MapleInventoryType.Equip)
             {
                 short slotMax = ii.GetSlotMax(c, item.ItemId);
-                List<IMapleItem> existing = c.Character.Inventorys[type.Value].ListById(item.ItemId);
+                List<IMapleItem> existing = c.Player.Inventorys[type.Value].ListById(item.ItemId);
                 if (!ii.IsThrowingStar(item.ItemId) && !ii.IsBullet(item.ItemId))
                 {
                     if (existing.Any())
                     {
-                        for (int i = 0; i < existing.Count && quantity > 0; i++)
+                        var i = existing.GetEnumerator();
+                        while(quantity>0)
                         {
-                            Item eItem = (Item)existing[i];
-                            short oldQ = eItem.Quantity;
-                            if (oldQ < slotMax && item.Owner == eItem.Owner)
+                            if (i.MoveNext())
                             {
-                                short newQ = (short)Math.Min(oldQ + quantity, slotMax);
-                                quantity -= (short)(newQ - oldQ);
-                                eItem.Quantity = newQ;
-                                c.Send(PacketCreator.UpdateInventorySlot(type, eItem, true));
+                                Item eItem = (Item) i.Current;
+                                if (eItem != null)
+                                {
+                                    short oldQ = eItem.Quantity;
+                                    if (oldQ < slotMax && item.Owner == eItem.Owner)
+                                    {
+                                        short newQ = (short) Math.Min(oldQ + quantity, slotMax);
+                                        quantity -= (short) (newQ - oldQ);
+                                        eItem.Quantity = newQ;
+                                        c.Send(PacketCreator.UpdateInventorySlot(type, eItem, true));
+                                    }
+                                }
                             }
+                            else
+                                break;
                         }
                     }
                     // add new slots if there is still something left
@@ -53,8 +61,8 @@ namespace NeoMapleStory.Game.Inventory
                         short newQ = Math.Min(quantity, slotMax);
                         quantity -= newQ;
                         Item nItem = new Item(item.ItemId, 0, newQ) { Owner = item.Owner };
-                        byte newSlot = c.Character.Inventorys[type.Value].AddItem(nItem);
-                        if (newSlot == 128)
+                        byte newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
+                        if (newSlot == 0xFF)
                         {
                             c.Send(PacketCreator.GetInventoryFull());
                             c.Send(PacketCreator.GetShowInventoryFull());
@@ -68,8 +76,8 @@ namespace NeoMapleStory.Game.Inventory
                 {
                     // Throwing Stars and Bullets - Add all into one slot regardless of quantity.
                     Item nItem = new Item(item.ItemId, 0, quantity);
-                    byte newSlot = c.Character.Inventorys[type.Value].AddItem(nItem);
-                    if (newSlot == 128)
+                    byte newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
+                    if (newSlot == 0xFF)
                     {
                         c.Send(PacketCreator.GetInventoryFull());
                         c.Send(PacketCreator.GetShowInventoryFull());
@@ -83,9 +91,9 @@ namespace NeoMapleStory.Game.Inventory
             {
                 if (quantity == 1)
                 {
-                    byte newSlot = c.Character.Inventorys[type.Value].AddItem(item);
+                    byte newSlot = c.Player.Inventorys[type.Value].AddItem(item);
 
-                    if (newSlot == 128)
+                    if (newSlot == 0xFF)
                     {
                         c.Send(PacketCreator.GetInventoryFull());
                         c.Send(PacketCreator.GetShowInventoryFull());
@@ -98,10 +106,6 @@ namespace NeoMapleStory.Game.Inventory
                     throw new Exception("Trying to create equip with non-one quantity");
                 }
             }
-            if (owner != null)
-            {
-                item.Owner = owner;
-            }
             if (show)
             {
                 c.Send(PacketCreator.GetShowItemGain(item.ItemId, item.Quantity));
@@ -109,107 +113,110 @@ namespace NeoMapleStory.Game.Inventory
             return true;
         }
 
-        public static bool addFromDrop(MapleClient c, Equip item, string logInfo)
-        {
-            return addFromDrop(c, item.Copy(), logInfo);
-        }
+        //public static bool AddFromDrop(MapleClient c, IMapleItem item, string logInfo , bool show)
+        //{
+        //    MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+        //    MapleInventoryType type = ii.GetInventoryType(item.ItemId);
 
-        public static bool addFromDrop(MapleClient c, IMapleItem item, string logInfo = "", bool show = true)
-        {
-            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
-            MapleInventoryType type = ii.GetInventoryType(item.ItemId);
+        //    if (!c.ChannelServer.AllowMoreThanOne && ii.IsPickupRestricted(item.ItemId) && c.Player.HaveItem(item.ItemId, 1, true, true))
+        //    {
+        //        c.Send(PacketCreator.GetInventoryFull());
+        //        c.Send(PacketCreator.ShowItemUnavailable());
+        //        return false;
+        //    }
 
-            if (!c.ChannelServer.AllowMoreThanOne && ii.IsPickupRestricted(item.ItemId) && c.Character.haveItem(item.ItemId, 1, true, true))
-            {
-                c.Send(PacketCreator.GetInventoryFull());
-                c.Send(PacketCreator.ShowItemUnavailable());
-                return false;
-            }
+        //    short quantity = item.Quantity;
+        //    if (type != MapleInventoryType.Equip)
+        //    {
+        //        short slotMax = ii.GetSlotMax(c, item.ItemId);
+        //        List<IMapleItem> existing = c.Player.Inventorys[type.Value].ListById(item.ItemId);
+        //        if (!ii.IsThrowingStar(item.ItemId) && !ii.IsBullet(item.ItemId))
+        //        {
+        //            if (existing.Any())
+        //            { 
+        //                // first update all existing slots to slotMax
+        //                var i = existing.GetEnumerator();
+        //                while( quantity > 0)
+        //                {
+        //                    if (i.MoveNext())
+        //                    {
+        //                        Item eItem = (Item) i.Current;
+        //                        if (eItem != null)
+        //                        {
+        //                            short oldQ = eItem.Quantity;
+        //                            if (oldQ < slotMax && item.Owner == eItem.Owner)
+        //                            {
+        //                                short newQ = (short) Math.Min(oldQ + quantity, slotMax);
+        //                                quantity -= (short) (newQ - oldQ);
+        //                                eItem.Quantity = newQ;
+        //                                //eItem.log("Added " + (newQ - oldQ) + " items to stack, new quantity is " + newQ + " (" + logInfo + " )", false);
+        //                                c.Send(PacketCreator.UpdateInventorySlot(type, eItem, true));
+        //                            }
+        //                        }
+        //                    }
+        //                    else
+        //                        break;
+        //                }
+        //            }
+        //            // add new slots if there is still something left
+        //            while (quantity > 0)
+        //            {
+        //                short newQ = Math.Min(quantity, slotMax);
+        //                quantity -= newQ;
+        //                Item nItem = new Item(item.ItemId, 0, newQ) {Owner = (item.Owner)};
+        //                //nItem.log("Created while adding from drop. Quantity: " + newQ + " (" + logInfo + " )", false);
+        //                byte newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
+        //                if (newSlot == 0xFF)
+        //                {
+        //                    c.Send(PacketCreator.GetInventoryFull());
+        //                    c.Send(PacketCreator.GetShowInventoryFull());
+        //                    item.Quantity = (short)(quantity + newQ);
+        //                    return false;
+        //                }
+        //                c.Send(PacketCreator.AddInventorySlot(type, nItem, true));
+        //            }
+        //        }
+        //        else {
+        //            // Throwing Stars and Bullets - Add all into one slot regardless of quantity.
+        //            Item nItem = new Item(item.ItemId, 0, quantity);
+        //            //nItem.log("Created while adding by id. Quantity: " + quantity + " (" + logInfo + " )", false);
+        //            byte newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
+        //            if (newSlot == 0xFF)
+        //            {
+        //                c.Send(PacketCreator.GetInventoryFull());
+        //                c.Send(PacketCreator.GetShowInventoryFull());
+        //                return false;
+        //            }
+        //            c.Send(PacketCreator.AddInventorySlot(type, nItem));
+        //            c.Send(PacketCreator.EnableActions());
+        //        }
+        //    }
+        //    else {
+        //        if (quantity == 1)
+        //        {
+        //            byte newSlot = c.Player.Inventorys[type.Value].AddItem(item);
+        //            //item.log("Adding from drop. (" + logInfo + " )", false);
 
-            short quantity = item.Quantity;
-            if (type != MapleInventoryType.Equip)
-            {
-                short slotMax = ii.GetSlotMax(c, item.ItemId);
-                List<IMapleItem> existing = c.Character.Inventorys[type.Value].ListById(item.ItemId);
-                if (!ii.IsThrowingStar(item.ItemId) && !ii.IsBullet(item.ItemId))
-                {
-                    if (existing.Any())
-                    { // first update all existing slots to slotMax
+        //            if (newSlot == 0xFF)
+        //            {
+        //                c.Send(PacketCreator.GetInventoryFull());
+        //                c.Send(PacketCreator.GetShowInventoryFull());
+        //                return false;
+        //            }
+        //            c.Send(PacketCreator.AddInventorySlot(type, item, true));
+        //        }
+        //        else {
+        //            throw new Exception("Trying to create equip with non-one quantity");
+        //        }
+        //    }
+        //    if (show)
+        //    {
+        //        c.Send(PacketCreator.GetShowItemGain(item.ItemId, item.Quantity));
+        //    }
+        //    return true;
+        //}
 
-                        for (int i = 0; i < existing.Count && quantity > 0; i++)
-                        {
-                            Item eItem = (Item)existing[i];
-                            short oldQ = eItem.Quantity;
-                            if (oldQ < slotMax && item.Owner == eItem.Owner)
-                            {
-                                short newQ = (short)Math.Min(oldQ + quantity, slotMax);
-                                quantity -= (short)(newQ - oldQ);
-                                eItem.Quantity = newQ;
-                                //eItem.log("Added " + (newQ - oldQ) + " items to stack, new quantity is " + newQ + " (" + logInfo + " )", false);
-                                c.Send(PacketCreator.UpdateInventorySlot(type, eItem, true));
-                            }
-                        }
-                    }
-                    // add new slots if there is still something left
-                    while (quantity > 0)
-                    {
-                        short newQ = Math.Min(quantity, slotMax);
-                        quantity -= newQ;
-                        Item nItem = new Item(item.ItemId, 0, newQ);
-                        nItem.Owner = (item.Owner);
-                        //nItem.log("Created while adding from drop. Quantity: " + newQ + " (" + logInfo + " )", false);
-                        byte newSlot = c.Character.Inventorys[type.Value].AddItem(nItem);
-                        if (newSlot == 128)
-                        {
-                            c.Send(PacketCreator.GetInventoryFull());
-                            c.Send(PacketCreator.GetShowInventoryFull());
-                            item.Quantity = (short)(quantity + newQ);
-                            return false;
-                        }
-                        c.Send(PacketCreator.AddInventorySlot(type, nItem, true));
-                    }
-                }
-                else {
-                    // Throwing Stars and Bullets - Add all into one slot regardless of quantity.
-                    Item nItem = new Item(item.ItemId, 0, quantity);
-                    //nItem.log("Created while adding by id. Quantity: " + quantity + " (" + logInfo + " )", false);
-                    byte newSlot = c.Character.Inventorys[type.Value].AddItem(nItem);
-                    if (newSlot == 128)
-                    {
-                        c.Send(PacketCreator.GetInventoryFull());
-                        c.Send(PacketCreator.GetShowInventoryFull());
-                        return false;
-                    }
-                    c.Send(PacketCreator.AddInventorySlot(type, nItem));
-                    c.Send(PacketCreator.EnableActions());
-                }
-            }
-            else {
-                if (quantity == 1)
-                {
-                    byte newSlot = c.Character.Inventorys[type.Value].AddItem(item);
-                    //item.log("Adding from drop. (" + logInfo + " )", false);
-
-                    if (newSlot == 128)
-                    {
-                        c.Send(PacketCreator.GetInventoryFull());
-                        c.Send(PacketCreator.GetShowInventoryFull());
-                        return false;
-                    }
-                    c.Send(PacketCreator.AddInventorySlot(type, item, true));
-                }
-                else {
-                    throw new Exception("Trying to create equip with non-one quantity");
-                }
-            }
-            if (show)
-            {
-                c.Send(PacketCreator.GetShowItemGain(item.ItemId, item.Quantity));
-            }
-            return true;
-        }
-
-        public static bool checkSpace(MapleClient c, int itemid, int quantity, string owner)
+        public static bool CheckSpace(MapleClient c, int itemid, int quantity, string owner)
         {
             MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
             MapleInventoryType type = ii.GetInventoryType(itemid);
@@ -217,7 +224,7 @@ namespace NeoMapleStory.Game.Inventory
             if (type != MapleInventoryType.Equip)
             {
                 short slotMax = ii.GetSlotMax(c, itemid);
-                var existing = c.Character.Inventorys[type.Value].ListById(itemid);
+                var existing = c.Player.Inventorys[type.Value].ListById(itemid);
                 if (!ii.IsThrowingStar(itemid) && !ii.IsBullet(itemid))
                 {
                     if (existing.Any())
@@ -250,33 +257,33 @@ namespace NeoMapleStory.Game.Inventory
                     numSlotsNeeded = 1;
                     Console.WriteLine("SUCK ERROR - FIX ME! - 0 slotMax");
                 }
-                return !c.Character.Inventorys[type.Value].IsFull(numSlotsNeeded - 1);
+                return !c.Player.Inventorys[type.Value].IsFull(numSlotsNeeded - 1);
             }
-            return !c.Character.Inventorys[type.Value].IsFull();
+            return !c.Player.Inventorys[type.Value].IsFull();
         }
 
-        //public static void removeAllById(MapleClient c, int itemId, bool checkEquipped)
-        //{
-        //    MapleInventoryType type = MapleItemInformationProvider.getInstance().getInventoryType(itemId);
-        //    for (IMapleItem item : c.getPlayer().getInventory(type).listById(itemId))
-        //    {
-        //        if (item != null)
-        //        {
-        //            removeFromSlot(c, type, item.getPosition(), item.getQuantity(), true, false);
-        //        }
-        //    }
-        //    if (checkEquipped)
-        //    {
-        //        IMapleItem ii = c.getPlayer().getInventory(type).findById(itemId);
-        //        if (ii != null)
-        //        {
-        //            c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).removeItem(ii.getPosition());
-        //            c.getPlayer().equipChanged();
-        //        }
-        //    }
-        //}
+        public static void RemoveAllById(MapleClient c, int itemId, bool checkEquipped)
+        {
+            MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(itemId);
+            foreach (IMapleItem item in c.Player.Inventorys[type.Value].ListById(itemId))
+            {
+                if (item != null)
+                {
+                    RemoveFromSlot(c, type, item.Position, item.Quantity, true);
+                }
+            }
+            if (checkEquipped)
+            {
+                IMapleItem ii = c.Player.Inventorys[type.Value].FindById(itemId);
+                if (ii != null)
+                {
+                    c.Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveItem(ii.Position);
+                    //c.Character.equipChanged();
+                }
+            }
+        }
 
-        public static bool addById(MapleClient c, int itemId, short quantity, string logInfo, string owner = null, int petid = -1)
+        public static bool AddById(MapleClient c, int itemId, short quantity, string logInfo, string owner = null, int petid = -1)
         {
             if (quantity < 0)
             {
@@ -287,7 +294,7 @@ namespace NeoMapleStory.Game.Inventory
             if (type!=MapleInventoryType.Equip)
             {
                 short slotMax = ii.GetSlotMax(c, itemId);
-                List<IMapleItem> existing = c.Character.Inventorys[type.Value].ListById(itemId);
+                List<IMapleItem> existing = c.Player.Inventorys[type.Value].ListById(itemId);
                 if (!ii.IsThrowingStar(itemId) && !ii.IsBullet(itemId))
                 {
                     if (existing.Any())
@@ -315,7 +322,7 @@ namespace NeoMapleStory.Game.Inventory
                             quantity -= newQ;
                             Item nItem = new Item(itemId, 0, newQ);//, petid);
                             //nItem.log("Created while adding by id. Quantity: " + newQ + " (" + logInfo + ")", false);
-                            byte newSlot = c.Character.Inventorys[type.Value].AddItem(nItem);
+                            byte newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
                             if (newSlot == 128)
                             {
                                 c.Send(PacketCreator.GetInventoryFull());
@@ -341,7 +348,7 @@ namespace NeoMapleStory.Game.Inventory
                 else { // Throwing Stars and Bullets - Add all into one slot regardless of quantity.
                     Item nItem = new Item(itemId, 0, quantity);
                     //nItem.log("Created while adding by id. Quantity: " + quantity + " (" + logInfo + " )", false);
-                    byte newSlot = c.Character.Inventorys[type.Value].AddItem(nItem);
+                    byte newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
                     if (newSlot == 128)
                     {
                         c.Send(PacketCreator.GetInventoryFull());
@@ -362,7 +369,7 @@ namespace NeoMapleStory.Game.Inventory
                         nEquip.Owner = owner;
                     }
 
-                    byte newSlot = c.Character.Inventorys[type.Value].AddItem(nEquip);
+                    byte newSlot = c.Player.Inventorys[type.Value].AddItem(nEquip);
                     if (newSlot == 128)
                     {
                         c.Send(PacketCreator.GetInventoryFull());
@@ -378,16 +385,16 @@ namespace NeoMapleStory.Game.Inventory
             return true;
         }
 
-        public static void removeFromSlot(MapleClient c, MapleInventoryType type, byte slot, short quantity, bool fromDrop, bool consume = false)
+        public static void RemoveFromSlot(MapleClient c, MapleInventoryType type, byte slot, short quantity, bool fromDrop, bool consume = false)
         {
             if (quantity < 0)
             {
                 return;
             }
-            IMapleItem item = c.Character.Inventorys[type.Value].Inventory[slot];
+            IMapleItem item = c.Player.Inventorys[type.Value].Inventory[slot];
             MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
             bool allowZero = consume && (ii.IsThrowingStar(item.ItemId) || ii.IsBullet(item.ItemId));
-            c.Character.Inventorys[type.Value].RemoveItem(slot, quantity, allowZero);
+            c.Player.Inventorys[type.Value].RemoveItem(slot, quantity, allowZero);
             if (item.Quantity == 0 && !allowZero)
             {
                 c.Send(PacketCreator.ClearInventoryItem(type, item.Position, fromDrop));
@@ -401,21 +408,21 @@ namespace NeoMapleStory.Game.Inventory
             }
         }
 
-        public static void removeById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop, bool consume, bool v)
+        public static void RemoveById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop, bool consume, bool v)
         {
-            var items = c.Character.Inventorys[type.Value].ListById(itemId);
+            var items = c.Player.Inventorys[type.Value].ListById(itemId);
             int remremove = quantity;
             foreach (IMapleItem item in items)
             {
                 if (remremove <= item.Quantity)
                 {
-                    removeFromSlot(c, type, item.Position, (short)remremove, fromDrop, consume);
+                    RemoveFromSlot(c, type, item.Position, (short)remremove, fromDrop, consume);
                     remremove = 0;
                     break;
                 }
                 else {
                     remremove -= item.Quantity;
-                    removeFromSlot(c, type, item.Position, item.Quantity, fromDrop, consume);
+                    RemoveFromSlot(c, type, item.Position, item.Quantity, fromDrop, consume);
                 }
             }
             if (remremove > 0)
@@ -424,25 +431,25 @@ namespace NeoMapleStory.Game.Inventory
             }
         }
 
-        public static void removeById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop, bool consume)
+        public static void RemoveById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop, bool consume)
         {
             if (quantity < 0)
             {
                 return;
             }
-            var items = c.Character.Inventorys[type.Value].ListById(itemId);
+            var items = c.Player.Inventorys[type.Value].ListById(itemId);
             int remremove = quantity;
             foreach (IMapleItem item in items)
             {
                 if (remremove <= item.Quantity)
                 {
-                    removeFromSlot(c, type, item.Position, (short)remremove, fromDrop, consume);
+                    RemoveFromSlot(c, type, item.Position, (short)remremove, fromDrop, consume);
                     remremove = 0;
                     break;
                 }
                 else {
                     remremove -= item.Quantity;
-                    removeFromSlot(c, type, item.Position, item.Quantity, fromDrop, consume);
+                    RemoveFromSlot(c, type, item.Position, item.Quantity, fromDrop, consume);
                 }
             }
             if (remremove > 0)

@@ -17,25 +17,25 @@ namespace NeoMapleStory.Game.Data
 
         private void FillMapleDataEntitys(string lroot, WzDirectoryEntry wzdir)
         {
-            foreach (string filepath in Directory.GetFiles(lroot))
+            foreach (var filepath in new DirectoryInfo(lroot).GetFileSystemInfos())
             {
-                if (Directory.Exists(filepath) && !filepath.EndsWith(".img"))
+                if (Directory.Exists(filepath.FullName) && !filepath.Name.EndsWith(".img"))
                 {
-                    WzDirectoryEntry newDir = new WzDirectoryEntry(filepath, 0, 0, wzdir);
+                    WzDirectoryEntry newDir = new WzDirectoryEntry(filepath.Name, 0, 0, wzdir);
                     wzdir.AddDirectory(newDir);
-                    FillMapleDataEntitys(filepath, newDir);
+                    FillMapleDataEntitys(filepath.FullName, newDir);
                 }
-                else if (filepath.EndsWith(".xml"))
+                else if (filepath.Name.EndsWith(".xml"))
                 {
                     // get the real size here?
-                    wzdir.AddFile(new WzFileEntry(Path.GetFileNameWithoutExtension(filepath), 0, 0, wzdir));
+                    wzdir.AddFile(new WzFileEntry(Path.GetFileNameWithoutExtension(filepath.Name), 0, 0, wzdir));
                 }
             }
         }
 
         public IMapleData GetData(string path)
         {
-            string dataPath = $"{_mRoot}\\{path}.xml";
+            string dataPath = $"{_mRoot}//{path}.xml";
 
             if (!File.Exists(dataPath))
             {
