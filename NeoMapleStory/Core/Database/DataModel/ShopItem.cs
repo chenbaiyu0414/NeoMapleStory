@@ -10,6 +10,7 @@ namespace NeoMapleStory.Core.Database.DataModel
 
         [ForeignKey("ShopId")]
         public virtual Shop Shop { get; set; }
+
         public int ShopId { get; set; }
 
         public int ItemId { get; set; }

@@ -14,7 +14,7 @@ namespace NeoMapleStory.Core.Database.DataModel
 
         public int PartnerCharacterId { get; set; }
 
-        [Column(TypeName ="varchar")]
+        [Column(TypeName = "varchar")]
         public string PartnerName { get; set; }
     }
 }

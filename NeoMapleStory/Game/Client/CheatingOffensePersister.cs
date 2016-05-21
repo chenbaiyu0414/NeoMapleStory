@@ -5,29 +5,31 @@ namespace NeoMapleStory.Game.Client
 {
     public class CheatingOffensePersister
     {
-        public static CheatingOffensePersister Instance { get; } = new CheatingOffensePersister();
-        private List<CheatingOffenseEntry> _toPersist = new List<CheatingOffenseEntry>();
+        private readonly List<CheatingOffenseEntry> m_toPersist = new List<CheatingOffenseEntry>();
 
         private CheatingOffensePersister()
         {
             //TimerManager.Instance.RegisterJob(new PersistingTask(), 61000);
         }
 
+        public static CheatingOffensePersister Instance { get; } = new CheatingOffensePersister();
+
         public void PersistEntry(CheatingOffenseEntry coe)
         {
-            lock (_toPersist)
+            lock (m_toPersist)
             {
-                _toPersist.Remove(coe); //equal/hashCode h4x
-                _toPersist.Add(coe);
+                m_toPersist.Remove(coe); //equal/hashCode h4x
+                m_toPersist.Add(coe);
             }
         }
 
-        // public class PersistingTask
-        //{
+        //    synchronized(toPersist)
 
 
         //    CheatingOffenseEntry[] offenses;
-        //    synchronized(toPersist)
+        //{
+
+        // public class PersistingTask
         //    {
         //        offenses = toPersist.toArray(new CheatingOffenseEntry[toPersist.size()]);
         //        toPersist.clear();
@@ -72,6 +74,5 @@ namespace NeoMapleStory.Game.Client
         //        log.error("error persisting cheatlog", e);
         //    }
         //}
-
     }
 }

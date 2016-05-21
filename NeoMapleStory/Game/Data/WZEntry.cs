@@ -2,12 +2,6 @@
 {
     public class WzEntry : IMapleDataEntry
     {
-        public string Name { get; private set; }
-        public int Size { get; private set; }
-        public int Checksum { get; private set; }
-        public int Offset { get; private set; }
-        public IMapleDataEntity Parent { get; private set; }
-
         public WzEntry(string name, int size, int checksum, IMapleDataEntity parent)
         {
             Name = name;
@@ -15,5 +9,11 @@
             Checksum = checksum;
             Parent = parent;
         }
+
+        public string Name { get; }
+        public int Size { get; }
+        public int Checksum { get; }
+        public int Offset { get; private set; }
+        public IMapleDataEntity Parent { get; }
     }
 }

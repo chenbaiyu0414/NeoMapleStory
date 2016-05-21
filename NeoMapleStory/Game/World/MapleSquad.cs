@@ -1,12 +1,11 @@
-﻿using NeoMapleStory.Game.Client;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using NeoMapleStory.Game.Client;
 using NeoMapleStory.Packet;
 
 namespace NeoMapleStory.Game.World
 {
     public enum MapleSquadType
     {
-
         Zakum = 0,
         Horntail = 1,
         Unknown = 2,
@@ -15,25 +14,25 @@ namespace NeoMapleStory.Game.World
 
     public class MapleSquad
     {
-        public MapleCharacter Leader { get; private set; }
-        public int Status { get; set; }
-
-        public List<MapleCharacter> Members { get; } = new List<MapleCharacter>();
-        private readonly List<MapleCharacter> _bannedMembers = new List<MapleCharacter>();
-        private int _ch;
+        private readonly List<MapleCharacter> m_bannedMembers = new List<MapleCharacter>();
+        private int m_ch;
 
         public MapleSquad(int ch, MapleCharacter leader)
         {
             Leader = leader;
             Status = 1;
             Members.Add(leader);
-            _ch = ch;
-
+            m_ch = ch;
         }
+
+        public MapleCharacter Leader { get; }
+        public int Status { get; set; }
+
+        public List<MapleCharacter> Members { get; } = new List<MapleCharacter>();
 
         public bool ContainsMember(MapleCharacter member) => Members.Exists(x => x.Id == member.Id);
 
-        public bool IsBanned(MapleCharacter member) => _bannedMembers.Exists(x => x.Id == member.Id);
+        public bool IsBanned(MapleCharacter member) => m_bannedMembers.Exists(x => x.Id == member.Id);
 
         public bool AddMember(MapleCharacter member)
         {
@@ -48,18 +47,18 @@ namespace NeoMapleStory.Game.World
 
         public void BanMember(MapleCharacter member, bool ban)
         {
-            int index = Members.FindIndex(x => x.Id == member.Id);
+            var index = Members.FindIndex(x => x.Id == member.Id);
             if (index > -1)
                 Members.RemoveAt(index);
 
             if (ban)
-                _bannedMembers.Add(member);
+                m_bannedMembers.Add(member);
         }
 
         public void Clear()
         {
             Members.Clear();
-            _bannedMembers.Clear();
+            m_bannedMembers.Clear();
         }
     }
 }

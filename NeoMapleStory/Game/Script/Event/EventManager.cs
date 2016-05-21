@@ -6,25 +6,26 @@ namespace NeoMapleStory.Game.Script.Event
 {
     public class EventManager
     {
-        public ChannelServer ChannelServer { get; private set; }
-        public NameValueCollection props { get; } = new NameValueCollection();
-        public string Name { get; private set; }
+        private readonly Dictionary<string, EventInstanceManager> m_instances =
+            new Dictionary<string, EventInstanceManager>();
 
-        private readonly Dictionary<string, EventInstanceManager> _instances = new Dictionary<string, EventInstanceManager>();
-       
-        public EventManager(ChannelServer cserv,string name)
+        public EventManager(ChannelServer cserv, string name)
         {
             //this.iv = iv;
-            this.ChannelServer = cserv;
-            this.Name = name;
+            ChannelServer = cserv;
+            Name = name;
         }
 
-        //public void cancel()
-        //{
-        //    this.iv.invokeFunction("cancelSchedule", new object[] { null });
-        //}
+        public ChannelServer ChannelServer { get; private set; }
+        public NameValueCollection Props { get; } = new NameValueCollection();
+        public string Name { get; private set; }
 
         //public void schedule(string methodName, int delay)
+        //}
+        //    this.iv.invokeFunction("cancelSchedule", new object[] { null });
+        //{
+
+        //public void cancel()
         //{
         //    TimerManager.Instance.ScheduleJob(() =>
         //    {

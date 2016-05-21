@@ -1,40 +1,84 @@
-﻿using NeoMapleStory.Game.Client;
+﻿using System.Collections.Generic;
+using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Job;
 using NeoMapleStory.Game.Life;
-using System.Collections.Generic;
 
 namespace NeoMapleStory.Game.Skill
 {
     public class Skill : ISkill
     {
-        public int SkillId { get; }
-        public Element Element { get; private set; }
-        public int AnimationTime { get; private set; }
-        public bool HasCharge { get; private set; }
-
-        private readonly List<MapleStatEffect> _effects = new List<MapleStatEffect>();
+        private readonly List<MapleStatEffect> m_effects = new List<MapleStatEffect>();
 
         private Skill(int id)
         {
             SkillId = id;
         }
 
+        public int SkillId { get; }
+        public Element Element { get; private set; }
+        public int AnimationTime { get; private set; }
+        public bool HasCharge { get; private set; }
+
+
+        public MapleStatEffect GetEffect(int level) => m_effects[level - 1];
+
+        public int MaxLevel => m_effects.Count;
+
+        public bool CanBeLearned(MapleJob job)
+        {
+            int jid = job.JobId;
+            var skillForJob = SkillId/10000;
+            if (jid/100 != skillForJob/100 && skillForJob/100 != 0)
+            {
+                // wrong job
+                return false;
+            }
+            if (skillForJob/10%10 > jid/10%10)
+            {
+                // wrong 2nd job
+                return false;
+            }
+            if (skillForJob%10 > jid%10)
+            {
+                // wrong 3rd/4th job
+                return false;
+            }
+            return true;
+        }
+
+        public bool IsFourthJob => SkillId/10000%10 == 2;
+
+        public bool IsBeginnerSkill
+        {
+            get
+            {
+                var output = false;
+                var idString = SkillId.ToString();
+                if (idString.Length == 4 || idString.Length == 1)
+                {
+                    output = true;
+                }
+                return output;
+            }
+        }
+
         public static Skill LoadFromData(int id, IMapleData data)
         {
-            Skill ret = new Skill(id);
-            bool isBuff = false;
-            int skillType = MapleDataTool.GetInt("skillType", data, -1);
-            string elem = MapleDataTool.GetString("elemAttr", data, null);
+            var ret = new Skill(id);
+            var isBuff = false;
+            var skillType = MapleDataTool.GetInt("skillType", data, -1);
+            var elem = MapleDataTool.GetString("elemAttr", data, null);
             if (elem != null)
             {
                 ret.Element = Element.GetByChar(elem[0]);
             }
-            else {
+            else
+            {
                 ret.Element = Element.Neutral;
             }
             // unfortunatly this is only set for a few skills so we have to do some more to figure out if it's a buff &#65533;.o
-            IMapleData effect = data.GetChildByPath("effect");
+            var effect = data.GetChildByPath("effect");
             if (skillType != -1)
             {
                 if (skillType == 2)
@@ -44,9 +88,9 @@ namespace NeoMapleStory.Game.Skill
             }
             else
             {
-                IMapleData action = data.GetChildByPath("action");
-                IMapleData hit = data.GetChildByPath("hit");
-                IMapleData ball = data.GetChildByPath("ball");
+                var action = data.GetChildByPath("action");
+                var hit = data.GetChildByPath("hit");
+                var ball = data.GetChildByPath("ball");
                 isBuff = effect != null && hit == null && ball == null;
                 isBuff |= action != null && MapleDataTool.GetString("0", action, "").Equals("alert2");
                 switch (id)
@@ -97,7 +141,7 @@ namespace NeoMapleStory.Game.Skill
                         break;
                     //楠�澹��㈢������
                     case 12001004: //flame
-                    case 11101002://缁�����
+                    case 11101002: //缁�����
                     case 21100005: //杩����歌�
                     case 11001004: //soul
                     case 14001005: //dark soul?
@@ -108,7 +152,7 @@ namespace NeoMapleStory.Game.Skill
 
                     case 15000000: // Bullet Time
                     case 15001004: // Lightning
-                    case 11101001:// Sword Booster
+                    case 11101001: // Sword Booster
                     case 11101003: // Rage
                     case 11101004: // Soul Blade
                     case 11101005: // Soul Rush
@@ -119,19 +163,19 @@ namespace NeoMapleStory.Game.Skill
                     case 13101001: // Bow Booster
                     case 13101003: // Soul Arrow : Bow
                     case 13101005: // Storm Brakes
-                    case 13101006:// Wind Walk
-                    case 14100005:// Vanish
-                    case 14101002:// Claw Booster
-                    case 14101003:// Haste
-                    case 15100004:// Energy Charge
-                    case 15101002:// Knuckle Booster
-                    case 15101006:// Lightning Charge
-                    case 11111001:// Combo Attack
+                    case 13101006: // Wind Walk
+                    case 14100005: // Vanish
+                    case 14101002: // Claw Booster
+                    case 14101003: // Haste
+                    case 15100004: // Energy Charge
+                    case 15101002: // Knuckle Booster
+                    case 15101006: // Lightning Charge
+                    case 11111001: // Combo Attack
                     case 11111007: // Soul Charge
                     case 12111002: // Seal is one
                     case 13111004: // Puppet
-                    case 13111005:// Albatross
-                    case 14111000:// Shadow Partner
+                    case 13111005: // Albatross
+                    case 14111000: // Shadow Partner
                     case 15111001: // Energy Drain
                     case 15111002: // Transformation
                     case 15111005: // Speed Infusion
@@ -148,7 +192,7 @@ namespace NeoMapleStory.Game.Skill
                     case 10001002: // Nimble Feet
                     case 10001003: // Legendary Spiri
                     case 5221003:
-                    case 10001004:// Monster Rider
+                    case 10001004: // Monster Rider
                     case 10001005: // Echo of Hero
                     case 1001: // recovery
                     case 1002: // nimble feet
@@ -294,65 +338,25 @@ namespace NeoMapleStory.Game.Skill
                         break;
                 }
             }
-            IMapleData keydown = data.GetChildByPath("keydown");
+            var keydown = data.GetChildByPath("keydown");
             if (keydown != null)
             {
                 ret.HasCharge = true;
             }
-            foreach (IMapleData level in data.GetChildByPath("level"))
+            foreach (var level in data.GetChildByPath("level"))
             {
-                MapleStatEffect statEffect = MapleStatEffect.LoadSkillEffectFromData(level, id, isBuff, level.Name);
-                ret._effects.Add(statEffect);
+                var statEffect = MapleStatEffect.LoadSkillEffectFromData(level, id, isBuff, level.Name);
+                ret.m_effects.Add(statEffect);
             }
             ret.AnimationTime = 0;
             if (effect != null)
             {
-                foreach (IMapleData effectEntry in effect)
+                foreach (var effectEntry in effect)
                 {
                     ret.AnimationTime += MapleDataTool.ConvertToInt("delay", effectEntry, 0);
                 }
             }
             return ret;
-        }
-
-
-        public MapleStatEffect GetEffect(int level) => _effects[level - 1];
-
-        public int MaxLevel => _effects.Count;
-
-        public bool CanBeLearned(MapleJob job)
-        {
-            int jid = job.JobId;
-            int skillForJob = SkillId / 10000;
-            if (jid / 100 != skillForJob / 100 && skillForJob / 100 != 0)
-            { // wrong job
-                return false;
-            }
-            if (skillForJob / 10 % 10 > jid / 10 % 10)
-            { // wrong 2nd job
-                return false;
-            }
-            if (skillForJob % 10 > jid % 10)
-            { // wrong 3rd/4th job
-                return false;
-            }
-            return true;
-        }
-
-        public bool IsFourthJob => SkillId / 10000 % 10 == 2;
-
-        public bool IsBeginnerSkill
-        {
-            get
-            {
-                bool output = false;
-                string idString = SkillId.ToString();
-                if (idString.Length == 4 || idString.Length == 1)
-                {
-                    output = true;
-                }
-                return output;
-            }
         }
     }
 }

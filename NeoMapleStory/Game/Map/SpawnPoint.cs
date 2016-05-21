@@ -1,28 +1,29 @@
-﻿using NeoMapleStory.Core;
-using NeoMapleStory.Game.Mob;
-using System;
+﻿using System;
 using System.Drawing;
+using NeoMapleStory.Core;
+using NeoMapleStory.Game.Mob;
 
 namespace NeoMapleStory.Game.Map
 {
     public class SpawnPoint
     {
-        public Point Pos { get; private set; }
+        private readonly bool m_immobile;
+        private readonly int m_mobTime;
 
-        private MapleMonster _monster;      
-        private  long _nextPossibleSpawn;
-        private int _mobTime;
-        private InterLockedInt _spawnedMonsters = new InterLockedInt(0);
-        private  bool _immobile;
+        private readonly MapleMonster m_monster;
+        private long m_nextPossibleSpawn;
+        private readonly InterLockedInt m_spawnedMonsters = new InterLockedInt(0);
 
         public SpawnPoint(MapleMonster monster, Point pos, int mobTime)
         {
-            this._monster = monster;
-            this.Pos = pos;
-            this._mobTime = mobTime;
-            _immobile = !monster.Stats.IsMobile;
-            _nextPossibleSpawn = DateTime.Now.GetTimeMilliseconds();
+            m_monster = monster;
+            Pos = pos;
+            m_mobTime = mobTime;
+            m_immobile = !monster.Stats.IsMobile;
+            m_nextPossibleSpawn = DateTime.Now.GetTimeMilliseconds();
         }
+
+        public Point Pos { get; }
 
         public bool ShouldSpawn()
         {
@@ -31,40 +32,40 @@ namespace NeoMapleStory.Game.Map
 
         private bool ShouldSpawn(long now)
         {
-            if (_mobTime < 0)
+            if (m_mobTime < 0)
             {
                 return false;
             }
-            if (((_mobTime != 0 || _immobile) && _spawnedMonsters.Value > 0) || _spawnedMonsters.Value > 2)
+            if (((m_mobTime != 0 || m_immobile) && m_spawnedMonsters.Value > 0) || m_spawnedMonsters.Value > 2)
             {
                 return false;
             }
-            return _nextPossibleSpawn <= now;
+            return m_nextPossibleSpawn <= now;
         }
 
-        public MapleMonster spawnMonster(MapleMap mapleMap)
+        public MapleMonster SpawnMonster(MapleMap mapleMap)
         {
-            MapleMonster mob = new MapleMonster(_monster);
-            mob.Position = Pos;
-            _spawnedMonsters.Increment();
+            var mob = new MapleMonster(m_monster) {Position = Pos};
+            m_spawnedMonsters.Increment();
 
-            mob.listeners.Add((kak,args) =>
+            mob.Listeners.Add((kak, args) =>
             {
-                _nextPossibleSpawn = DateTime.Now.GetTimeMilliseconds();
-                if (_mobTime > 0)
+                m_nextPossibleSpawn = DateTime.Now.GetTimeMilliseconds();
+                if (m_mobTime > 0)
                 {
-                    _nextPossibleSpawn += _mobTime*1000;
+                    m_nextPossibleSpawn += m_mobTime*1000;
                 }
                 else
                 {
-                    _nextPossibleSpawn +=args.monster.Stats.GetAnimationTime("die1");
+                    m_nextPossibleSpawn += args.Monster.Stats.GetAnimationTime("die1");
                 }
-                _spawnedMonsters.Decrement();
+                m_spawnedMonsters.Decrement();
             });
 
-            mapleMap.spawnMonster(mob);
-            if (_mobTime == 0) {
-                _nextPossibleSpawn = DateTime.Now.GetTimeMilliseconds() + 5000;
+            mapleMap.SpawnMonster(mob);
+            if (m_mobTime == 0)
+            {
+                m_nextPossibleSpawn = DateTime.Now.GetTimeMilliseconds() + 5000;
             }
             return mob;
         }

@@ -6,6 +6,7 @@ namespace NeoMapleStory.Core.Database.DataModel
     {
         [Key]
         public int ShopId { get; set; }
+
         public int Npcid { get; set; }
     }
 }

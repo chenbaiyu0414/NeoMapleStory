@@ -1,20 +1,30 @@
-﻿using NeoMapleStory.Game.Client;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using NeoMapleStory.Core;
+using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Map;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using NeoMapleStory.Core;
-using Quartz;
 
 namespace NeoMapleStory.Server
 {
-
     public sealed class ChannelServer : BaseServer
     {
-        public int ChannelId { get; private set; }
+        private readonly Dictionary<MapleSquadType, MapleSquad> m_mapleSquads =
+            new Dictionary<MapleSquadType, MapleSquad>();
+
+        public ChannelServer(int id)
+        {
+            MapFactory = new MapleMapFactory(MapleDataProviderFactory.GetDataProvider("Map.wz"),
+                MapleDataProviderFactory.GetDataProvider("String.wz"));
+            ChannelId = id;
+
+            TimerManager.Instance.RepeatTask(RespawnMaps, 10*1000);
+        }
+
+        public int ChannelId { get; }
         public List<MapleCharacter> Characters { get; } = new List<MapleCharacter>();
 
         public int ExpRate { get; private set; } = 1;
@@ -22,23 +32,22 @@ namespace NeoMapleStory.Server
         public int DropRate { get; private set; } = 1;
         public int MesoRate { get; private set; } = 1;
 
-        public MapleMapFactory MapFactory { get; private set; }
+        public MapleMapFactory MapFactory { get; }
         public int UserLogged => ClientCount;
         public bool AllowMoreThanOne { get; set; }
-        private Dictionary<MapleSquadType, MapleSquad> mapleSquads = new Dictionary<MapleSquadType, MapleSquad>();
-
-        public ChannelServer(int id)
-        {
-            MapFactory= new MapleMapFactory(MapleDataProviderFactory.GetDataProvider("Map.wz"), MapleDataProviderFactory.GetDataProvider("String.wz"));
-            ChannelId = id;
-
-            TimerManager.Instance.RepeatTask(RespawnMaps, 10*1000);
-        }
 
         protected override void OnNewClientConnected(MapleClient client)
         {
             Console.WriteLine($"玩家{client.SessionID} 进入 频道服务器{ChannelId}");
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
+            //TimerManager.Instance.RepeatTask(() =>
+            //{
+            //    if ((DateTime.Now - client.LastPongTime).TotalSeconds > 180)
+            //    {
+            //        if (client.Connected)
+            //            client.Close();
+            //    }
+            //}, 10*1000);
         }
 
         protected override void OnPacketHandlers()
@@ -53,22 +62,30 @@ namespace NeoMapleStory.Server
             Processor.AppendHandler(RecvOpcodes.ChangeMap, ChannelPacketHandlers.CHANGE_MAP);
             Processor.AppendHandler(RecvOpcodes.GeneralChat, ChannelPacketHandlers.GENERAL_CHAT);
             Processor.AppendHandler(RecvOpcodes.NpcTalk, ChannelPacketHandlers.NPC_TALK);
+            Processor.AppendHandler(RecvOpcodes.NpcTalkMore, ChannelPacketHandlers.NPC_TALK_MORE);
             Processor.AppendHandler(RecvOpcodes.MoveLife, ChannelPacketHandlers.MOVE_LIFE);
             Processor.AppendHandler(RecvOpcodes.CloseRangeAttack, ChannelPacketHandlers.CLOSE_RANGE_ATTACK);
             Processor.AppendHandler(RecvOpcodes.TakeDamage, ChannelPacketHandlers.TAKE_DAMAGE);
+            Processor.AppendHandler(RecvOpcodes.MagicAttack, ChannelPacketHandlers.MAGIC_ATTACK);
             Processor.AppendHandler(RecvOpcodes.ItemPickup, ChannelPacketHandlers.ITEM_PICKUP);
+            Processor.AppendHandler(RecvOpcodes.DamageReactor, ChannelPacketHandlers.DAMAGE_REACTOR);
+            Processor.AppendHandler(RecvOpcodes.DistributeAp, ChannelPacketHandlers.DISTRIBUTE_AP);
+            Processor.AppendHandler(RecvOpcodes.DistributeAutoAp, ChannelPacketHandlers.DISTRIBUTE_AUTO_AP);
+            Processor.AppendHandler(RecvOpcodes.DistributeSp, ChannelPacketHandlers.DISTRIBUTE_SP);
+            Processor.AppendHandler(RecvOpcodes.HealOverTime, ChannelPacketHandlers.HEAL_OVERTIME);
         }
 
         public override bool Start()
         {
             Console.WriteLine($"正在启动 {Processor.Label} {ChannelId + 1}线 监听端口: {Config.Port}");
-            bool result = base.Start();
+            var result = base.Start();
             if (result)
                 Console.WriteLine($"{Processor.Label} {ChannelId + 1}线 启动成功");
             else
                 Console.WriteLine($"{Processor.Label} {ChannelId + 1}线 启动失败");
             return result;
         }
+
         public override void Stop()
         {
             Console.WriteLine($"正在停止 {Processor.Label} {ChannelId + 1}线");
@@ -78,14 +95,14 @@ namespace NeoMapleStory.Server
 
         public List<MapleCharacter> GetPartyMembers(MapleParty party)
         {
-            List<MapleCharacter> partym = new List<MapleCharacter>();
+            var partym = new List<MapleCharacter>();
 
             party.GetMembers().ForEach(partychar =>
             {
                 if (partychar.ChannelId == ChannelId)
                 {
                     // Make sure the thing doesn't get duplicate plays due to ccing bug.
-                    MapleCharacter chr = Characters.FirstOrDefault(x => x.Name == partychar.CharacterName);
+                    var chr = Characters.FirstOrDefault(x => x.Name == partychar.CharacterName);
                     if (chr != null)
                     {
                         partym.Add(chr);
@@ -95,28 +112,26 @@ namespace NeoMapleStory.Server
             return partym;
         }
 
-        public MapleSquad getMapleSquad(MapleSquadType type) => mapleSquads.ContainsKey(type) ? mapleSquads[type] : null;
+        public MapleSquad GetMapleSquad(MapleSquadType type) => m_mapleSquads.ContainsKey(type) ? m_mapleSquads[type] : null;
 
-        public bool addMapleSquad(MapleSquad squad, MapleSquadType type)
+        public bool AddMapleSquad(MapleSquad squad, MapleSquadType type)
         {
-            if (!mapleSquads.ContainsKey(type))
+            if (!m_mapleSquads.ContainsKey(type))
             {
-                mapleSquads.Remove(type);
-                mapleSquads.Add(type, squad);
+                m_mapleSquads.Remove(type);
+                m_mapleSquads.Add(type, squad);
                 return true;
             }
-            else {
-                return false;
-            }
+            return false;
         }
 
-        public bool removeMapleSquad(MapleSquad squad, MapleSquadType type)
+        public bool RemoveMapleSquad(MapleSquad squad, MapleSquadType type)
         {
-            if (mapleSquads.ContainsKey(type))
+            if (m_mapleSquads.ContainsKey(type))
             {
-                if (mapleSquads[type] == squad)
+                if (m_mapleSquads[type] == squad)
                 {
-                    mapleSquads.Remove(type);
+                    m_mapleSquads.Remove(type);
                     return true;
                 }
             }
@@ -127,8 +142,8 @@ namespace NeoMapleStory.Server
         {
             foreach (var map in MapFactory.Maps.Values)
             {
-                map.respawn();
-            }          
+                map.Respawn();
+            }
         }
     }
 }

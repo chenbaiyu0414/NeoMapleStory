@@ -1,27 +1,24 @@
 ﻿#define Debug
-using NeoMapleStory.Core;
-using NeoMapleStory.Core.Database;
-using NeoMapleStory.Core.IO;
-using SuperSocket.SocketBase;
-using SuperSocket.SocketBase.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using NeoMapleStory.Core;
+using NeoMapleStory.Core.IO;
+using SuperSocket.SocketBase;
+using SuperSocket.SocketBase.Protocol;
 
 namespace NeoMapleStory.Server
 {
-    
     public abstract class BaseServer : AppServer<MapleClient, PacketRequestInfo>
     {
         protected PacketProcessor Processor;
 
-        public BaseServer()
+        protected BaseServer()
             : base(new DefaultReceiveFilterFactory<PacketReceiveFilter, PacketRequestInfo>())
         {
             NewSessionConnected += OnNewClientConnected;
             NewRequestReceived += OnNewRequestReceived;
             OnPacketHandlers();
-            
         }
 
         public List<MapleClient> Clients => GetAllSessions().ToList();
@@ -36,25 +33,23 @@ namespace NeoMapleStory.Server
             if (!client.RecvCipher.CheckPacket(packetInfo.Header))
                 throw new Exception("封包不正确");
 
-            byte[] data = new byte[packetInfo.Data.Length];
+            var data = new byte[packetInfo.Data.Length];
             Buffer.BlockCopy(packetInfo.Data, 0, data, 0, data.Length);
             client.RecvCipher.Transform(data);
 
             var p = new InPacket(data);
-            PacketHandler handler = Processor[p.ReadShort()];
+            var handler = Processor[p.ReadShort()];
 
             if (handler != null)
                 handler(client, p);
             else
+            {
                 Console.WriteLine($"未知封包 长度：{data.Length} 封包：{BitTool.GetHexStr(data)}");
+            }
         }
 
         protected override void OnSessionClosed(MapleClient session, CloseReason reason)
         {
-
-            //if (session.Account != null)
-            //    DatabaseHelper.PlayerExit(session.Account);
-
             lock (session)
             {
                 session.Disconnect();

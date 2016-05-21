@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 
 namespace NeoMapleStory.Core
 {
@@ -11,12 +10,21 @@ namespace NeoMapleStory.Core
         {
             double px = otherPoint.X - point.X;
             double py = otherPoint.Y - point.Y;
-            return px * px + py * py;
+            return px*px + py*py;
         }
+
         public static void Shuffle<T>(this List<T> list)
         {
-            Random rng = new Random();
-            list.OrderBy(x => rng.Next());
+            var rng = new Random();
+            for (var i = list.Count; i > 1; i--)
+                Swap(list, i - 1, rng.Next(i));
+        }
+
+        private static void Swap<T>(List<T> list, int i, int j)
+        {
+            var temp = list[j];
+            list[j] = list[i];
+            list[i] = temp;
         }
     }
 }

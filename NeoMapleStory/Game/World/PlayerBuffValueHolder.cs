@@ -5,19 +5,19 @@ namespace NeoMapleStory.Game.World
 {
     public class PlayerBuffValueHolder
     {
-        public long StartTime { get; private set; }
-        public MapleStatEffect Effect { get; private set; }
-
-        private readonly int _mId;
+        private readonly int m_mId;
 
         public PlayerBuffValueHolder(long startTime, MapleStatEffect effect)
         {
             StartTime = startTime;
             Effect = effect;
-            _mId = (int)(Randomizer.NextDouble() * 100);
+            m_mId = (int) (Randomizer.NextDouble()*100);
         }
 
-        public override int GetHashCode() => 1 * 31 + _mId;
+        public long StartTime { get; private set; }
+        public MapleStatEffect Effect { get; private set; }
+
+        public override int GetHashCode() => 1*31 + m_mId;
 
         public override bool Equals(object obj)
         {
@@ -33,8 +33,8 @@ namespace NeoMapleStory.Game.World
             {
                 return false;
             }
-            PlayerBuffValueHolder other = (PlayerBuffValueHolder)obj;
-            if (_mId != other._mId)
+            var other = (PlayerBuffValueHolder) obj;
+            if (m_mId != other.m_mId)
             {
                 return false;
             }

@@ -1,21 +1,22 @@
 ﻿using NeoMapleStory.Game.Map;
-using NeoMapleStory.Server;
-using NeoMapleStory.Packet;
 using NeoMapleStory.Game.Shop;
+using NeoMapleStory.Packet;
+using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Life
 {
     public class MapleNpc : AbstractLoadedMapleLife
     {
-        private readonly MapleNpcStats _mStats;
-        public bool IsCustom { get; set; } = false;
-        public string Name => _mStats.NpcName;
+        private readonly MapleNpcStats m_mStats;
 
         public MapleNpc(int id, MapleNpcStats stats)
             : base(id)
         {
-            _mStats = stats;
+            m_mStats = stats;
         }
+
+        public bool IsCustom { get; set; } = false;
+        public string Name => m_mStats.NpcName;
 
         public bool HasShop()
         {
@@ -44,7 +45,8 @@ namespace NeoMapleStory.Game.Life
             {
                 client.Send(PacketCreator.SpawnNpcRequestController(this, false));
             }
-            else {
+            else
+            {
                 client.Send(PacketCreator.SpawnNpc(this));
                 client.Send(PacketCreator.SpawnNpcRequestController(this, true));
             }

@@ -11,45 +11,45 @@ namespace NeoMapleStory.Game.Mob
 {
     public class MobSkill
     {
-        private const double EPSINON = 0.00000001;
-
-        public byte skillId { get; private set; }
-        public byte skillLevel { get; private set; }
-        public int mpCon { get; set; }
-        public List<int> toSummon { get; private set; } = new List<int>();
-        public int spawnEffect { get; set; }
-        public int hp { get; set; }
-        public int x { get; set; }
-        public int y { get; set; }
-        public int duration { get; set; }
-        public int cooltime { get; set; }
-        public float prop { get; set; }
-        public Point lt { get; private set; }
-        public Point rb { get; private set; }
-        public int limit { get; set; }
-        public int count { get; set; }
+        private const double Epsinon = 0.00000001;
 
         public MobSkill(byte skillId, byte level)
         {
-            this.skillId = skillId;
-            this.skillLevel = level;
+            this.SkillId = skillId;
+            SkillLevel = level;
         }
+
+        public byte SkillId { get; }
+        public byte SkillLevel { get; }
+        public int MpCon { get; set; }
+        public List<int> ToSummon { get; } = new List<int>();
+        public int SpawnEffect { get; set; }
+        public int Hp { get; set; }
+        public int X { get; set; }
+        public int Y { get; set; }
+        public int Duration { get; set; }
+        public int Cooltime { get; set; }
+        public float Prop { get; set; }
+        public Point Lt { get; private set; }
+        public Point Rb { get; private set; }
+        public int Limit { get; set; }
+        public int Count { get; set; }
 
         public void SetLtRb(Point lt, Point rb)
         {
-            this.lt = lt;
-            this.rb = rb;
+            this.Lt = lt;
+            this.Rb = rb;
         }
 
-        public void applyEffect(MapleCharacter player, MapleMonster monster, bool skill)
+        public void ApplyEffect(MapleCharacter player, MapleMonster monster, bool skill)
         {
             MonsterStatus? monStat = null;
             MapleDisease? disease = null;
-            bool heal = false;
-            bool dispel = false;
-            bool banish = false;
+            var heal = false;
+            var dispel = false;
+            var banish = false;
 
-            switch (skillId)
+            switch (SkillId)
             {
                 case 100:
                 case 110:
@@ -95,22 +95,24 @@ namespace NeoMapleStory.Game.Mob
                     dispel = true;
                     break;
                 case 128: // Seduce
-                    if (makeChanceResult())
-                    { // HT is 100%, yet some others mobs aren't - we can handle those later
-                        MapleSquad htSquad = player.Client.ChannelServer.getMapleSquad(MapleSquadType.Horntail);
+                    if (MakeChanceResult())
+                    {
+                        // HT is 100%, yet some others mobs aren't - we can handle those later
+                        var htSquad = player.Client.ChannelServer.GetMapleSquad(MapleSquadType.Horntail);
                         if (htSquad != null && htSquad.ContainsMember(player))
                         {
-                            int i = 0;
-                            foreach (MapleCharacter htMember in htSquad.Members)
+                            var i = 0;
+                            foreach (var htMember in htSquad.Members)
                             {
                                 if (htMember.IsAlive && htMember.Map == player.Map)
                                 {
-                                    if (i < count)
+                                    if (i < Count)
                                     {
-                                        htMember.giveDebuff(MapleDisease.Seduce, this);
+                                        htMember.GiveDebuff(MapleDisease.Seduce, this);
                                         i++;
                                     }
-                                    else {
+                                    else
+                                    {
                                         break;
                                     }
                                 }
@@ -119,31 +121,31 @@ namespace NeoMapleStory.Game.Mob
                     }
                     break;
                 case 129: // Banish
-                    if (lt != Point.Empty && rb != Point.Empty && skill)
-                        foreach (MapleCharacter chr in getPlayersInRange(monster, player))
-                            chr.changeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
+                    if (Lt != Point.Empty && Rb != Point.Empty && skill)
+                        foreach (var chr in GetPlayersInRange(monster, player))
+                            chr.ChangeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
                                 monster.Stats.Banish.Msg);
                     else
-                        player.changeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
+                        player.ChangeMapBanish(monster.Stats.Banish.MapId, monster.Stats.Banish.Portal,
                             monster.Stats.Banish.Msg);
                     break;
                 case 131: // Poison Mist
-                          // TODO: make this work
+                    // TODO: make this work
                     break;
                 case 140:
-                    if (makeChanceResult() && !monster.MonsterBuffs.Contains(MonsterStatus.MagicImmunity))
+                    if (MakeChanceResult() && !monster.MonsterBuffs.Contains(MonsterStatus.MagicImmunity))
                     {
                         monStat = MonsterStatus.WeaponImmunity;
                     }
                     break;
                 case 141:
-                    if (makeChanceResult() && !monster.MonsterBuffs.Contains(MonsterStatus.WeaponImmunity))
+                    if (MakeChanceResult() && !monster.MonsterBuffs.Contains(MonsterStatus.WeaponImmunity))
                     {
                         monStat = MonsterStatus.MagicImmunity;
                     }
                     break;
                 case 200:
-                    bool canSpawn = true;
+                    var canSpawn = true;
                     //if (player.getEventInstance() != null)
                     //{
                     //    if (player.getEventInstance().getName().indexOf("FoJ", 0) != -1)
@@ -157,34 +159,41 @@ namespace NeoMapleStory.Game.Mob
                     //}
                     if (monster.Map.SpawnedMonstersOnMap.Value < 50 && canSpawn)
                     {
-                        foreach (int mobId in toSummon)
+                        foreach (var mobId in ToSummon)
                         {
-                            MapleMonster toSpawn = MapleLifeFactory.GetMonster(mobId);
-                            toSpawn.Position = (monster.Position);
+                            var toSpawn = MapleLifeFactory.GetMonster(mobId);
+                            toSpawn.Position = monster.Position;
                             var xpos = monster.Position.X;
                             var ypos = monster.Position.Y;
                             switch (mobId)
                             {
                                 case 8500003: // Pap bomb high
-                                    toSpawn.Fh = ((int)Math.Ceiling(Randomizer.NextDouble() * 19.0));
+                                    toSpawn.Fh = (int) Math.Ceiling(Randomizer.NextDouble()*19.0);
                                     ypos = -590;
                                     goto case 8500004;
                                 case 8500004: // Pap bomb
-                                              //Spawn between -500 and 500 from the monsters X position
-                                    xpos = (int)(monster.Position.X + Math.Ceiling(Randomizer.NextDouble() * 1000.0) - 500);
+                                    //Spawn between -500 and 500 from the monsters X position
+                                    xpos =
+                                        (int) (monster.Position.X + Math.Ceiling(Randomizer.NextDouble()*1000.0) - 500);
                                     if (ypos != -590)
                                     {
                                         ypos = monster.Position.Y;
                                     }
                                     break;
                                 case 8510100: //Pianus bomb
-                                    if (Math.Abs(Math.Ceiling(Randomizer.NextDouble() * 5) - 1) < EPSINON)
+                                    if (Math.Abs(Math.Ceiling(Randomizer.NextDouble()*5) - 1) < Epsinon)
                                     {
                                         ypos = 78;
-                                        xpos = (int)(0 + Math.Ceiling(Randomizer.NextDouble() * 5)) + ((Math.Abs(Math.Ceiling(Randomizer.NextDouble() * 2) - 1) < EPSINON) ? 180 : 0);
+                                        xpos = (int) (0 + Math.Ceiling(Randomizer.NextDouble()*5)) +
+                                               (Math.Abs(Math.Ceiling(Randomizer.NextDouble()*2) - 1) < Epsinon
+                                                   ? 180
+                                                   : 0);
                                     }
-                                    else {
-                                        xpos = (int)(monster.Position.X + Math.Ceiling(Randomizer.NextDouble() * 1000.0) - 500);
+                                    else
+                                    {
+                                        xpos =
+                                            (int)
+                                                (monster.Position.X + Math.Ceiling(Randomizer.NextDouble()*1000.0) - 500);
                                     }
                                     break;
                             }
@@ -195,26 +204,26 @@ namespace NeoMapleStory.Game.Mob
                                 case 220080001: //Pap map
                                     if (xpos < -890)
                                     {
-                                        xpos = (int)(-890 + Math.Ceiling(Randomizer.NextDouble() * 150));
+                                        xpos = (int) (-890 + Math.Ceiling(Randomizer.NextDouble()*150));
                                     }
                                     else if (xpos > 230)
                                     {
-                                        xpos = (int)(230 - Math.Ceiling(Randomizer.NextDouble() * 150));
+                                        xpos = (int) (230 - Math.Ceiling(Randomizer.NextDouble()*150));
                                     }
                                     break;
                                 case 230040420: // Pianus map
                                     if (xpos < -239)
                                     {
-                                        xpos = (int)(-239 + Math.Ceiling(Randomizer.NextDouble() * 150));
+                                        xpos = (int) (-239 + Math.Ceiling(Randomizer.NextDouble()*150));
                                     }
                                     else if (xpos > 371)
                                     {
-                                        xpos = (int)(371 - Math.Ceiling(Randomizer.NextDouble() * 150));
+                                        xpos = (int) (371 - Math.Ceiling(Randomizer.NextDouble()*150));
                                     }
                                     break;
                             }
-                            toSpawn.Position = (new Point(xpos, ypos));
-                            monster.Map.spawnMonsterWithEffect(toSpawn, spawnEffect, toSpawn.Position);
+                            toSpawn.Position = new Point(xpos, ypos);
+                            monster.Map.SpawnMonsterWithEffect(toSpawn, SpawnEffect, toSpawn.Position);
                         }
                     }
                     break;
@@ -222,35 +231,38 @@ namespace NeoMapleStory.Game.Mob
 
             if (monStat != null || heal)
             {
-                if (lt != Point.Empty && rb != Point.Empty && skill)
+                if (Lt != Point.Empty && Rb != Point.Empty && skill)
                 {
-                    List<IMapleMapObject> objects = getObjectsInRange(monster, MapleMapObjectType.Monster);
+                    var objects = GetObjectsInRange(monster, MapleMapObjectType.Monster);
                     if (heal)
                     {
-                        foreach (IMapleMapObject mons in objects)
+                        foreach (var mons in objects)
                         {
-                            ((MapleMonster)mons).heal(x, y);
+                            ((MapleMonster) mons).Heal(X, Y);
                         }
                     }
-                    else {
-                        foreach (IMapleMapObject mons in objects)
+                    else
+                    {
+                        foreach (var mons in objects)
                         {
                             if (!monster.MonsterBuffs.Contains(monStat.Value))
                             {
-                                ((MapleMonster)mons).applyMonsterBuff(monStat.Value, x, skillId, duration, this);
+                                ((MapleMonster) mons).ApplyMonsterBuff(monStat.Value, X, SkillId, Duration, this);
                             }
                         }
                     }
                 }
-                else {
+                else
+                {
                     if (heal)
                     {
-                        monster.heal(x, y);
+                        monster.Heal(X, Y);
                     }
-                    else {
+                    else
+                    {
                         if (!monster.MonsterBuffs.Contains(monStat.Value))
                         {
-                            monster.applyMonsterBuff(monStat.Value, x, skillId, duration, this);
+                            monster.ApplyMonsterBuff(monStat.Value, X, SkillId, Duration, this);
                         }
                     }
                 }
@@ -258,79 +270,83 @@ namespace NeoMapleStory.Game.Mob
 
             if (disease != null || dispel || banish)
             {
-                if (skill && lt != Point.Empty && rb != Point.Empty)
+                if (skill && Lt != Point.Empty && Rb != Point.Empty)
                 {
-                    List<MapleCharacter> characters = getPlayersInRange(monster, player);
-                    foreach (MapleCharacter character in characters)
+                    var characters = GetPlayersInRange(monster, player);
+                    foreach (var character in characters)
                     {
                         if (dispel)
                         {
-                            character.dispel();
+                            character.Dispel();
                         }
                         else if (banish)
                         {
                             if (player.EventInstanceManager == null)
                             {
-                                MapleMap to = player.Map.ReturnMap;
-                                IMaplePortal pto = to.getPortal((short)(0 + 10 * Randomizer.NextDouble()));
-                                character.changeMap(to, pto);
+                                var to = player.Map.ReturnMap;
+                                var pto = to.GetPortal((short) (0 + 10*Randomizer.NextDouble()));
+                                character.ChangeMap(to, pto);
                             }
                         }
-                        else {
-                            character.giveDebuff(disease.Value, this);
+                        else
+                        {
+                            character.GiveDebuff(disease.Value, this);
                         }
                     }
                 }
-                else {
+                else
+                {
                     if (dispel)
                     {
-                        player.dispel();
+                        player.Dispel();
                     }
-                    else {
-                        player.giveDebuff(disease.Value, this);
+                    else
+                    {
+                        player.GiveDebuff(disease.Value, this);
                     }
                 }
             }
-            monster.usedSkill(skillId, skillLevel, cooltime);
-            monster.Mp -= mpCon;
+            monster.UsedSkill(SkillId, SkillLevel, Cooltime);
+            monster.Mp -= MpCon;
         }
 
-        public bool makeChanceResult()
+        public bool MakeChanceResult()
         {
-            return Math.Abs(prop - 1.0) < EPSINON || Randomizer.NextDouble() < prop;
+            return Math.Abs(Prop - 1.0) < Epsinon || Randomizer.NextDouble() < Prop;
         }
 
-        private Rectangle calculateBoundingBox(Point posFrom, bool facingLeft)
+        private Rectangle CalculateBoundingBox(Point posFrom, bool facingLeft)
         {
             Point mylt;
             Point myrb;
             if (facingLeft)
             {
-                mylt = new Point(lt.X + posFrom.X, lt.Y + posFrom.Y);
-                myrb = new Point(rb.X + posFrom.X, rb.Y + posFrom.Y);
+                mylt = new Point(Lt.X + posFrom.X, Lt.Y + posFrom.Y);
+                myrb = new Point(Rb.X + posFrom.X, Rb.Y + posFrom.Y);
             }
-            else {
-                myrb = new Point(lt.X * -1 + posFrom.X, rb.Y + posFrom.Y);
-                mylt = new Point(rb.X * -1 + posFrom.X, lt.Y + posFrom.Y);
+            else
+            {
+                myrb = new Point(Lt.X*-1 + posFrom.X, Rb.Y + posFrom.Y);
+                mylt = new Point(Rb.X*-1 + posFrom.X, Lt.Y + posFrom.Y);
             }
-            Rectangle bounds = new Rectangle(mylt.X, mylt.Y, myrb.X - mylt.X, myrb.Y - mylt.Y);
+            var bounds = new Rectangle(mylt.X, mylt.Y, myrb.X - mylt.X, myrb.Y - mylt.Y);
             return bounds;
         }
 
-        private List<MapleCharacter> getPlayersInRange(MapleMonster monster, MapleCharacter player)
+        private List<MapleCharacter> GetPlayersInRange(MapleMonster monster, MapleCharacter player)
         {
-            Rectangle bounds = calculateBoundingBox(monster.Position, monster.IsFacingLeft);
-            List<MapleCharacter> players = new List<MapleCharacter>();
+            var bounds = CalculateBoundingBox(monster.Position, monster.IsFacingLeft);
+            var players = new List<MapleCharacter>();
             players.Add(player);
-            return monster.Map.getPlayersInRect(bounds, players);
+            return monster.Map.GetPlayersInRect(bounds, players);
         }
 
-        private List<IMapleMapObject> getObjectsInRange(MapleMonster monster, MapleMapObjectType objectType)
+        private List<IMapleMapObject> GetObjectsInRange(MapleMonster monster, MapleMapObjectType objectType)
         {
-            Rectangle bounds = calculateBoundingBox(monster.Position, monster.IsFacingLeft);
-            List<MapleMapObjectType> objectTypes = new List<MapleMapObjectType>();
+            var bounds = CalculateBoundingBox(monster.Position, monster.IsFacingLeft);
+            var objectTypes = new List<MapleMapObjectType>();
             objectTypes.Add(objectType);
-            return monster.Map.getMapObjectsInRect(bounds, objectTypes);
+            return monster.Map.GetMapObjectsInRect(bounds, objectTypes);
         }
     }
 }

@@ -4,22 +4,9 @@ using NeoMapleStory.Game.Client;
 
 namespace NeoMapleStory.Game.World
 {
-    public  class MaplePartyCharacter
+    public class MaplePartyCharacter
     {
-        public string CharacterName { get; private set; }
-        public int CharacterId { get; private set; }
-        public int Level { get; private set; }
-        public int ChannelId { get; private set; }
-        public int JobId { get; private set; }
-        public int MapId { get; private set; }
-        public bool Gender { get; private set; }
-        public bool IsMarried { get; private set; }
-        public int DoorTown { get; private set; } = 999999999;
-        public int DoorTarget { get; private set; } = 999999999;
-        public Point DoorPosition { get; private set; } = new Point(0, 0);
-        public bool IsOnline { get; set; }
-
-        private MapleCharacter _player;
+        private MapleCharacter m_player;
 
         public MaplePartyCharacter(MapleCharacter maplechar)
         {
@@ -45,6 +32,19 @@ namespace NeoMapleStory.Game.World
             CharacterName = "";
         }
 
+        public string CharacterName { get; }
+        public int CharacterId { get; private set; }
+        public int Level { get; private set; }
+        public int ChannelId { get; private set; }
+        public int JobId { get; private set; }
+        public int MapId { get; private set; }
+        public bool Gender { get; private set; }
+        public bool IsMarried { get; private set; }
+        public int DoorTown { get; private set; } = 999999999;
+        public int DoorTarget { get; private set; } = 999999999;
+        public Point DoorPosition { get; private set; } = new Point(0, 0);
+        public bool IsOnline { get; set; }
+
         //public MapleCharacter getPlayer()
         //{
         //    //return ChannelServer.getInstance(ChannelID).getPlayerStorage().getCharacterById(CharacterID);
@@ -52,7 +52,7 @@ namespace NeoMapleStory.Game.World
 
         public override int GetHashCode()
         {
-            return 31 * 1 + CharacterName == null ? 0 : CharacterName.GetHashCode();
+            return 31*1 + CharacterName == null ? 0 : CharacterName.GetHashCode();
         }
 
         public override bool Equals(object obj)
@@ -69,7 +69,7 @@ namespace NeoMapleStory.Game.World
             {
                 return false;
             }
-            MaplePartyCharacter other = (MaplePartyCharacter)obj;
+            var other = (MaplePartyCharacter) obj;
             if (CharacterName == null)
             {
                 if (other.CharacterName != null)

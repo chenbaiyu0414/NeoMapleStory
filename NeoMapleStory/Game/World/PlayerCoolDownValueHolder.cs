@@ -4,20 +4,21 @@ namespace NeoMapleStory.Game.World
 {
     public class PlayerCoolDownValueHolder
     {
-        public int SkillId { get; private set; }
-        public long StartTime { get; private set; }
-        public long Duration { get; private set; }
-        private readonly int _id;
+        private readonly int m_id;
 
         public PlayerCoolDownValueHolder(int skillId, long startTime, long duration)
         {
             SkillId = skillId;
             StartTime = startTime;
             Duration = duration;
-            _id = (int)(Randomizer.NextDouble() * 100);
+            m_id = (int) (Randomizer.NextDouble()*100);
         }
 
-        public override int GetHashCode() => 1 * 31 + _id;
+        public int SkillId { get; private set; }
+        public long StartTime { get; private set; }
+        public long Duration { get; private set; }
+
+        public override int GetHashCode() => 1*31 + m_id;
 
         public override bool Equals(object obj)
         {
@@ -33,8 +34,8 @@ namespace NeoMapleStory.Game.World
             {
                 return false;
             }
-            PlayerCoolDownValueHolder other = (PlayerCoolDownValueHolder)obj;
-            if (_id != other._id)
+            var other = (PlayerCoolDownValueHolder) obj;
+            if (m_id != other.m_id)
             {
                 return false;
             }

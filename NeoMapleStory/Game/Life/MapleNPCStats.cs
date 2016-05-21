@@ -2,11 +2,11 @@
 {
     public class MapleNpcStats
     {
-        public string NpcName { get; set; }
-
         public MapleNpcStats(string name)
         {
             NpcName = name;
         }
+
+        public string NpcName { get; set; }
     }
 }

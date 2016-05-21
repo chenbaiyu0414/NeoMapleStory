@@ -1,18 +1,16 @@
 ﻿using MySql.Data.MySqlClient;
 
-
 namespace NeoMapleStory.Core
 {
     public class DbConnectionManager
     {
-        private readonly MySqlConnectionStringBuilder _conStrBuilder;
-        public static DbConnectionManager Instance { get; } = new DbConnectionManager();
+        private readonly MySqlConnectionStringBuilder m_conStrBuilder;
 
         public DbConnectionManager()
         {
-            _conStrBuilder = new MySqlConnectionStringBuilder
+            m_conStrBuilder = new MySqlConnectionStringBuilder
             {
-                Server="localhost",
+                Server = "localhost",
                 Database = "NeoMapleStory",
                 UserID = "root",
                 Password = "cby159753",
@@ -22,9 +20,11 @@ namespace NeoMapleStory.Core
             };
         }
 
+        public static DbConnectionManager Instance { get; } = new DbConnectionManager();
+
         public MySqlConnection GetConnection()
         {
-            return new MySqlConnection(_conStrBuilder.ConnectionString);
+            return new MySqlConnection(m_conStrBuilder.ConnectionString);
         }
     }
 }

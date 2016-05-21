@@ -10,6 +10,7 @@ namespace NeoMapleStory.Core.Database.DataModel
 
         [ForeignKey("InventoryItemId")]
         public virtual InventoryItem InventoryItem { get; set; }
+
         public int InventoryItemId { get; set; }
 
         //public virtual IEquip InventoryEquip { get; set; }

@@ -5,31 +5,31 @@ using System.Windows.Forms;
 
 namespace NeoMapleStory.Core
 {
-    class TextBoxWriter : TextWriter
+    internal class TextBoxWriter : TextWriter
     {
-        readonly TextBox _mTextBox;
+        private readonly TextBox m_mTextBox;
 
         public TextBoxWriter(TextBox textbox)
         {
-            _mTextBox = textbox;
+            m_mTextBox = textbox;
         }
+
+        public override Encoding Encoding => Encoding.Default;
 
         public override void Write(string value)
         {
-            _mTextBox.BeginInvoke(new Action(() =>
-            {
-                _mTextBox.AppendText($"[{DateTime.Now.ToString("HH:mm:ss")}] {value}");
-            }));
+            m_mTextBox.BeginInvoke(
+                new Action(() => { m_mTextBox.AppendText($"[{DateTime.Now.ToString("HH:mm:ss")}] {value}"); }));
         }
 
         public override void WriteLine(string value)
         {
-            _mTextBox.BeginInvoke(new Action(() =>
-            {
-                _mTextBox.AppendText($"[{DateTime.Now.ToString("HH:mm:ss")}] {value}{Environment.NewLine}");
-            }));
+            m_mTextBox.BeginInvoke(
+                new Action(
+                    () =>
+                    {
+                        m_mTextBox.AppendText($"[{DateTime.Now.ToString("HH:mm:ss")}] {value}{Environment.NewLine}");
+                    }));
         }
-
-        public override Encoding Encoding => Encoding.Default;
     }
 }

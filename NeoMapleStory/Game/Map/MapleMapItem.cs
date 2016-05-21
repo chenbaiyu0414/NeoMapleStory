@@ -8,15 +8,9 @@ namespace NeoMapleStory.Game.Map
 {
     public class MapleMapItem : AbstractMapleMapObject
     {
-        public IMapleItem Item { get; }
-        public IMapleMapObject Dropper { get; }
-        public MapleCharacter Owner { get; }
-        public int Money { get; }
-        public bool IsPickedUp { get; set; }
-
         public MapleMapItem(IMapleItem item, Point position, IMapleMapObject dropper, MapleCharacter owner)
         {
-            Position=position;
+            Position = position;
             Item = item;
             Dropper = dropper;
             Owner = owner;
@@ -32,6 +26,12 @@ namespace NeoMapleStory.Game.Map
             Owner = owner;
         }
 
+        public IMapleItem Item { get; }
+        public IMapleMapObject Dropper { get; }
+        public MapleCharacter Owner { get; }
+        public int Money { get; }
+        public bool IsPickedUp { get; set; }
+
         public override MapleMapObjectType GetType() => MapleMapObjectType.Item;
 
 
@@ -44,15 +44,17 @@ namespace NeoMapleStory.Game.Map
         {
             if (Money > 0)
             {
-                client.Send(PacketCreator.DropMesoFromMapObject(Money, ObjectId, Dropper.ObjectId, Owner.Id, Point.Empty, Position, 2));
+                client.Send(PacketCreator.DropMesoFromMapObject(Money, ObjectId, Dropper.ObjectId, Owner.Id, Point.Empty,
+                    Position, 2));
             }
             else
             {
-                client.Send(PacketCreator.DropItemFromMapObject(Item.ItemId, ObjectId, 0, Owner.Id, Point.Empty, Position, 2));
+                client.Send(PacketCreator.DropItemFromMapObject(Item.ItemId, ObjectId, 0, Owner.Id, Point.Empty,
+                    Position, 2));
             }
         }
 
-        public bool isQuestItem(int itemid)
+        public bool IsQuestItem(int itemid)
         {
             //int numrow = 0;
             //Connection con = DatabaseConnection.getConnection();
@@ -82,7 +84,7 @@ namespace NeoMapleStory.Game.Map
             return false;
         }
 
-        public int getItemQuestId(int itemid)
+        public int GetItemQuestId(int itemid)
         {
             //Connection con = DatabaseConnection.getConnection();
             //int questid = -1;
@@ -106,6 +108,5 @@ namespace NeoMapleStory.Game.Map
             //return questid;
             return -1;
         }
-
     }
 }

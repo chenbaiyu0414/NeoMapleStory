@@ -1,58 +1,16 @@
-﻿using NeoMapleStory.Core.Database;
+﻿using System;
+using System.Security.Cryptography;
+using NeoMapleStory.Core.Database;
 using NeoMapleStory.Core.Encryption;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Settings;
 using SuperSocket.SocketBase;
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using NeoMapleStory.Game.Inventory;
-using NeoMapleStory.Game.Script.NPC;
-using NeoMapleStory.Game.World;
 
 namespace NeoMapleStory.Server
 {
-
     public sealed class MapleClient : AppSession<MapleClient, PacketRequestInfo>
     {
-        public MapleCipher SendCipher { get; private set; }
-        public MapleCipher RecvCipher { get; private set; }
-
-        public byte[] SendIv { get; private set; } = new byte[4];
-        public byte[] RecvIv { get; private set; } = new byte[4];
-
-        //基础账号信息
-        public int AccountId { get; set; }
-        public bool Gender { get; set; }
-        public bool IsGm { get; set; }
-
-        //aa
-        public byte WorldId { get; set; }
-        public byte ChannelId { get; set; }
-        public bool IsLoggedIn { get; set; }
-        public ChannelServer ChannelServer => MasterServer.Instance.ChannelServers[ChannelId];
-
-        public MapleCharacter Player { get; set; }
-
-        public LoginState State
-        {
-            get
-            {
-                var state= DatabaseHelper.GetState(AccountId);
-                if (state == LoginState.LoggedIn) IsLoggedIn = true;
-                return state;
-            }
-            set
-            {
-                DatabaseHelper.UpdateState(AccountId, value);
-                if (value == LoginState.NotLogin)
-                    IsLoggedIn = false;
-                else
-                    IsLoggedIn = value != LoginState.ServerTransition;
-            }
-        }
-
         public enum LoginState
         {
             NotLogin,
@@ -74,39 +32,54 @@ namespace NeoMapleStory.Server
             unchecked
             {
                 //ushort value = 0xFFFF - ServerSettings.MapleVersion;
-                SendCipher = new MapleCipher((short)(0xFFFF - ServerSettings.MapleVersion), SendIv, MapleCipher.CipherType.Encrypt);
+                SendCipher = new MapleCipher((short) (0xFFFF - ServerSettings.MapleVersion), SendIv,
+                    MapleCipher.CipherType.Encrypt);
                 RecvCipher = new MapleCipher(ServerSettings.MapleVersion, RecvIv, MapleCipher.CipherType.Decrypt);
             }
         }
 
-        #region 发送封包
-        public void Send(OutPacket packet)
+        public MapleCipher SendCipher { get; }
+        public MapleCipher RecvCipher { get; private set; }
+
+        public byte[] SendIv { get; } = new byte[4];
+        public byte[] RecvIv { get; } = new byte[4];
+
+        //基础账号信息
+        public int AccountId { get; set; }
+        public bool Gender { get; set; }
+        public bool IsGm { get; set; }
+
+        //aa
+        public byte WorldId { get; set; }
+        public byte ChannelId { get; set; }
+        public bool IsLoggedIn { get; set; }
+        public ChannelServer ChannelServer => MasterServer.Instance.ChannelServers[ChannelId];
+        public MapleCharacter Player { get; set; }
+
+        public DateTime LastPongTime { get; set; }
+        public int LastActionId { get; set; }
+
+        public LoginState State
         {
-            Send(packet.ToArray());
+            get
+            {
+                var state = DatabaseHelper.GetState(AccountId);
+                if (state == LoginState.LoggedIn) IsLoggedIn = true;
+                return state;
+            }
+            set
+            {
+                DatabaseHelper.UpdateState(AccountId, value);
+                if (value == LoginState.NotLogin)
+                    IsLoggedIn = false;
+                else
+                    IsLoggedIn = value != LoginState.ServerTransition;
+            }
         }
-
-        private void Send(byte[] packetData)
-        {
-            var headerData = SendCipher.GetPacketHeader(packetData.Length);
-            //Console.WriteLine($"发送封包：{BitTool.GetHexStr(packetData)}");
-            SendCipher.Transform(packetData);
-
-            var finalData = new byte[packetData.Length + headerData.Length];
-            Buffer.BlockCopy(headerData, 0, finalData, 0, headerData.Length);
-            Buffer.BlockCopy(packetData, 0, finalData, 4, packetData.Length);
-
-            SendRaw(finalData);
-        }
-
-        public void SendRaw(byte[] data)
-        {
-            Send(data, 0, data.Length);
-        }
-        #endregion
 
         public void Disconnect()
         {
-            MapleCharacter chr = this.Player;
+            var chr = Player;
             if (chr != null && IsLoggedIn)
             {
                 //if (chr.getTrade() != null)
@@ -272,5 +245,32 @@ namespace NeoMapleStory.Server
             //this.setPacketLog(false);
             Close();
         }
+
+        #region 发送封包
+
+        public void Send(OutPacket packet)
+        {
+            Send(packet.ToArray());
+        }
+
+        private void Send(byte[] packetData)
+        {
+            var headerData = SendCipher.GetPacketHeader(packetData.Length);
+            //Console.WriteLine($"发送封包：{BitTool.GetHexStr(packetData)}");
+            SendCipher.Transform(packetData);
+
+            var finalData = new byte[packetData.Length + headerData.Length];
+            Buffer.BlockCopy(headerData, 0, finalData, 0, headerData.Length);
+            Buffer.BlockCopy(packetData, 0, finalData, 4, packetData.Length);
+
+            SendRaw(finalData);
+        }
+
+        public void SendRaw(byte[] data)
+        {
+            Send(data, 0, data.Length);
+        }
+
+        #endregion
     }
 }

@@ -2,13 +2,12 @@
 
 namespace NeoMapleStory.Game.Data
 {
-     public class MapleDataProviderFactory
+    public class MapleDataProviderFactory
     {
         private static readonly string MWzPath = $"{Environment.CurrentDirectory}\\WZ\\";
 
         private static IMapleDataProvider GetWz(string path, bool provideImages)
         {
-
             //if (Path.GetFileName(m_wzPath).EndsWith(".wz") && File.GetAttributes(m_wzPath) != FileAttributes.Directory)
             //{
             //    try
@@ -36,9 +35,10 @@ namespace NeoMapleStory.Game.Data
             return GetWz(filein, true);
         }
 
-        //public static File fileInWZPath(string filename)
-        //{
-        //    return new File(m_wzPath, filename);
         //}
+        //    return new File(m_wzPath, filename);
+        //{
+
+        //public static File fileInWZPath(string filename)
     }
 }

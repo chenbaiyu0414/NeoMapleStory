@@ -1,5 +1,10 @@
-﻿using NeoMapleStory.Core;
-using NeoMapleStory.Core.Database;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using MySql.Data.MySqlClient;
+using NeoMapleStory.Core;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client.AntiCheat;
@@ -9,26 +14,66 @@ using NeoMapleStory.Game.Map;
 using NeoMapleStory.Game.Mob;
 using NeoMapleStory.Game.Movement;
 using NeoMapleStory.Game.Quest;
+using NeoMapleStory.Game.Script.Event;
 using NeoMapleStory.Game.Shop;
 using NeoMapleStory.Game.Skill;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using NeoMapleStory.Game.Script.Event;
-using System.Data;
-using MySql.Data.MySqlClient;
 using Quartz;
 
 namespace NeoMapleStory.Game.Client
 {
     public class MapleCharacter : AbstractAnimatedMapleMapObject
     {
+        public const double MaxViewRangeSq = 850*850;
 
-        public static double MaxViewRangeSq { get; } = 850 * 850;
+
+        private readonly Action<MapleCharacter, int> m_cancelCooldownAction = (target, skillId) =>
+        {
+            var realTarget = (MapleCharacter) new WeakReference(target).Target;
+            realTarget?.RemoveCooldown(skillId);
+        };
+
+        //private IPlayerInteractionManager interaction = null;
+        private readonly List<MapleMonster> m_controlled = new List<MapleMonster>();
+
+        private readonly Dictionary<int, MapleCoolDownValueHolder> m_coolDowns =
+            new Dictionary<int, MapleCoolDownValueHolder>();
+
+        private readonly Dictionary<MapleBuffStat, MapleBuffStatValueHolder> m_effects =
+            new Dictionary<MapleBuffStat, MapleBuffStatValueHolder>();
+
+        private readonly List<string> m_mapletips = new List<string>();
+
+        private readonly Dictionary<MapleQuest, MapleQuestStatus> m_quests =
+            new Dictionary<MapleQuest, MapleQuestStatus>();
+
+        private readonly SkillMacro[] m_skillMacros = new SkillMacro[5];
+        public readonly List<MapleDisease> Diseases = new List<MapleDisease>();
+
+
+        //public CharacterModel CharacterInfo { get; set; }
+
+
+        private int m_apqScore;
+        private string m_chalkboardtext;
+        private int m_cp;
+
+        private short m_hp;
+        private short m_mp;
+
+        public MapleCharacter()
+        {
+            Stance = 0;
+            Inventorys = new MapleInventory[MapleInventoryType.TypeList.Length];
+            foreach (var type in MapleInventoryType.TypeList)
+            {
+                Inventorys[type.Value] = new MapleInventory(type, 100);
+            }
+            Position = Point.Empty;
+            AntiCheatTracker = new CheatTracker(this);
+        }
 
         //Character Info Begin
         public int AccountId { get; set; }
@@ -46,9 +91,46 @@ namespace NeoMapleStory.Game.Client
         public short RemainingAp { get; set; }
         public short RemainingSp { get; set; }
         public short Fame { get; set; }
-        public short Hp { get; set; }
+
+        public short Hp
+        {
+            get { return m_hp; }
+            set
+            {
+                var oldhp = m_hp;
+                var tmpHp = value;
+                if (tmpHp < 0)
+                    tmpHp = 0;
+                if (tmpHp > Localmaxhp)
+                    tmpHp = Localmaxhp;
+                m_hp = tmpHp;
+                UpdatePartyMemberHp();
+                if (oldhp > m_hp && !IsAlive)
+                    PlayerDead();
+                CheckBerserk();
+            }
+        }
+
         public short MaxHp { get; set; }
-        public short Mp { get; set; }
+
+        public short Mp
+        {
+            get { return m_mp; }
+            set
+            {
+                var tmp = value;
+                if (tmp < 0)
+                {
+                    tmp = 0;
+                }
+                if (tmp > Localmaxmp)
+                {
+                    tmp = Localmaxmp;
+                }
+                m_mp = tmp;
+            }
+        }
+
         public short MaxMp { get; set; }
         public byte Level { get; set; }
         public MapleSkinColor Skin { get; set; } = MapleSkinColor.Normal;
@@ -63,7 +145,7 @@ namespace NeoMapleStory.Game.Client
         //Character Info End
 
         //计算出的属性
-        public short   Localmaxhp { get; set; }
+        public short Localmaxhp { get; set; }
         public short Localmaxmp { get; set; }
         public short Localdex { get; set; }
         public short Localint { get; set; }
@@ -78,34 +160,10 @@ namespace NeoMapleStory.Game.Client
         public double JumpMod { get; set; }
 
 
-
         public int LocalMaxBasedDamage { get; set; }
+        public Dictionary<ISkill, SkillEntry> Skills { get; } = new Dictionary<ISkill, SkillEntry>();
 
-
-
-
-
-
-
-
-
-
-        //public CharacterModel CharacterInfo { get; set; }
-
-
-        private int _apqScore;
-        private int _cp;
-        private readonly Dictionary<MapleBuffStat, MapleBuffStatValueHolder> _effects = new Dictionary<MapleBuffStat, MapleBuffStatValueHolder>();
-       public readonly List<MapleDisease> _diseases = new List<MapleDisease>();
-        public Dictionary<ISkill, SkillEntry> Skills { get; private set; } = new Dictionary<ISkill, SkillEntry>();
-        private readonly List<string> _mapletips = new List<string>();
-        private readonly Dictionary<int, MapleCoolDownValueHolder> _coolDowns = new Dictionary<int, MapleCoolDownValueHolder>();
-        private readonly Dictionary<MapleQuest, MapleQuestStatus> _quests = new Dictionary<MapleQuest, MapleQuestStatus>();
-        private readonly SkillMacro[] _skillMacros = new SkillMacro[5];
-        //private IPlayerInteractionManager interaction = null;
-        private readonly List<MapleMonster> _controlled = new List<MapleMonster>();
-
-        public int JobType => Job.JobId / 2000;
+        public int JobType => Job.JobId/2000;
         public bool IsAlive => Hp > 0;
 
         public InterLockedInt Exp { get; set; } = new InterLockedInt(0);
@@ -143,23 +201,23 @@ namespace NeoMapleStory.Game.Client
         public List<IMapleMapObject> VisibleMapObjects { get; set; } = new List<IMapleMapObject>();
 
         public List<ILifeMovementFragment> Lastres { get; set; } = new List<ILifeMovementFragment>();
-        private string _chalkboardtext;
 
         public string ChalkBoardText
         {
-            get { return _chalkboardtext; }
+            get { return m_chalkboardtext; }
             set
             {
                 //if (interaction != null)
                 //{
                 //    return;
                 //}
-                _chalkboardtext = value;
-                if (_chalkboardtext == null)
+                m_chalkboardtext = value;
+                if (m_chalkboardtext == null)
                 {
                     Map.BroadcastMessage(PacketCreator.UseChalkboard(this, true));
                 }
-                else {
+                else
+                {
                     Map.BroadcastMessage(PacketCreator.UseChalkboard(this, false));
                 }
             }
@@ -171,22 +229,11 @@ namespace NeoMapleStory.Game.Client
 
         public CheatTracker AntiCheatTracker { get; private set; }
 
-        public MapleCharacter()
-        {
-            Stance = 0;
-            Inventorys = new MapleInventory[MapleInventoryType.TypeList.Length];
-            foreach (var type in MapleInventoryType.TypeList)
-            {
-                Inventorys[type.Value] = new MapleInventory(type, 100);
-            }
-            Position = Point.Empty;
-            AntiCheatTracker = new CheatTracker(this);
-        }
-
         public static MapleCharacter GetDefault(MapleClient client)
         {
-            MapleCharacter ret = new MapleCharacter();
+            var ret = new MapleCharacter();
             ret.Client = client;
+            ret.AccountId = client.AccountId;
             ret.Inventorys[MapleInventoryType.Equip.Value] = new MapleInventory(MapleInventoryType.Equip, 24);
             ret.Inventorys[MapleInventoryType.Use.Value] = new MapleInventory(MapleInventoryType.Use, 24);
             ret.Inventorys[MapleInventoryType.Setup.Value] = new MapleInventory(MapleInventoryType.Setup, 24);
@@ -194,7 +241,7 @@ namespace NeoMapleStory.Game.Client
             ret.Inventorys[MapleInventoryType.Cash.Value] = new MapleInventory(MapleInventoryType.Cash, 50);
 
 
-           ret. Hp = 50;
+            ret.Hp = 50;
             ret.MaxHp = 50;
             ret.Mp = 50;
             ret.MaxMp = 50;
@@ -202,26 +249,25 @@ namespace NeoMapleStory.Game.Client
             ret.GmLevel = 0;
             ret.Money.Exchange(10000);
             ret.Level = 1;
-                //BookCover = 0,
-                //Maplemount = null,
-                //TotalCp = 0,
-                //Team = -1,
-                //Incs = false,
-                //Inmts = false,
-                //AllianceRank = 5,
-                //AccountId = accountId
-
+            //BookCover = 0,
+            //Maplemount = null,
+            //TotalCp = 0,
+            //Team = -1,
+            //Incs = false,
+            //Inmts = false,
+            //AllianceRank = 5,
+            //AccountId = accountId
 
 
             ret.Map = null;
 
-            ret.Job = MapleJob.Beginner;// MapleJob.BEGINNER;
+            ret.Job = MapleJob.Beginner; // MapleJob.BEGINNER;
 
             ret.Buddies = new MapleBuddyList(20);
 
-            ret._cp = 0;
+            ret.m_cp = 0;
 
-            ret._apqScore = 0;
+            ret.m_apqScore = 0;
 
 
             //ret.keymap.put(Integer.valueOf(2), new MapleKeyBinding(4, 10));
@@ -266,6 +312,7 @@ namespace NeoMapleStory.Game.Client
 
             return ret;
         }
+
         private void RecalcLocalStats()
         {
             int oldmaxhp = Localmaxhp;
@@ -275,14 +322,14 @@ namespace NeoMapleStory.Game.Client
             Localint = Int;
             Localstr = Str;
             Localluk = Luk;
-            int speed = 100;
-            int jump = 100;
+            var speed = 100;
+            var jump = 100;
             Magic = Localint;
             Watk = 0;
 
             foreach (var item in Inventorys[MapleInventoryType.Equipped.Value].Inventory.Values)
             {
-                IEquip equip = (IEquip)item;
+                var equip = (IEquip) item;
                 Localmaxhp += equip.Hp;
                 Localmaxmp += equip.Mp;
                 Localdex += equip.Dex;
@@ -296,26 +343,27 @@ namespace NeoMapleStory.Game.Client
             }
 
             IMapleItem weapon;
-            if (!Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(11, out weapon) && Job == MapleJob.Pirate)
+            if (!Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(11, out weapon) &&
+                Job == MapleJob.Pirate)
             {
                 // Barefists
                 Watk += 8;
             }
             Magic = Math.Min(Magic, 2000);
 
-            int? hbhp = GetBuffedValue(MapleBuffStat.Hyperbodyhp);
+            var hbhp = GetBuffedValue(MapleBuffStat.Hyperbodyhp);
             if (hbhp.HasValue)
             {
-                Localmaxhp += (short)(hbhp.Value / 100 * Localmaxhp);
+                Localmaxhp += (short) (hbhp.Value/100*Localmaxhp);
             }
-            int? hbmp = GetBuffedValue(MapleBuffStat.Hyperbodymp);
+            var hbmp = GetBuffedValue(MapleBuffStat.Hyperbodymp);
             if (hbmp.HasValue)
             {
-                Localmaxmp += (short)(hbmp.Value / 100 * Localmaxmp);
+                Localmaxmp += (short) (hbmp.Value/100*Localmaxmp);
             }
 
-            Localmaxhp = Math.Min((short)30000, Localmaxhp);
-            Localmaxmp = Math.Min((short)30000, Localmaxmp);
+            Localmaxhp = Math.Min((short) 30000, Localmaxhp);
+            Localmaxmp = Math.Min((short) 30000, Localmaxmp);
 
             var watkbuff = GetBuffedValue(MapleBuffStat.Watk);
             if (watkbuff.HasValue)
@@ -335,7 +383,7 @@ namespace NeoMapleStory.Game.Client
                 }
                 if (expert != null)
                 {
-                    int boostLevel = getSkillLevel(expert);
+                    var boostLevel = GetSkillLevel(expert);
                     if (boostLevel > 0)
                     {
                         Watk += expert.GetEffect(boostLevel).X;
@@ -370,8 +418,8 @@ namespace NeoMapleStory.Game.Client
                 jump = 123;
             }
 
-            SpeedMod = speed / 100.0;
-            JumpMod = jump / 100.0;
+            SpeedMod = speed/100.0;
+            JumpMod = jump/100.0;
 
             var mount = GetBuffedValue(MapleBuffStat.MonsterRiding);
             if (mount.HasValue)
@@ -402,20 +450,20 @@ namespace NeoMapleStory.Game.Client
             var mWarrior = GetBuffedValue(MapleBuffStat.MapleWarrior);
             if (mWarrior.HasValue)
             {
-                Localstr += (short)(mWarrior.Value / 100 * Localstr);
-                Localdex += (short)(mWarrior.Value / 100 * Localdex);
-                Localint += (short)(mWarrior.Value / 100 * Localint);
-                Localluk += (short)(mWarrior.Value / 100 * Localluk);
+                Localstr += (short) (mWarrior.Value/100*Localstr);
+                Localdex += (short) (mWarrior.Value/100*Localdex);
+                Localint += (short) (mWarrior.Value/100*Localint);
+                Localluk += (short) (mWarrior.Value/100*Localluk);
             }
 
-            LocalMaxBasedDamage = calculateMaxBaseDamage(Watk);
+            LocalMaxBasedDamage = CalculateMaxBaseDamage(Watk);
             if (oldmaxhp != 0 && oldmaxhp != Localmaxhp)
             {
                 UpdatePartyMemberHp();
             }
         }
 
-        public int calculateMaxBaseDamage(int watk)
+        public int CalculateMaxBaseDamage(int watk)
         {
             int maxbasedamage;
             if (watk == 0)
@@ -424,12 +472,14 @@ namespace NeoMapleStory.Game.Client
             }
             else
             {
-                var weapon_item = Inventorys[MapleInventoryType.Equipped.Value].Inventory[11];
-                bool barefists = weapon_item == null && (Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight);
+                var weaponItem = Inventorys[MapleInventoryType.Equipped.Value].Inventory[11];
+                var barefists = weaponItem == null && (Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight);
 
-                if (weapon_item != null || Job== MapleJob.Pirate || Job== MapleJob.ThiefKnight)
+                if (weaponItem != null || Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight)
                 {
-                    MapleWeaponType weapon = barefists ? MapleWeaponType.Knuckle : MapleItemInformationProvider.Instance.GetWeaponType(weapon_item.ItemId);
+                    var weapon = barefists
+                        ? MapleWeaponType.Knuckle
+                        : MapleItemInformationProvider.Instance.GetWeaponType(weaponItem.ItemId);
                     int mainstat;
                     int secondarystat;
                     if (weapon == MapleWeaponType.Bow || weapon == MapleWeaponType.Crossbow)
@@ -437,17 +487,20 @@ namespace NeoMapleStory.Game.Client
                         mainstat = Localdex;
                         secondarystat = Localstr;
                     }
-                    else if ((Job==MapleJob.Thief || Job==MapleJob.NightKnight) && (weapon == MapleWeaponType.Claw || weapon == MapleWeaponType.Dagger))
+                    else if ((Job == MapleJob.Thief || Job == MapleJob.NightKnight) &&
+                             (weapon == MapleWeaponType.Claw || weapon == MapleWeaponType.Dagger))
                     {
                         mainstat = Localluk;
                         secondarystat = Localdex + Localstr;
                     }
-                    else if ((Job==MapleJob.Pirate || Job==MapleJob.ThiefKnight) && (weapon == MapleWeaponType.Gun))
+                    else if ((Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight) &&
+                             (weapon == MapleWeaponType.Gun))
                     {
                         mainstat = Localdex;
                         secondarystat = Localstr;
                     }
-                    else if ((Job==MapleJob.Pirate || Job==MapleJob.ThiefKnight) && (weapon == MapleWeaponType.Knuckle))
+                    else if ((Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight) &&
+                             (weapon == MapleWeaponType.Knuckle))
                     {
                         mainstat = Localstr;
                         secondarystat = Localdex;
@@ -457,7 +510,7 @@ namespace NeoMapleStory.Game.Client
                         mainstat = Localstr;
                         secondarystat = Localdex;
                     }
-                    maxbasedamage = (int)((weapon.DamageMultiplier * mainstat + secondarystat) / 100.0 * watk);
+                    maxbasedamage = (int) ((weapon.DamageMultiplier*mainstat + secondarystat)/100.0*watk);
                     maxbasedamage += 10;
                 }
                 else
@@ -474,12 +527,13 @@ namespace NeoMapleStory.Game.Client
         }
 
 
-
         public void SaveToDb(bool update)
         {
             MySqlCommand cmd;
             if (update)
-                cmd = new MySqlCommand("UPDATE Characters SET Level =@Level, Fame = @Fame, Str =@Str , Dex = @Dex, Luk =@Luk, `Int` =@Int, EXP =@Exp, Hp = @Hp, Mp =@Mp, MaxHp =@MaxHp, MaxMp = @MaxMp, RemainingSp =@RemainingSP, RemainingAp =@RemainingAp, GmLevel =@GmLevel, Skin = @Skin,JobId =@JobId, Hair =@Hair, Face =@Face, MapId = @MapId, Money = @Money, SpawnPoint = @SpawnPoint, PartyId = @PartyId, AutoHpPot = @AutoHpPot, AutoMpPot = @AutoMpPot, IsMarried = @IsMarried, EquipSlots = @EquipSlots, UseSlots = @UseSlots, SetupSlots = @SetupSlots, EtcSlots = @EtcSlots, CashSlots = @CashSlots WHERE Id = @Id");
+                cmd =
+                    new MySqlCommand(
+                        "UPDATE Characters SET Level =@Level, Fame = @Fame, Str =@Str , Dex = @Dex, Luk =@Luk, `Int` =@Int, EXP =@Exp, Hp = @Hp, Mp =@Mp, MaxHp =@MaxHp, MaxMp = @MaxMp, RemainingSp =@RemainingSP, RemainingAp =@RemainingAp, GmLevel =@GmLevel, Skin = @Skin,JobId =@JobId, Hair =@Hair, Face =@Face, MapId = @MapId, Money = @Money, SpawnPoint = @SpawnPoint, PartyId = @PartyId, AutoHpPot = @AutoHpPot, AutoMpPot = @AutoMpPot, IsMarried = @IsMarried, EquipSlots = @EquipSlots, UseSlots = @UseSlots, SetupSlots = @SetupSlots, EtcSlots = @EtcSlots, CashSlots = @CashSlots WHERE Id = @Id");
             else
                 cmd = new MySqlCommand(
                     @"INSERT Characters(AId,WorldId,Name,JobId,GmLevel,Level,Dex,`Int`,Luk,Str,Hp,MaxHp,Mp,MaxMp,EXP,Money,Fame,IsMarried,MapId,SpawnPoint,PartyId,Face,Hair,Skin,RemainingAp,RemainingSp,AutoHpPot,AutoMpPot,EquipSlots,UseSlots,SetupSlots,EtcSlots,CashSlots)
@@ -509,7 +563,7 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
             //ps.setInt(23, mpApUsed);
 
 
-            int mapId = 0;
+            var mapId = 0;
             if (Map == null)
             {
                 if (!update && Job.JobId == 1000)
@@ -529,19 +583,19 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
             }
             else
             {
-                 mapId = Map.MapId;
+                mapId = Map.MapId;
             }
-               
+
             cmd.Parameters.Add(new MySqlParameter("@MapId", mapId));
 
-            int spawnPoint = 0;
+            var spawnPoint = 0;
             if (Map == null || Map.MapId == 610020000 || Map.MapId == 610020001)
             {
                 spawnPoint = 0;
             }
             else
             {
-                IMaplePortal closest = Map.FindClosestSpawnpoint(Position);
+                var closest = Map.FindClosestSpawnpoint(Position);
                 spawnPoint = closest?.PortalId ?? 0;
             }
 
@@ -549,9 +603,11 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
 
             cmd.Parameters.Add(new MySqlParameter("@PartyId", Party?.PartyId ?? 0));
 
-            cmd.Parameters.Add(new MySqlParameter("@AutoHpPot", AutoHpPot != 0 && GetItemAmount(AutoHpPot) >= 1 ? AutoHpPot : 0));
+            cmd.Parameters.Add(new MySqlParameter("@AutoHpPot",
+                AutoHpPot != 0 && GetItemAmount(AutoHpPot) >= 1 ? AutoHpPot : 0));
 
-            cmd.Parameters.Add(new MySqlParameter("@AutoMpPot", AutoMpPot != 0 && GetItemAmount(AutoMpPot) >= 1 ? AutoMpPot : 0));
+            cmd.Parameters.Add(new MySqlParameter("@AutoMpPot",
+                AutoMpPot != 0 && GetItemAmount(AutoMpPot) >= 1 ? AutoMpPot : 0));
 
             cmd.Parameters.Add(new MySqlParameter("@IsMarried", IsMarried));
 
@@ -561,7 +617,6 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
             //    MessengerId = 0;
             //    MessengerPosition = 4;
             //}
-
 
 
             //if (ZakumLvl > 2)
@@ -593,7 +648,7 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
             else
             {
                 cmd.Parameters.Add(new MySqlParameter("@AId", AccountId));
-                cmd.Parameters.Add(new MySqlParameter("@Name",Name));
+                cmd.Parameters.Add(new MySqlParameter("@Name", Name));
                 cmd.Parameters.Add(new MySqlParameter("@WorldId", WorldId));
             }
 
@@ -604,8 +659,8 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
                 con.Open();
                 cmd.Transaction = con.BeginTransaction(IsolationLevel.ReadUncommitted);
 
-                int updateRow = cmd.ExecuteNonQuery();
-                
+                var updateRow = cmd.ExecuteNonQuery();
+
                 if (!update)
                 {
                     Id = Convert.ToInt32(cmd.LastInsertedId);
@@ -658,17 +713,19 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
                 cmd.ExecuteNonQuery();
                 cmd.Parameters.Clear();
 
-                string cmdStr_Item = "INSERT InventoryItems(CId,ItemId,Type,Position,Quantity,Owner,ExpireDate,UniqueId) VALUES(@CId,@ItemId,@Type,@Position,@Quantity,@Owner,@ExpireDate,@UniqueId)";
-                string cmdStr_Equipment =
-                    @"INSERT InventoryEquipments(InventoryItemId,UpgradeSlots,Level,Str,Dex,`Int`,Luk,HP,MP,Watk,Matk,Wdef,Mdef,Acc,Avoid,Hands,Speed,Jump,Vicious,IsRing,Flag,Locked) 
-VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@Matk,@Wdef,@Mdef,@Acc,@Avoid,@Hands,@Speed,@Jump,@Vicious,@IsRing,@Flag,@Locked)";
+                var cmdStrItem =
+                    "INSERT InventoryItems(Id,CId,ItemId,Type,Position,Quantity,Owner,ExpireDate,UniqueId) VALUES(@Id,@CId,@ItemId,@Type,@Position,@Quantity,@Owner,@ExpireDate,@UniqueId)";
+                var cmdStrEquipment =
+                    @"INSERT InventoryEquipments(Id,InventoryItemId,UpgradeSlots,Level,Str,Dex,`Int`,Luk,HP,MP,Watk,Matk,Wdef,Mdef,Acc,Avoid,Hands,Speed,Jump,Vicious,IsRing,Flag,Locked) 
+VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@Matk,@Wdef,@Mdef,@Acc,@Avoid,@Hands,@Speed,@Jump,@Vicious,@IsRing,@Flag,@Locked)";
 
                 foreach (var inventory in Inventorys)
                 {
-                    //ps.setInt(3, iv.getType().getType());
                     foreach (var item in inventory.Inventory.Values)
                     {
-                        cmd.CommandText = cmdStr_Item;
+                        var tableId = Guid.NewGuid().ToString().ToUpper();
+                        cmd.CommandText = cmdStrItem;
+                        cmd.Parameters.Add(new MySqlParameter("@Id", tableId));
                         cmd.Parameters.Add(new MySqlParameter("@CId", Id));
                         cmd.Parameters.Add(new MySqlParameter("@ItemId", item.ItemId));
                         cmd.Parameters.Add(new MySqlParameter("@Type", inventory.Type.Value));
@@ -676,18 +733,18 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                         cmd.Parameters.Add(new MySqlParameter("@Quantity", item.Quantity));
                         cmd.Parameters.Add(new MySqlParameter("@Owner", item.Owner ?? (object) DBNull.Value));
                         cmd.Parameters.Add(new MySqlParameter("@UniqueId", item.UniqueId));
-                        cmd.Parameters.Add(new MySqlParameter("@ExpireDate", item.Expiration ?? (object)DBNull.Value));
+                        cmd.Parameters.Add(new MySqlParameter("@ExpireDate", item.Expiration ?? (object) DBNull.Value));
                         //PetSlot = /*getPetByUniqueId(item.UniqueID) > -1 ? getPetByUniqueId(item.UniqueID) + 1 :*/ 0,
                         cmd.ExecuteNonQuery();
-                    
-                        int inventoryId =  Convert.ToInt32(cmd.LastInsertedId);
+
                         cmd.Parameters.Clear();
 
                         if (inventory.Type == MapleInventoryType.Equip || inventory.Type == MapleInventoryType.Equipped)
                         {
-                            IEquip equip = (IEquip)item;
-                            cmd.CommandText = cmdStr_Equipment;
-                            cmd.Parameters.Add(new MySqlParameter("@InventoryItemId", inventoryId));
+                            var equip = (IEquip) item;
+                            cmd.CommandText = cmdStrEquipment;
+                            cmd.Parameters.Add(new MySqlParameter("@Id", Guid.NewGuid().ToString().ToUpper()));
+                            cmd.Parameters.Add(new MySqlParameter("@InventoryItemId", tableId));
                             cmd.Parameters.Add(new MySqlParameter("@Acc", equip.Acc));
                             cmd.Parameters.Add(new MySqlParameter("@Avoid", equip.Avoid));
                             cmd.Parameters.Add(new MySqlParameter("@Dex", equip.Dex));
@@ -740,17 +797,22 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 //ps.close();
                 //pse.close();
 
-                //deleteWhereCharacterId(con, "DELETE FROM skills WHERE characterid = ?");
-                //ps = con.prepareStatement("INSERT INTO skills (characterid, skillid, skilllevel, masterlevel) VALUES (?, ?, ?, ?)");
-                //ps.setInt(1, id);
-                //for (Entry<ISkill, SkillEntry> skill : skills.entrySet())
-                //{
-                //    ps.setInt(2, skill.getKey().getId());
-                //    ps.setInt(3, skill.getValue().skillevel);
-                //    ps.setInt(4, skill.getValue().masterlevel);
-                //    ps.executeUpdate();
-                //}
-                //ps.close();
+                cmd.CommandText = "DELETE FROM Skills WHERE CId = @CId";
+                cmd.Parameters.Add(new MySqlParameter("@CId", Id));
+                cmd.ExecuteNonQuery();
+                cmd.Parameters.Clear();
+
+                cmd.CommandText =
+                    "INSERT INTO Skills (CId, SkillId, Level, MasterLevel) VALUES (@CId, @SkillId, @Level, @MasterLevel)";
+                foreach (var skill in Skills)
+                {
+                    cmd.Parameters.Add(new MySqlParameter("@CId", Id));
+                    cmd.Parameters.Add(new MySqlParameter("@SkillId", skill.Key.SkillId));
+                    cmd.Parameters.Add(new MySqlParameter("@Level", skill.Value.SkilLevel));
+                    cmd.Parameters.Add(new MySqlParameter("@MasterLevel", skill.Value.MasterLevel));
+                    cmd.ExecuteNonQuery();
+                    cmd.Parameters.Clear();
+                }
 
                 //deleteWhereCharacterId(con, "DELETE FROM keymap WHERE characterid = ?");
                 //ps = con.prepareStatement("INSERT INTO keymap (characterid, `key`, `type`, `action`) VALUES (?, ?, ?, ?)");
@@ -831,20 +893,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void StartMapEffect(string msg, int itemId, int duration = 30000)
         {
-            MapleMapEffect mapEffect = new MapleMapEffect(msg, itemId);
+            var mapEffect = new MapleMapEffect(msg, itemId);
             Client.Send(mapEffect.CreateStartData());
-            TimerManager.Instance.RunOnceTask(() =>
-            {
-                Client.Send(mapEffect.CreateDestroyData());
-            }, duration);
+            TimerManager.Instance.RunOnceTask(() => { Client.Send(mapEffect.CreateDestroyData()); }, duration);
         }
 
         public static MapleCharacter LoadCharFromDb(int charid, MapleClient client, bool channelserver)
         {
-            MapleCharacter ret = new MapleCharacter();
+            var ret = new MapleCharacter();
             ret.Client = client;
 
-            MySqlCommand cmd = new MySqlCommand("SELECT * FROM Characters WHERE Id=@Id");
+            var cmd = new MySqlCommand("SELECT * FROM Characters WHERE Id=@Id");
             cmd.Parameters.Add(new MySqlParameter("@Id", charid));
 
             using (var con = DbConnectionManager.Instance.GetConnection())
@@ -857,48 +916,49 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 if (!reader.Read())
                     throw new Exception("加载角色失败（未找到角色）");
 
-                ret.Id = (int)reader["Id"];
+                ret.Id = (int) reader["Id"];
                 ret.AccountId = (int) reader["AId"];
-                ret.WorldId = (byte)reader["WorldId"];
+                ret.WorldId = (byte) reader["WorldId"];
 
-                ret.Name = (string)reader["Name"];
-                ret.Level = (byte)reader["Level"];
-                ret.Fame = (short)reader["Fame"];
-                ret.Str = (short)reader["Str"];
-                ret.Dex = (short)reader["Dex"];
-                ret.Int = (short)reader["Int"];
-                ret.Luk = (short)reader["Luk"];
-                ret.Exp.Exchange((int)reader["EXP"]);
-                ret.Money.Exchange((int)reader["Money"]);
-                ret.Hp = (short)reader["HP"];
-                ret.Mp = (short)reader["MP"];
-                ret.MaxHp = (short)reader["MaxHP"];
-                ret.MaxMp = (short)reader["MaxMP"];
+                ret.Name = (string) reader["Name"];
+                ret.Level = (byte) reader["Level"];
+                ret.Fame = (short) reader["Fame"];
+                ret.Str = (short) reader["Str"];
+                ret.Dex = (short) reader["Dex"];
+                ret.Int = (short) reader["Int"];
+                ret.Luk = (short) reader["Luk"];
+                ret.Exp.Exchange((int) reader["EXP"]);
+                ret.Money.Exchange((int) reader["Money"]);
+                ret.Localmaxhp = ret.MaxHp = (short) reader["MaxHP"];
+                ret.Localmaxmp = ret.MaxMp = (short) reader["MaxMP"];
+                ret.Hp = (short) reader["HP"];
+                ret.Mp = (short) reader["MP"];
 
-                ret.RemainingAp = (short)reader["RemainingAP"];
-                ret.RemainingSp = (short)reader["RemainingSP"];
 
-                ret.GmLevel = (byte)reader["GmLevel"];
+                ret.RemainingAp = (short) reader["RemainingAP"];
+                ret.RemainingSp = (short) reader["RemainingSP"];
 
-                ret.Job = new MapleJob((short)reader["JobId"]);
-                ret.Skin = new MapleSkinColor((byte)reader["Skin"]);
-                ret.IsMarried = (bool)reader["IsMarried"];
-                ret.Hair = (int)reader["Hair"];
-                ret.Face = (int)reader["Face"];
+                ret.GmLevel = (byte) reader["GmLevel"];
 
-                ret.AutoHpPot = (int)reader["AutoHPPot"];
-                ret.AutoMpPot = (int)reader["AutoMPPot"];
+                ret.Job = new MapleJob((short) reader["JobId"]);
+                ret.Skin = new MapleSkinColor((byte) reader["Skin"]);
+                ret.IsMarried = (bool) reader["IsMarried"];
+                ret.Hair = (int) reader["Hair"];
+                ret.Face = (int) reader["Face"];
+
+                ret.AutoHpPot = (int) reader["AutoHPPot"];
+                ret.AutoMpPot = (int) reader["AutoMPPot"];
 
                 ret.Inventorys[MapleInventoryType.Equip.Value] = new MapleInventory(MapleInventoryType.Equip,
-                    (byte)reader["EquipSlots"]);
+                    (byte) reader["EquipSlots"]);
                 ret.Inventorys[MapleInventoryType.Use.Value] = new MapleInventory(MapleInventoryType.Use,
-                    (byte)reader["UseSlots"]);
+                    (byte) reader["UseSlots"]);
                 ret.Inventorys[MapleInventoryType.Setup.Value] = new MapleInventory(MapleInventoryType.Setup,
-                    (byte)reader["SetupSlots"]);
+                    (byte) reader["SetupSlots"]);
                 ret.Inventorys[MapleInventoryType.Etc.Value] = new MapleInventory(MapleInventoryType.Etc,
-                    (byte)reader["EtcSlots"]);
+                    (byte) reader["EtcSlots"]);
                 ret.Inventorys[MapleInventoryType.Cash.Value] = new MapleInventory(MapleInventoryType.Cash,
-                    (byte)reader["CashSlots"]);
+                    (byte) reader["CashSlots"]);
 
                 //int mountexp = rs.getInt("mountexp");
                 //int mountlevel = rs.getInt("mountlevel");
@@ -906,8 +966,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
                 if (channelserver)
                 {
-                    MapleMapFactory mapFactory = MasterServer.Instance.ChannelServers[client.ChannelId].MapFactory;
-                    ret.Map = mapFactory.GetMap((int)reader["MapId"]);
+                    var mapFactory = MasterServer.Instance.ChannelServers[client.ChannelId].MapFactory;
+                    ret.Map = mapFactory.GetMap((int) reader["MapId"]);
                     if (ret.Map == null)
                     {
                         //char is on a map that doesn't exist warp it to henesys
@@ -918,14 +978,14 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                         ret.Map = mapFactory.GetMap(ret.Map.ForcedReturnMapId);
                     }
 
-                    var portal = ret.Map.getPortal(ret.InitialSpawnPoint);
+                    var portal = ret.Map.GetPortal(ret.InitialSpawnPoint);
                     if (portal == null)
                     {
-                        portal = ret.Map.getPortal(0); // char is on a spawnpoint that doesn't exist - select the first spawnpoint instead
+                        portal = ret.Map.GetPortal(0);
+                        // char is on a spawnpoint that doesn't exist - select the first spawnpoint instead
                         ret.InitialSpawnPoint = 0;
                     }
                     ret.Position = portal.Position;
-
                 }
 
                 //if (channelserver)
@@ -975,9 +1035,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    ret.IsGm = (bool) reader["IsGm"];                
-                    ret.NexonPoint = (int)reader["NexonPoint"];
-                    ret.MaplePoint = (int)reader["MaplePoint"];
+                    ret.IsGm = (bool) reader["IsGm"];
+                    ret.NexonPoint = (int) reader["NexonPoint"];
+                    ret.MaplePoint = (int) reader["MaplePoint"];
                 }
                 reader.Close();
 
@@ -995,20 +1055,20 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
                 while (reader.Read())
                 {
-                    MapleInventoryType type = MapleInventoryType.GetByType((byte)reader["Type"]);
+                    var type = MapleInventoryType.GetByType((byte) reader["Type"]);
 
                     DateTime? expiration;
                     if (reader["ExpireDate"] == DBNull.Value)
                         expiration = null;
                     else
-                        expiration = DateTime.Parse((string)reader["ExpireDate"]);
+                        expiration = DateTime.Parse((string) reader["ExpireDate"]);
 
                     if (type == MapleInventoryType.Equip || type == MapleInventoryType.Equipped)
                     {
-                        int itemid = (int)reader["ItemId"];
-                        Equip equip = new Equip(itemid, (byte)reader["Position"]);
+                        var itemid = (int) reader["ItemId"];
+                        var equip = new Equip(itemid, (byte) reader["Position"]);
 
-                        if ((bool)reader["IsRing"])
+                        if ((bool) reader["IsRing"])
                         {
                             //equip = MapleRing.loadFromDb(itemid, (byte)rs.getInt("position"), rs.getInt("uniqueid"));
                             //log.info("ring loaded");
@@ -1016,28 +1076,28 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                         else
                         {
                             equip.Owner = reader["Owner"] == DBNull.Value ? null : (string) reader["Owner"];
-                            equip.Quantity = (short)reader["Quantity"];
-                            equip.Acc = (short)reader["Acc"];
-                            equip.Avoid = (short)reader["Avoid"];
-                            equip.Dex = (short)reader["Dex"];
-                            equip.Hands = (short)reader["Hands"];
-                            equip.Hp = (short)reader["HP"];
-                            equip.Int = (short)reader["Int"];
-                            equip.Jump = (short)reader["Jump"];
-                            equip.Luk = (short)reader["Luk"];
-                            equip.Matk = (short)reader["Matk"];
-                            equip.Mdef = (short)reader["Mdef"];
-                            equip.Mp = (short)reader["MP"];
-                            equip.Speed = (short)reader["Speed"];
-                            equip.Str = (short)reader["Str"];
-                            equip.Watk = (short)reader["Watk"];
-                            equip.Wdef = (short)reader["Wdef"];
-                            equip.UpgradeSlots = (byte)reader["UpgradeSlots"];
-                            equip.Locked = (byte)reader["Locked"];
-                            equip.Level = (byte)reader["Level"];
-                            equip.Flag = (byte)reader["Flag"];
-                            equip.Vicious = (short)reader["Vicious"];
-                            equip.UniqueId = (int)reader["UniqueId"];
+                            equip.Quantity = (short) reader["Quantity"];
+                            equip.Acc = (short) reader["Acc"];
+                            equip.Avoid = (short) reader["Avoid"];
+                            equip.Dex = (short) reader["Dex"];
+                            equip.Hands = (short) reader["Hands"];
+                            equip.Hp = (short) reader["HP"];
+                            equip.Int = (short) reader["Int"];
+                            equip.Jump = (short) reader["Jump"];
+                            equip.Luk = (short) reader["Luk"];
+                            equip.Matk = (short) reader["Matk"];
+                            equip.Mdef = (short) reader["Mdef"];
+                            equip.Mp = (short) reader["MP"];
+                            equip.Speed = (short) reader["Speed"];
+                            equip.Str = (short) reader["Str"];
+                            equip.Watk = (short) reader["Watk"];
+                            equip.Wdef = (short) reader["Wdef"];
+                            equip.UpgradeSlots = (byte) reader["UpgradeSlots"];
+                            equip.Locked = (byte) reader["Locked"];
+                            equip.Level = (byte) reader["Level"];
+                            equip.Flag = (byte) reader["Flag"];
+                            equip.Vicious = (short) reader["Vicious"];
+                            equip.UniqueId = (int) reader["UniqueId"];
                         }
                         if (expiration.HasValue)
                         {
@@ -1048,8 +1108,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                             }
                             else
                             {
-                                string name = MapleItemInformationProvider.Instance.GetName(itemid);
-                                ret._mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
+                                var name = MapleItemInformationProvider.Instance.GetName(itemid);
+                                ret.m_mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
                             }
                         }
                         else
@@ -1059,10 +1119,10 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                     }
                     else
                     {
-                        int itemid = (int)reader["ItemId"];
-                        Item newitem = new Item(itemid, (byte)reader["Position"], (short)reader["Quantity"]);
+                        var itemid = (int) reader["ItemId"];
+                        var newitem = new Item(itemid, (byte) reader["Position"], (short) reader["Quantity"]);
                         newitem.Owner = reader["Owner"] == DBNull.Value ? null : (string) reader["Owner"];
-                        newitem.UniqueId = (int)reader["UniqueId"];
+                        newitem.UniqueId = (int) reader["UniqueId"];
 
                         if (expiration.HasValue)
                         {
@@ -1096,8 +1156,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                             }
                             else
                             {
-                                string name = MapleItemInformationProvider.Instance.GetName(itemid);
-                                ret._mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
+                                var name = MapleItemInformationProvider.Instance.GetName(itemid);
+                                ret.m_mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
                             }
                         }
                         else
@@ -1106,125 +1166,133 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                         }
                     }
                 }
+
+                reader.Close();
+                cmd.Parameters.Clear();
+
+                if (channelserver)
+                {
+                    //    ps = con.prepareStatement("SELECT * FROM queststatus WHERE characterid = ?");
+                    //    ps.setInt(1, charid);
+                    //    rs = ps.executeQuery();
+                    //    PreparedStatement pse = con.prepareStatement("SELECT * FROM queststatusmobs WHERE queststatusid = ?");
+                    //    while (rs.next())
+                    //    {
+                    //        MapleQuest q = MapleQuest.getInstance(rs.getInt("quest"));
+                    //        MapleQuestStatus status = new MapleQuestStatus(q, MapleQuestStatus.Status.getById(rs.getInt("status")));
+                    //        long cTime = rs.getLong("time");
+                    //        if (cTime > -1)
+                    //        {
+                    //            status.setCompletionTime(cTime * 1000);
+                    //        }
+                    //        status.setForfeited(rs.getInt("forfeited"));
+                    //        ret.quests.put(q, status);
+                    //        pse.setInt(1, rs.getInt("queststatusid"));
+                    //        ResultSet rsMobs = pse.executeQuery();
+                    //        while (rsMobs.next())
+                    //        {
+                    //            status.setMobKills(rsMobs.getInt("mob"), rsMobs.getInt("count"));
+                    //        }
+                    //        rsMobs.close();
+                    //    }
+                    //    rs.close();
+                    //    ps.close();
+                    //    pse.close();
+
+                    cmd.CommandText = "SELECT SkillId,Level,MasterLevel FROM Skills WHERE CId = @CId";
+                    cmd.Parameters.Add(new MySqlParameter("@CId", ret.Id));
+                    reader = cmd.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        var skill = SkillFactory.GetSkill((int) reader["SkillId"]);
+                        var skillEntry = new SkillEntry((int) reader["Level"], (int) reader["MasterLevel"]);
+
+                        if (ret.Skills.ContainsKey(skill))
+                            ret.Skills[skill] = skillEntry;
+                        else
+                            ret.Skills.Add(skill, skillEntry);
+                    }
+
+                    //    ps = con.prepareStatement("SELECT * FROM skillmacros WHERE characterid = ?");
+                    //    ps.setInt(1, charid);
+                    //    rs = ps.executeQuery();
+                    //    while (rs.next())
+                    //    {
+                    //        int skill1 = rs.getInt("skill1");
+                    //        int skill2 = rs.getInt("skill2");
+                    //        int skill3 = rs.getInt("skill3");
+                    //        String name = rs.getString("name");
+                    //        int shout = rs.getInt("shout");
+                    //        int position = rs.getInt("position");
+                    //        SkillMacro macro = new SkillMacro(skill1, skill2, skill3, name, shout, position);
+                    //        ret.skillMacros[position] = macro;
+                    //    }
+                    //    rs.close();
+                    //    ps.close();
+
+                    //    ps = con.prepareStatement("SELECT `key`,`type`,`action` FROM keymap WHERE characterid = ?");
+                    //    ps.setInt(1, charid);
+                    //    rs = ps.executeQuery();
+                    //    while (rs.next())
+                    //    {
+                    //        int key = rs.getInt("key");
+                    //        int type = rs.getInt("type");
+                    //        int action = rs.getInt("action");
+                    //        ret.keymap.put(key, new MapleKeyBinding(type, action));
+                    //    }
+                    //    rs.close();
+                    //    ps.close();
+
+                    //    ps = con.prepareStatement("SELECT `locationtype`,`map` FROM savedlocations WHERE characterid = ?");
+                    //    ps.setInt(1, charid);
+                    //    rs = ps.executeQuery();
+                    //    while (rs.next())
+                    //    {
+                    //        String locationType = rs.getString("locationtype");
+                    //        int mapid = rs.getInt("map");
+                    //        ret.savedLocations[SavedLocationType.valueOf(locationType).ordinal()] = mapid;
+                    //    }
+                    //    rs.close();
+                    //    ps.close();
+
+                    //    ps = con.prepareStatement("SELECT `characterid_to`,`when` FROM famelog WHERE characterid = ? AND DATEDIFF(NOW(),`when`) < 30");
+                    //    ps.setInt(1, charid);
+                    //    rs = ps.executeQuery();
+                    //    ret.lastfametime = 0;
+                    //    ret.lastmonthfameids = new ArrayList<>(31);
+                    //    while (rs.next())
+                    //    {
+                    //        ret.lastfametime = Math.max(ret.lastfametime, rs.getTimestamp("when").getTime());
+                    //        ret.lastmonthfameids.add(rs.getInt("characterid_to"));
+                    //    }
+                    //    rs.close();
+                    //    ps.close();
+
+                    //    ps = con.prepareStatement("SELECT ares_data FROM char_ares_info WHERE charid = ?");
+                    //    ps.setInt(1, charid);
+                    //    rs = ps.executeQuery();
+                    //    while (rs.next())
+                    //    {
+                    //        ret.ares_data.add(rs.getString("ares_data"));
+                    //    }
+                    //    rs.close();
+                    //    ps.close();
+                    //    ret.buddylist.loadFromDb(charid);
+                    //    ret.storage = MapleStorage.loadOrCreateFromDB(ret.accountid);
+                }
+
+                //String achsql = "SELECT * FROM achievements WHERE accountid = ?";
+                //ps = con.prepareStatement(achsql);
+                //ps.setInt(1, ret.accountid);
+                //rs = ps.executeQuery();
+                //while (rs.next())
+                //{
+                //    ret.finishedAchievements.add(rs.getInt("achievementid"));
+                //}
+                //rs.close();
+                //ps.close();
             }
 
-            //if (channelserver)
-            //{
-            //    ps = con.prepareStatement("SELECT * FROM queststatus WHERE characterid = ?");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    PreparedStatement pse = con.prepareStatement("SELECT * FROM queststatusmobs WHERE queststatusid = ?");
-            //    while (rs.next())
-            //    {
-            //        MapleQuest q = MapleQuest.getInstance(rs.getInt("quest"));
-            //        MapleQuestStatus status = new MapleQuestStatus(q, MapleQuestStatus.Status.getById(rs.getInt("status")));
-            //        long cTime = rs.getLong("time");
-            //        if (cTime > -1)
-            //        {
-            //            status.setCompletionTime(cTime * 1000);
-            //        }
-            //        status.setForfeited(rs.getInt("forfeited"));
-            //        ret.quests.put(q, status);
-            //        pse.setInt(1, rs.getInt("queststatusid"));
-            //        ResultSet rsMobs = pse.executeQuery();
-            //        while (rsMobs.next())
-            //        {
-            //            status.setMobKills(rsMobs.getInt("mob"), rsMobs.getInt("count"));
-            //        }
-            //        rsMobs.close();
-            //    }
-            //    rs.close();
-            //    ps.close();
-            //    pse.close();
-
-            //    ps = con.prepareStatement("SELECT skillid,skilllevel,masterlevel FROM skills WHERE characterid = ?");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    while (rs.next())
-            //    {
-            //        ret.skills.put(SkillFactory.getSkill(rs.getInt("skillid")), new SkillEntry(rs.getInt("skilllevel"), rs.getInt("masterlevel")));
-            //    }
-            //    rs.close();
-            //    ps.close();
-
-            //    ps = con.prepareStatement("SELECT * FROM skillmacros WHERE characterid = ?");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    while (rs.next())
-            //    {
-            //        int skill1 = rs.getInt("skill1");
-            //        int skill2 = rs.getInt("skill2");
-            //        int skill3 = rs.getInt("skill3");
-            //        String name = rs.getString("name");
-            //        int shout = rs.getInt("shout");
-            //        int position = rs.getInt("position");
-            //        SkillMacro macro = new SkillMacro(skill1, skill2, skill3, name, shout, position);
-            //        ret.skillMacros[position] = macro;
-            //    }
-            //    rs.close();
-            //    ps.close();
-
-            //    ps = con.prepareStatement("SELECT `key`,`type`,`action` FROM keymap WHERE characterid = ?");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    while (rs.next())
-            //    {
-            //        int key = rs.getInt("key");
-            //        int type = rs.getInt("type");
-            //        int action = rs.getInt("action");
-            //        ret.keymap.put(key, new MapleKeyBinding(type, action));
-            //    }
-            //    rs.close();
-            //    ps.close();
-
-            //    ps = con.prepareStatement("SELECT `locationtype`,`map` FROM savedlocations WHERE characterid = ?");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    while (rs.next())
-            //    {
-            //        String locationType = rs.getString("locationtype");
-            //        int mapid = rs.getInt("map");
-            //        ret.savedLocations[SavedLocationType.valueOf(locationType).ordinal()] = mapid;
-            //    }
-            //    rs.close();
-            //    ps.close();
-
-            //    ps = con.prepareStatement("SELECT `characterid_to`,`when` FROM famelog WHERE characterid = ? AND DATEDIFF(NOW(),`when`) < 30");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    ret.lastfametime = 0;
-            //    ret.lastmonthfameids = new ArrayList<>(31);
-            //    while (rs.next())
-            //    {
-            //        ret.lastfametime = Math.max(ret.lastfametime, rs.getTimestamp("when").getTime());
-            //        ret.lastmonthfameids.add(rs.getInt("characterid_to"));
-            //    }
-            //    rs.close();
-            //    ps.close();
-
-            //    ps = con.prepareStatement("SELECT ares_data FROM char_ares_info WHERE charid = ?");
-            //    ps.setInt(1, charid);
-            //    rs = ps.executeQuery();
-            //    while (rs.next())
-            //    {
-            //        ret.ares_data.add(rs.getString("ares_data"));
-            //    }
-            //    rs.close();
-            //    ps.close();
-            //    ret.buddylist.loadFromDb(charid);
-            //    ret.storage = MapleStorage.loadOrCreateFromDB(ret.accountid);
-            //}
-
-            //String achsql = "SELECT * FROM achievements WHERE accountid = ?";
-            //ps = con.prepareStatement(achsql);
-            //ps.setInt(1, ret.accountid);
-            //rs = ps.executeQuery();
-            //while (rs.next())
-            //{
-            //    ret.finishedAchievements.add(rs.getInt("achievementid"));
-            //}
-            //rs.close();
-            //ps.close();
             //int mountid = ret.getJobType() * 20000000 + 1004;
             //if (ret.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18) != null)
             //{
@@ -1241,8 +1309,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             //    ret.maplemount.setTiredness(mounttiredness);
             //    ret.maplemount.setActive(false);
             //}
-            //ret.recalcLocalStats();
-            //ret.silentEnforceMaxHpMp();
+            ret.RecalcLocalStats();
+            //ret.SilentEnforceMaxHpMp();
             //ISkill ship = SkillFactory.getSkill(5221006);
             //ret.battleshipHP = (ret.getSkillLevel(ship) * 4000 + (ret.getLevel() - 120) * 2000);
             //ret.loggedInTimer = System.currentTimeMillis();
@@ -1251,7 +1319,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void CancelBuffStats(MapleBuffStat stat)
         {
-            List<MapleBuffStat> buffStatList = new List<MapleBuffStat>() { stat };
+            var buffStatList = new List<MapleBuffStat> {stat};
             DeregisterBuffStats(buffStatList);
             CancelPlayerBuffs(buffStatList);
         }
@@ -1259,7 +1327,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
         private void CancelPlayerBuffs(List<MapleBuffStat> buffstats)
         {
             if (Client.ChannelServer.Characters.FirstOrDefault(x => x.Id == Id) != null)
-            { // are we still connected ?
+            {
+                // are we still connected ?
                 RecalcLocalStats();
                 EnforceMaxHpMp();
                 Client.Send(PacketCreator.CancelBuff(buffstats));
@@ -1269,14 +1338,14 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         private void DeregisterBuffStats(List<MapleBuffStat> stats)
         {
-            List<MapleBuffStatValueHolder> effectsToCancel = new List<MapleBuffStatValueHolder>(stats.Count);
-            foreach (MapleBuffStat stat in stats)
+            var effectsToCancel = new List<MapleBuffStatValueHolder>(stats.Count);
+            foreach (var stat in stats)
             {
                 MapleBuffStatValueHolder mbsvh;
-                if (_effects.TryGetValue(stat, out mbsvh))
+                if (m_effects.TryGetValue(stat, out mbsvh))
                 {
-                    _effects.Remove(stat);
-                    bool addMbsvh = true;
+                    m_effects.Remove(stat);
+                    var addMbsvh = true;
                     foreach (var contained in effectsToCancel)
                     {
                         if (mbsvh.StartTime == contained.StartTime && contained.Effect == mbsvh.Effect)
@@ -1290,12 +1359,12 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                     }
                     if (stat == MapleBuffStat.Summon || stat == MapleBuffStat.Puppet)
                     {
-                        int summonId = mbsvh.Effect.GetSourceId();
+                        var summonId = mbsvh.Effect.GetSourceId();
                         MapleSummon summon;
                         if (Summons.TryGetValue(summonId, out summon))
                         {
                             Map.BroadcastMessage(PacketCreator.RemoveSpecialMapObject(summon, true));
-                            Map.removeMapObject(summon);
+                            Map.RemoveMapObject(summon);
                             VisibleMapObjects.Remove(summon);
                             Summons.Remove(summonId);
                         }
@@ -1320,7 +1389,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                     }
                 }
             }
-            foreach (MapleBuffStatValueHolder cancelEffectCancelTasks in effectsToCancel)
+            foreach (var cancelEffectCancelTasks in effectsToCancel)
             {
                 if (!GetBuffStats(cancelEffectCancelTasks.Effect, cancelEffectCancelTasks.StartTime).Any())
                 {
@@ -1331,10 +1400,10 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         private List<MapleBuffStat> GetBuffStats(MapleStatEffect effect, long startTime)
         {
-            List<MapleBuffStat> stats = new List<MapleBuffStat>();
-            foreach (var stateffect in _effects)
+            var stats = new List<MapleBuffStat>();
+            foreach (var stateffect in m_effects)
             {
-                MapleBuffStatValueHolder mbsvh = stateffect.Value;
+                var mbsvh = stateffect.Value;
                 if (mbsvh.Effect.SameSource(effect) && (startTime == -1 || startTime == mbsvh.StartTime))
                 {
                     stats.Add(stateffect.Key);
@@ -1343,10 +1412,10 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             return stats;
         }
 
-        public bool isBuffFrom(MapleBuffStat stat, ISkill skill)
+        public bool IsBuffFrom(MapleBuffStat stat, ISkill skill)
         {
             MapleBuffStatValueHolder mbsvh;
-            if (!_effects.TryGetValue(stat ,out mbsvh))
+            if (!m_effects.TryGetValue(stat, out mbsvh))
             {
                 return false;
             }
@@ -1356,17 +1425,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
         public int? GetBuffedValue(MapleBuffStat effect)
         {
             MapleBuffStatValueHolder mbsvh;
-            if (!_effects.TryGetValue(effect, out mbsvh))
+            if (!m_effects.TryGetValue(effect, out mbsvh))
             {
                 return null;
             }
             return mbsvh.Value;
         }
 
-        public void dispel()
+        public void Dispel()
         {
-            List<MapleBuffStatValueHolder> allBuffs = new  List<MapleBuffStatValueHolder>(_effects.Values);
-            foreach (MapleBuffStatValueHolder mbsvh in allBuffs)
+            var allBuffs = new List<MapleBuffStatValueHolder>(m_effects.Values);
+            foreach (var mbsvh in allBuffs)
             {
                 if (mbsvh.Effect.IsSkill())
                 {
@@ -1375,40 +1444,40 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
         }
 
-        public bool isActiveBuffedValue(int skillid)
+        public bool IsActiveBuffedValue(int skillid)
         {
-            List<MapleBuffStatValueHolder> allBuffs = new List<MapleBuffStatValueHolder>(_effects.Values);
+            var allBuffs = new List<MapleBuffStatValueHolder>(m_effects.Values);
             return allBuffs.Any(mbsvh => mbsvh.Effect.IsSkill() && mbsvh.Effect.GetSourceId() == skillid && !IsGm);
         }
 
-        public void giveDebuff(MapleDisease disease, MobSkill skill)
+        public void GiveDebuff(MapleDisease disease, MobSkill skill)
         {
-            lock (_diseases)
+            lock (Diseases)
             {
-                if (IsAlive && !isActiveBuffedValue(2321005) && !_diseases.Contains(disease) && _diseases.Count < 2)
+                if (IsAlive && !IsActiveBuffedValue(2321005) && !Diseases.Contains(disease) && Diseases.Count < 2)
                 {
-                    _diseases.Add(disease);
-                    List<Tuple<MapleDisease, int>> debuff = new List<Tuple<MapleDisease, int>>()
+                    Diseases.Add(disease);
+                    var debuff = new List<Tuple<MapleDisease, int>>
                     {
-                        new Tuple<MapleDisease, int>(disease, skill.x)
+                        new Tuple<MapleDisease, int>(disease, skill.X)
                     };
-                    long mask = debuff.Aggregate<Tuple<MapleDisease, int>, long>(0,
+                    var mask = debuff.Aggregate<Tuple<MapleDisease, int>, long>(0,
                         (current, statup) => current | (long) statup.Item1);
 
                     Client.Send(PacketCreator.GiveDebuff(mask, debuff, skill));
                     Map.BroadcastMessage(this, PacketCreator.GiveForeignDebuff(Id, mask, skill), false);
 
-                    if (IsAlive && _diseases.Contains(disease))
+                    if (IsAlive && Diseases.Contains(disease))
                     {
-                        MapleCharacter character = this;
-                        MapleDisease disease_ = disease;
+                        var character = this;
+                        var disease_ = disease;
                         TimerManager.Instance.RunOnceTask(() =>
                         {
-                            if (character._diseases.Contains(disease_))
+                            if (character.Diseases.Contains(disease_))
                             {
                                 DispelDebuff(disease_);
                             }
-                        }, skill.duration);
+                        }, skill.Duration);
                     }
                 }
             }
@@ -1416,10 +1485,10 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void DispelDebuff(MapleDisease debuff)
         {
-            if (_diseases.Contains(debuff))
+            if (Diseases.Contains(debuff))
             {
-                _diseases.Remove(debuff);
-                long mask = (long)debuff;
+                Diseases.Remove(debuff);
+                var mask = (long) debuff;
                 //getClient().getSession().write(MaplePacketCreator.cancelDebuff(mask));
                 //getMap().broadcastMessage(this, MaplePacketCreator.cancelForeignDebuff(id, mask), false);
             }
@@ -1427,13 +1496,13 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void DispelDebuffs()
         {
-            List<MapleDisease> ret = new List<MapleDisease>();
-            foreach (MapleDisease disease in ret)
+            var ret = new List<MapleDisease>();
+            foreach (var disease in ret)
             {
                 if (disease != MapleDisease.Seduce && disease != MapleDisease.Stun)
                 {
-                    _diseases.Remove(disease);
-                    long mask = (long)disease;
+                    Diseases.Remove(disease);
+                    var mask = (long) disease;
                     //getClient().getSession().write(MaplePacketCreator.cancelDebuff(mask));
                     //getMap().broadcastMessage(this, MaplePacketCreator.cancelForeignDebuff(id, mask), false);
                 }
@@ -1442,13 +1511,13 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void DispelDebuffsi()
         {
-            List<MapleDisease> ret = new List<MapleDisease>();
-            foreach (MapleDisease disease in ret)
+            var ret = new List<MapleDisease>();
+            foreach (var disease in ret)
             {
                 if (disease != MapleDisease.Seal)
                 {
-                    _diseases.Remove(disease);
-                    long mask = (long)disease;
+                    Diseases.Remove(disease);
+                    var mask = (long) disease;
                     //getClient().getSession().write(MaplePacketCreator.cancelDebuff(mask));
                     //getMap().broadcastMessage(this, MaplePacketCreator.cancelForeignDebuff(id, mask), false);
                 }
@@ -1457,12 +1526,13 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void DispelSkill(int skillid)
         {
-            LinkedList<MapleBuffStatValueHolder> allBuffs = new LinkedList<MapleBuffStatValueHolder>(_effects.Values);
-            foreach (MapleBuffStatValueHolder mbsvh in allBuffs)
+            var allBuffs = new LinkedList<MapleBuffStatValueHolder>(m_effects.Values);
+            foreach (var mbsvh in allBuffs)
             {
                 if (skillid == 0)
                 {
-                    if (mbsvh.Effect.IsSkill() && (mbsvh.Effect.GetSourceId() % 20000000 == 1004 || DispelSkills(mbsvh.Effect.GetSourceId())))
+                    if (mbsvh.Effect.IsSkill() &&
+                        (mbsvh.Effect.GetSourceId()%20000000 == 1004 || DispelSkills(mbsvh.Effect.GetSourceId())))
                     {
                         //cancelEffect(mbsvh.Effect, false, mbsvh.StartTime);
                     }
@@ -1504,17 +1574,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void CancelAllDebuffs()
         {
-            List<MapleDisease> ret = new List<MapleDisease>();
-            foreach (MapleDisease disease in ret)
+            var ret = new List<MapleDisease>();
+            foreach (var disease in ret)
             {
-                _diseases.Remove(disease);
-                long mask = (long)disease;
+                Diseases.Remove(disease);
+                var mask = (long) disease;
                 //getClient().getSession().write(MaplePacketCreator.cancelDebuff(mask));
                 //getMap().broadcastMessage(this, MaplePacketCreator.cancelForeignDebuff(id, mask), false);
             }
         }
 
-        public int getSkillLevel(int skill)
+        public int GetSkillLevel(int skill)
         {
             SkillEntry ret;
             if (!Skills.TryGetValue(SkillFactory.GetSkill(skill), out ret))
@@ -1524,42 +1594,44 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             return ret.SkilLevel;
         }
 
-        public int getSkillLevel(ISkill skill)
+        public int GetSkillLevel(ISkill skill)
         {
             SkillEntry ret;
 
-            if (skill != null && (skill.SkillId == 1009 || skill.SkillId == 10001009 || skill.SkillId == 1010 || skill.SkillId == 1011 || skill.SkillId == 10001010 || skill.SkillId == 10001011))
+            if (skill != null &&
+                (skill.SkillId == 1009 || skill.SkillId == 10001009 || skill.SkillId == 1010 || skill.SkillId == 1011 ||
+                 skill.SkillId == 10001010 || skill.SkillId == 10001011))
             {
                 return 1;
             }
-            else if (!Skills.TryGetValue(skill, out ret))
+            if (!Skills.TryGetValue(skill, out ret))
             {
                 return 0;
             }
             return ret.SkilLevel;
         }
 
-        public void changeMap(MapleMap to) => changeMap(to, to.getPortal(0));
+        public void ChangeMap(MapleMap to) => ChangeMap(to, to.GetPortal(0));
 
-        public void changeMap(MapleMap to, IMaplePortal pto)
+        public void ChangeMap(MapleMap to, IMaplePortal pto)
         {
             if (to.MapId == 100000200 || to.MapId == 211000100 || to.MapId == 220000300)
             {
-                ChangeMapInternal(to, pto.Position, PacketCreator.GetWarpToMap(to, (byte)(pto.PortalId - 2), this));
+                ChangeMapInternal(to, pto.Position, PacketCreator.GetWarpToMap(to, (byte) (pto.PortalId - 2), this));
             }
-            else {
+            else
+            {
                 ChangeMapInternal(to, pto.Position, PacketCreator.GetWarpToMap(to, pto.PortalId, this));
             }
         }
 
-        public void changeMap(MapleMap to, Point pos)
+        public void ChangeMap(MapleMap to, Point pos)
         {
             ChangeMapInternal(to, pos, PacketCreator.GetWarpToMap(to, 0x80, this));
         }
 
         private void ChangeMapInternal(MapleMap to, Point pos, OutPacket warpPacket)
         {
-
             Client.Send(warpPacket);
 
             //IPlayerInteractionManager interaction = MapleCharacter.this.getInteraction();
@@ -1617,22 +1689,20 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 //    Client.Send(PacketCreator.startMonsterCarnival(getTeam()));
                 //}
             }
-
-
         }
 
-        public void changeMapBanish(int mapid, string portal, string msg)
+        public void ChangeMapBanish(int mapid, string portal, string msg)
         {
             DropMessage(PacketCreator.ServerMessageType.PinkText, msg);
-            MapleMap map = Client.ChannelServer.MapFactory.GetMap(mapid);
-            changeMap(map, map.getPortal(portal));
+            var map = Client.ChannelServer.MapFactory.GetMap(mapid);
+            ChangeMap(map, map.GetPortal(portal));
         }
 
 
         public int GetItemAmount(int itemid)
         {
-            MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
-            MapleInventory iv = Inventorys[type.Value];
+            var type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
+            var iv = Inventorys[type.Value];
             return iv.CountById(itemid);
         }
 
@@ -1646,7 +1716,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             if ((IsHidden && client.Player.GmLevel > 0) || !IsHidden)
             {
                 client.Send(PacketCreator.SpawnPlayerMapobject(this));
-                foreach (MaplePet pet in Pets)
+                foreach (var pet in Pets)
                 {
                     Map.BroadcastMessage(this, PacketCreator.ShowPet(this, pet, false, false), false);
                 }
@@ -1668,7 +1738,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 Client.Send(PacketCreator.EnableActions());
                 return;
             }
-            int newVal = Money.Add(gain);
+            var newVal = Money.Add(gain);
             UpdateSingleStat(MapleStat.Meso, newVal, enableActions);
             if (show)
             {
@@ -1680,42 +1750,53 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
         {
             if (GmLevel < 5)
             {
-                if (_coolDowns.ContainsKey(skillId))
+                if (m_coolDowns.ContainsKey(skillId))
                 {
-                    _coolDowns.Remove(skillId);
+                    m_coolDowns.Remove(skillId);
                 }
-                _coolDowns.Add(skillId, new MapleCoolDownValueHolder(skillId, startTime, length, triggerKey));
+                m_coolDowns.Add(skillId, new MapleCoolDownValueHolder(skillId, startTime, length, triggerKey));
             }
-            else {
+            else
+            {
                 Client.Send(PacketCreator.SkillCooldown(skillId, 0));
             }
         }
 
         public void GiveCoolDowns(int skillid, long starttime, long length)
         {
-            long time = length + starttime - DateTime.Now.GetTimeMilliseconds();
-            var triggerKey = TimerManager.Instance.RunOnceTask(() => _cancelCooldownAction(this, skillid), time);
+            var time = length + starttime - DateTime.Now.GetTimeMilliseconds();
+            var triggerKey = TimerManager.Instance.RunOnceTask(() => m_cancelCooldownAction(this, skillid), time);
             AddCooldown(skillid, DateTime.Now.GetTimeMilliseconds(), time, triggerKey);
         }
 
         public void RemoveCooldown(int skillId)
         {
-            if (_coolDowns.ContainsKey(skillId))
+            if (m_coolDowns.ContainsKey(skillId))
             {
-                _coolDowns.Remove(skillId);
+                m_coolDowns.Remove(skillId);
             }
             Client.Send(PacketCreator.SkillCooldown(skillId, 0));
         }
 
         public bool SkillisCooling(int skillId)
         {
-            return _coolDowns.ContainsKey(skillId);
+            return m_coolDowns.ContainsKey(skillId);
+        }
+
+        public int GetMasterLevel(ISkill skill)
+        {
+            SkillEntry ret;
+            if (!Skills.TryGetValue(skill, out ret))
+            {
+                return 0;
+            }
+            return ret.MasterLevel;
         }
 
         public List<PlayerCoolDownValueHolder> GetAllCooldowns()
         {
-            List<PlayerCoolDownValueHolder> ret = new List<PlayerCoolDownValueHolder>();
-            foreach (MapleCoolDownValueHolder mcdvh in _coolDowns.Values)
+            var ret = new List<PlayerCoolDownValueHolder>();
+            foreach (var mcdvh in m_coolDowns.Values)
             {
                 ret.Add(new PlayerCoolDownValueHolder(mcdvh.SkillId, mcdvh.StartTime, mcdvh.Duration));
             }
@@ -1724,7 +1805,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public List<int> GetTRockMaps(int type)
         {
-            List<int> rockmaps = new List<int>();
+            var rockmaps = new List<int>();
 
             //using (var db = new NeoDatabase())
             //{
@@ -1740,7 +1821,11 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void DropMessage(string message)
         {
-            Client.Send(PacketCreator.ServerNotice(GmLevel > 0 ? PacketCreator.ServerMessageType.LightBlueText : PacketCreator.ServerMessageType.PinkText, message));
+            Client.Send(
+                PacketCreator.ServerNotice(
+                    GmLevel > 0
+                        ? PacketCreator.ServerMessageType.LightBlueText
+                        : PacketCreator.ServerMessageType.PinkText, message));
         }
 
         public void DropMessage(PacketCreator.ServerMessageType type, string message)
@@ -1750,17 +1835,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public MapleQuestStatus GetQuest(MapleQuest quest)
         {
-            if (!_quests.ContainsKey(quest))
+            if (!m_quests.ContainsKey(quest))
             {
                 return new MapleQuestStatus(quest, MapleQuestStatusType.NotStarted);
             }
-            return _quests[quest];
+            return m_quests[quest];
         }
 
         public int GetNumQuest()
         {
-            int i = 0;
-            foreach (MapleQuestStatus q in _quests.Values)
+            var i = 0;
+            foreach (var q in m_quests.Values)
             {
                 if (q.Status == MapleQuestStatusType.Completed)
                 {
@@ -1769,13 +1854,15 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
             return i;
         }
-        public void gainExp(int gain, bool show, bool inChat)
+
+        public void GainExp(int gain, bool show, bool inChat)
         {
-            gainExp(gain, show, inChat, true);
+            GainExp(gain, show, inChat, true);
         }
-        public void gainExp(int gain, bool show, bool inChat, bool white)
+
+        public void GainExp(int gain, bool show, bool inChat, bool white)
         {
-            if ((Level < 200 && (Math.Floor(Job.JobId / 100D) < 10 || Math.Floor(Job.JobId / 1000D) == 2)) || Level < 180)
+            if ((Level < 200 && (Math.Floor(Job.JobId/100D) < 10 || Math.Floor(Job.JobId/1000D) == 2)) || Level < 180)
             {
                 if (Exp.Value + gain >= ExpTable.GetExpNeededForLevel(Level + 1))
                 {
@@ -1786,7 +1873,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                         Exp.Exchange(ExpTable.GetExpNeededForLevel(Level + 1));
                     }
                 }
-                else {
+                else
+                {
                     Exp.Add(gain);
                 }
             }
@@ -1802,8 +1890,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             UpdateSingleStat(MapleStat.Exp, Exp.Value);
             if (show && gain != 0)
             {
-                IMapleItem eqp ; 
-                if ((Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(17,out eqp) && eqp.ItemId == 1122018) || (eqp != null && eqp.ItemId == 1122017))
+                IMapleItem eqp;
+                if ((Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(17, out eqp) &&
+                     eqp.ItemId == 1122018) || (eqp != null && eqp.ItemId == 1122017))
                 {
                     //围脖吊坠
                     if (Level >= 1)
@@ -1812,21 +1901,23 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                     }
                     Client.Send(PacketCreator.GetShowExpGain(gain, inChat, white, 1));
                 }
-                else {
+                else
+                {
                     Client.Send(PacketCreator.GetShowExpGain(gain, inChat, white));
                 }
             }
         }
 
-        private static short Rand(int lbound, int ubound) => (short)(Randomizer.NextDouble() * (ubound - lbound + 1) + lbound);
+        private static short Rand(int lbound, int ubound)
+            => (short) (Randomizer.NextDouble()*(ubound - lbound + 1) + lbound);
 
         public void LevelUp()
         {
             ISkill improvingMaxHp = null;
-            int improvingMaxHpLevel = 0;
+            var improvingMaxHpLevel = 0;
 
             ISkill improvingMaxMp = null;
-            int improvingMaxMpLevel = 0;
+            var improvingMaxMpLevel = 0;
 
             if (Job.JobId >= 1000 && Job.JobId <= 1511 && Level < 70)
             {
@@ -1834,7 +1925,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
             RemainingAp += 5;
 
-            if (Job == MapleJob.Ares || Job == MapleJob.Ares1 || Job == MapleJob.Ares2 || Job == MapleJob.Ares3 || Job == MapleJob.Ares4)
+            if (Job == MapleJob.Ares || Job == MapleJob.Ares1 || Job == MapleJob.Ares2 || Job == MapleJob.Ares3 ||
+                Job == MapleJob.Ares4)
             {
                 MaxHp += Rand(24, 28);
                 MaxMp += Rand(4, 6);
@@ -1847,11 +1939,11 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             else if (Job == MapleJob.Warrior || Job == MapleJob.GhostKnight || Job == MapleJob.Ares1)
             {
                 improvingMaxHp = SkillFactory.GetSkill(1000001);
-                improvingMaxHpLevel = getSkillLevel(improvingMaxHp);
+                improvingMaxHpLevel = GetSkillLevel(improvingMaxHp);
                 if (Job == MapleJob.GhostKnight)
                 {
                     improvingMaxHp = SkillFactory.GetSkill(11000000);
-                    improvingMaxHpLevel = getSkillLevel(improvingMaxHp);
+                    improvingMaxHpLevel = GetSkillLevel(improvingMaxHp);
                 }
                 MaxHp += Rand(24, 28);
                 MaxMp += Rand(4, 6);
@@ -1859,16 +1951,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             else if (Job == MapleJob.Magician || Job == MapleJob.FireKnight)
             {
                 improvingMaxMp = SkillFactory.GetSkill(2000001);
-                improvingMaxMpLevel = getSkillLevel(improvingMaxMp);
+                improvingMaxMpLevel = GetSkillLevel(improvingMaxMp);
                 if (Job == MapleJob.FireKnight)
                 {
                     improvingMaxMp = SkillFactory.GetSkill(12000000);
-                    improvingMaxMpLevel = getSkillLevel(improvingMaxMp);
+                    improvingMaxMpLevel = GetSkillLevel(improvingMaxMp);
                 }
                 MaxHp += Rand(10, 14);
                 MaxMp += Rand(22, 24);
             }
-            else if (Job == MapleJob.Bowman || Job == MapleJob.Thief || Job == MapleJob.Gm || Job == MapleJob.WindKnight || Job == MapleJob.NightKnight)
+            else if (Job == MapleJob.Bowman || Job == MapleJob.Thief || Job == MapleJob.Gm || Job == MapleJob.WindKnight ||
+                     Job == MapleJob.NightKnight)
             {
                 MaxHp += Rand(20, 24);
                 MaxMp += Rand(14, 16);
@@ -1876,29 +1969,29 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             else if (Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight)
             {
                 improvingMaxHp = SkillFactory.GetSkill(5100000);
-                improvingMaxHpLevel = getSkillLevel(improvingMaxHp);
+                improvingMaxHpLevel = GetSkillLevel(improvingMaxHp);
                 if (Job == MapleJob.GhostKnight)
                 {
                     improvingMaxHp = SkillFactory.GetSkill(15100000);
-                    improvingMaxHpLevel = getSkillLevel(improvingMaxHp);
+                    improvingMaxHpLevel = GetSkillLevel(improvingMaxHp);
                 }
                 MaxHp += Rand(22, 26);
                 MaxMp += Rand(18, 23);
             }
             if (improvingMaxHpLevel > 0 && improvingMaxHp != null)
             {
-                MaxHp += (short)improvingMaxHp.GetEffect(improvingMaxHpLevel).X;
+                MaxHp += (short) improvingMaxHp.GetEffect(improvingMaxHpLevel).X;
             }
-            if (improvingMaxMpLevel > 0 && improvingMaxMp !=null)
+            if (improvingMaxMpLevel > 0 && improvingMaxMp != null)
             {
-                MaxMp += (short)improvingMaxMp.GetEffect(improvingMaxMpLevel).X ;
+                MaxMp += (short) improvingMaxMp.GetEffect(improvingMaxMpLevel).X;
             }
 
-            MaxMp += (short)(Localint / 10);
+            MaxMp += (short) (Localint/10);
             Exp.Add(-ExpTable.GetExpNeededForLevel(Level + 1));
             Level++;
 
-            DropMessage($"[系统信息] 升级了！恭喜你升到 { Level } 级!");
+            DropMessage($"[系统信息] 升级了！恭喜你升到 {Level} 级!");
             if (Exp.Value > 0)
             {
                 Exp.Reset();
@@ -1906,7 +1999,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             if (Level == 200)
             {
                 Exp.Reset();
-                var packet = PacketCreator.ServerNotice(0, $"祝贺 { Name } 到达200级！");
+                var packet = PacketCreator.ServerNotice(0, $"祝贺 {Name} 到达200级！");
                 try
                 {
                     // Client.ChannelServer.getWorldInterface().broadcastMessage(CharacterName, packet);
@@ -1917,10 +2010,10 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 }
             }
 
-            MaxHp = Math.Min((short)30000, MaxHp);
-            MaxMp = Math.Min((short)30000, MaxMp);
+            MaxHp = Math.Min((short) 30000, MaxHp);
+            MaxMp = Math.Min((short) 30000, MaxMp);
 
-            List<Tuple<MapleStat, int>> statup = new List<Tuple<MapleStat, int>>(8)
+            var statup = new List<Tuple<MapleStat, int>>(8)
             {
                 new Tuple<MapleStat, int>(MapleStat.Availableap, RemainingAp),
                 new Tuple<MapleStat, int>(MapleStat.Maxhp, MaxHp),
@@ -1970,22 +2063,22 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             if (Level == 30)
             {
                 GainNexonPoint(1000);
-                DropMessage($"恭喜您等级达到 { Level } 级!得到了{1000}点卷奖励!");
+                DropMessage($"恭喜您等级达到 {Level} 级!得到了{1000}点卷奖励!");
             }
             if (Level == 70)
             {
                 GainNexonPoint(1500);
-                DropMessage($"恭喜您等级达到 {Level } 级!得到了{1500}点卷奖励!");
+                DropMessage($"恭喜您等级达到 {Level} 级!得到了{1500}点卷奖励!");
             }
             if (Level == 120)
             {
                 GainNexonPoint(2000);
-                DropMessage($"恭喜您等级达到 { Level } 级!得到了{2000}点卷奖励!");
+                DropMessage($"恭喜您等级达到 {Level} 级!得到了{2000}点卷奖励!");
             }
             if (Level == 200)
             {
                 GainNexonPoint(2500);
-                DropMessage($"恭喜您等级达到 { Level } 级!得到了{2500}点卷奖励!");
+                DropMessage($"恭喜您等级达到 {Level} 级!得到了{2500}点卷奖励!");
             }
 
 
@@ -1998,47 +2091,50 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void ChangeSkillLevel(ISkill skill, int newLevel, int newMasterlevel)
         {
-            Skills.Add(skill, new SkillEntry(newLevel, newMasterlevel));
+            if (Skills.ContainsKey(skill))
+                Skills[skill] = new SkillEntry(newLevel, newMasterlevel);
+            else
+                Skills.Add(skill, new SkillEntry(newLevel, newMasterlevel));
             Client.Send(PacketCreator.UpdateSkill(skill.SkillId, newLevel, newMasterlevel));
         }
 
 
-
         public void UpdateQuest(MapleQuestStatus quest)
         {
-            _quests.Add(quest.Quest, quest);
-            int questId = quest.Quest.GetQuestId();
-            if (questId == 4760 || questId == 4761 || questId == 4762 || questId == 4763 || questId == 4764 || questId == 4765 || questId == 4766 || questId == 4767 || questId == 4768 || questId == 4769 || questId == 4770 || questId == 4771)
+            m_quests.Add(quest.Quest, quest);
+            var questId = quest.Quest.GetQuestId();
+            if (questId == 4760 || questId == 4761 || questId == 4762 || questId == 4763 || questId == 4764 ||
+                questId == 4765 || questId == 4766 || questId == 4767 || questId == 4768 || questId == 4769 ||
+                questId == 4770 || questId == 4771)
             {
-                Client.Send(PacketCreator.CompleteQuest(this, (short)questId));
-                Client.Send(PacketCreator.UpdateQuestInfo(this, (short)questId, quest.Npcid, 8));
+                Client.Send(PacketCreator.CompleteQuest(this, (short) questId));
+                Client.Send(PacketCreator.UpdateQuestInfo(this, (short) questId, quest.Npcid, 8));
             }
             else
             {
                 if (quest.Status == MapleQuestStatusType.Started)
                 {
-                    Client.Send(PacketCreator.StartQuest(this, (short)questId));
-                    Client.Send(PacketCreator.UpdateQuestInfo(this, (short)questId, quest.Npcid, 8));
+                    Client.Send(PacketCreator.StartQuest(this, (short) questId));
+                    Client.Send(PacketCreator.UpdateQuestInfo(this, (short) questId, quest.Npcid, 8));
                 }
                 else if (quest.Status == MapleQuestStatusType.Completed)
                 {
-                    Client.Send(PacketCreator.CompleteQuest(this, (short)questId));
+                    Client.Send(PacketCreator.CompleteQuest(this, (short) questId));
                 }
                 else if (quest.Status == MapleQuestStatusType.NotStarted)
                 {
-                    Client.Send(PacketCreator.ForfeitQuest(this, (short)questId));
+                    Client.Send(PacketCreator.ForfeitQuest(this, (short) questId));
                 }
             }
         }
 
         public List<MapleQuestStatus> GetStartedQuests()
         {
-            List<MapleQuestStatus> ret = new List<MapleQuestStatus>();
-            foreach (var questStatus in _quests.Values)
+            var ret = new List<MapleQuestStatus>();
+            foreach (var questStatus in m_quests.Values)
             {
                 if (questStatus.Status == MapleQuestStatusType.Completed)
                 {
-                    continue;
                 }
                 else if (questStatus.Status == MapleQuestStatusType.Started)
                 {
@@ -2050,8 +2146,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public List<MapleQuestStatus> GetCompletedQuests()
         {
-            List<MapleQuestStatus> ret = new List<MapleQuestStatus>();
-            foreach (var questStatus in _quests.Values)
+            var ret = new List<MapleQuestStatus>();
+            foreach (var questStatus in m_quests.Values)
             {
                 if (questStatus.Status == MapleQuestStatusType.Completed)
                 {
@@ -2063,8 +2159,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void UpdateSingleStat(MapleStat stat, int newval, bool itemReaction = false)
         {
-            Tuple<MapleStat, int> statpair = new Tuple<MapleStat, int>(stat, newval);
-            Client.Send(PacketCreator.UpdatePlayerStats(new List<Tuple<MapleStat, int>>() { statpair }, itemReaction));
+            var statpair = new Tuple<MapleStat, int>(stat, newval);
+            Client.Send(PacketCreator.UpdatePlayerStats(new List<Tuple<MapleStat, int>> {statpair}, itemReaction));
         }
 
         public void SilentPartyUpdate()
@@ -2105,17 +2201,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void SendMacros()
         {
-            bool macros = false;
-            for (int i = 0; i < 5; i++)
+            var macros = false;
+            for (var i = 0; i < 5; i++)
             {
-                if (_skillMacros[i] != null)
+                if (m_skillMacros[i] != null)
                 {
                     macros = true;
                 }
             }
             if (macros)
             {
-                Client.Send(PacketCreator.GetMacros(_skillMacros));
+                Client.Send(PacketCreator.GetMacros(m_skillMacros));
             }
         }
 
@@ -2137,7 +2233,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
         {
             if (Pets.Any())
             {
-                for (int i = 0; i < Pets.Count; i++)
+                for (var i = 0; i < Pets.Count; i++)
                 {
                     if (Pets[i] != null)
                     {
@@ -2154,7 +2250,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
         public MapleStatEffect GetStatForBuff(MapleBuffStat effect)
         {
             MapleBuffStatValueHolder mbsvh;
-            return !_effects.TryGetValue(effect, out mbsvh) ? null : mbsvh.Effect;
+            return !m_effects.TryGetValue(effect, out mbsvh) ? null : mbsvh.Effect;
         }
 
         public void UpdatePartyMemberHp()
@@ -2166,16 +2262,17 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 {
                     if (partychr.MapId == Map.MapId && partychr.ChannelId == channel)
                     {
-                        MapleCharacter other = MasterServer.Instance.ChannelServers[channel].Characters.FirstOrDefault(x => x.Name == partychr.CharacterName);
+                        var other =
+                            MasterServer.Instance.ChannelServers[channel].Characters.FirstOrDefault(
+                                x => x.Name == partychr.CharacterName);
                         other?.Client.Send(PacketCreator.UpdatePartyMemberHp(Id, Hp, Localmaxhp));
                     }
                 });
             }
         }
 
-        public void registerEffect(MapleStatEffect effect, long starttime, TriggerKey triggerKey)
+        public void RegisterEffect(MapleStatEffect effect, long starttime, TriggerKey triggerKey)
         {
-
             //if (effect.IsHide())
             //{
             //    this.IsHidden = true;
@@ -2198,10 +2295,10 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             foreach (var statup in effect.GetStatups())
             {
                 var value = new MapleBuffStatValueHolder(effect, starttime, triggerKey, statup.Item2);
-                if (_effects.ContainsKey(statup.Item1))
-                    _effects[statup.Item1] = value;
+                if (m_effects.ContainsKey(statup.Item1))
+                    m_effects[statup.Item1] = value;
                 else
-                    _effects.Add(statup.Item1, value);
+                    m_effects.Add(statup.Item1, value);
             }
             RecalcLocalStats();
         }
@@ -2215,7 +2312,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 {
                     if (partychr.MapId == Map.MapId && partychr.ChannelId == channel)
                     {
-                        MapleCharacter other = MasterServer.Instance.ChannelServers[channel].Characters.FirstOrDefault(x => x.Name == partychr.CharacterName);
+                        var other =
+                            MasterServer.Instance.ChannelServers[channel].Characters.FirstOrDefault(
+                                x => x.Name == partychr.CharacterName);
                         if (other != null)
                         {
                             Client.Send(PacketCreator.UpdatePartyMemberHp(other.Id, other.Hp, other.Localmaxhp));
@@ -2228,7 +2327,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void LeaveMap()
         {
-            _controlled.Clear();
+            m_controlled.Clear();
             VisibleMapObjects.Clear();
             if (Chair != 0)
             {
@@ -2240,46 +2339,7 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             //}
         }
 
-        public void SetMp(short newmp)
-        {
-            short tmp = newmp;
-            if (tmp < 0)
-            {
-                tmp = 0;
-            }
-            if (tmp > Localmaxmp)
-            {
-                tmp = Localmaxmp;
-            }
-            Mp = tmp;
-        }
-
-        public void SetHp(short newhp, bool silent = false)
-        {
-            short oldHp = Hp;
-            short thp = newhp;
-            if (thp < 0)
-            {
-                thp = 0;
-            }
-            if (thp > Localmaxhp)
-            {
-                thp = Localmaxhp;
-            }
-            Hp = thp;
-
-            if (!silent)
-            {
-                UpdatePartyMemberHp();
-            }
-            if (oldHp > Hp && !IsAlive)
-            {
-                PlayerDead();
-            }
-
-            CheckBerserk();
-        }
-        public void checkMonsterAggro(MapleMonster monster)
+        public void CheckMonsterAggro(MapleMonster monster)
         {
             if (monster.ControllerHasAggro) return;
             if (monster.GetController() == this)
@@ -2288,14 +2348,14 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             }
             else
             {
-                monster.switchController(this, true);
+                monster.SwitchController(this, true);
             }
         }
 
-        public int getBuffSource(MapleBuffStat stat)
+        public int GetBuffSource(MapleBuffStat stat)
         {
-            MapleBuffStatValueHolder mbsvh ;
-            if (!_effects.TryGetValue(stat,out mbsvh))
+            MapleBuffStatValueHolder mbsvh;
+            if (!m_effects.TryGetValue(stat, out mbsvh))
             {
                 return -1;
             }
@@ -2303,9 +2363,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             return mbsvh.Effect.GetSourceId();
         }
 
-        public void mobKilled(int id)
+        public void MobKilled(int id)
         {
-            foreach (MapleQuestStatus q in _quests.Values)
+            foreach (var q in m_quests.Values)
             {
                 if (MapleQuest.GetInstance(q.Quest.QuestId).NullCompleteQuestData())
                 {
@@ -2333,34 +2393,35 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             //    BerserkSchedule.cancel(false);
             //}
 
-            MapleCharacter chr = this;
-            ISkill berserkX = SkillFactory.GetSkill(1320006);
-            int skilllevel = getSkillLevel(berserkX);
-            if (chr.Job == MapleJob.Darkknight && skilllevel >= 1)
-            {
-                MapleStatEffect ampStat = berserkX.GetEffect(skilllevel);
-                int x = ampStat.X;
-                int hp = chr.Hp;
-                int mhp = chr.MaxHp;
-                int ratio = hp * 100 / mhp;
-                if (ratio > x)
-                {
-                    //Berserk = false;
-                }
-                else {
-                    //Berserk = true;
-                }
+            //MapleCharacter chr = this;
+            //ISkill berserkX = SkillFactory.GetSkill(1320006);
+            //int skilllevel = GetSkillLevel(berserkX);
+            //if (chr.Job == MapleJob.Darkknight && skilllevel >= 1)
+            //{
+            //    MapleStatEffect ampStat = berserkX.GetEffect(skilllevel);
+            //    int x = ampStat.X;
+            //    int hp = chr.Hp;
+            //    int mhp = chr.MaxHp;
+            //    int ratio = hp * 100 / mhp;
+            //    if (ratio > x)
+            //    {
+            //        //Berserk = false;
+            //    }
+            //    else
+            //    {
+            //        //Berserk = true;
+            //    }
 
-                //            BerserkSchedule = TimerManager.getInstance().register(new Runnable() {
+            //            BerserkSchedule = TimerManager.getInstance().register(new Runnable() {
 
-                //            @Override
-                //            public void run()
-                //    {
-                //        //getClient().getSession().write(MaplePacketCreator.showOwnBerserk(skilllevel, Berserk));
-                //        //getMap().broadcastMessage(MapleCharacter.this, MaplePacketCreator.showBerserk(getId(), skilllevel, Berserk), false);
-                //    }
-                //}, 5000, 3000);
-            }
+            //            @Override
+            //            public void run()
+            //    {
+            //        //getClient().getSession().write(MaplePacketCreator.showOwnBerserk(skilllevel, Berserk));
+            //        //getMap().broadcastMessage(MapleCharacter.this, MaplePacketCreator.showBerserk(getId(), skilllevel, Berserk), false);
+            //    }
+            //}, 5000, 3000);
+            //}
         }
 
         private void PlayerDead()
@@ -2443,15 +2504,15 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         private void EnforceMaxHpMp()
         {
-            List<Tuple<MapleStat, int>> stats = new List<Tuple<MapleStat, int>>(2);
+            var stats = new List<Tuple<MapleStat, int>>(2);
             if (Mp > Localmaxmp)
             {
-                SetMp(Mp);
+                Mp = Localmaxmp;
                 stats.Add(new Tuple<MapleStat, int>(MapleStat.Mp, Mp));
             }
             if (Hp > Localmaxhp)
             {
-                SetHp(Hp);
+                Hp = Localmaxhp;
                 stats.Add(new Tuple<MapleStat, int>(MapleStat.Hp, Hp));
             }
             if (stats.Any())
@@ -2462,8 +2523,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public void CancelAllBuffs()
         {
-            List<MapleBuffStatValueHolder> allBuffs = new List<MapleBuffStatValueHolder>(_effects.Count);
-            foreach (MapleBuffStatValueHolder mbsvh in allBuffs)
+            var allBuffs = new List<MapleBuffStatValueHolder>(m_effects.Count);
+            foreach (var mbsvh in allBuffs)
             {
                 CancelEffect(mbsvh.Effect, false, mbsvh.StartTime);
             }
@@ -2476,8 +2537,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             {
                 buffstats = GetBuffStats(effect, startTime);
             }
-            else {
-                List<Tuple<MapleBuffStat, int>> statups = effect.GetStatups();
+            else
+            {
+                var statups = effect.GetStatups();
                 buffstats = new List<MapleBuffStat>(statups.Count);
                 foreach (var statup in statups)
                 {
@@ -2491,19 +2553,19 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 if (Doors.Any())
                 {
                     Doors.GetEnumerator().MoveNext();
-                    MapleDoor door = Doors.GetEnumerator().Current;
-                    foreach (MapleCharacter chr in door.TargetMap.Characters)
+                    var door = Doors.GetEnumerator().Current;
+                    foreach (var chr in door.TargetMap.Characters)
                     {
                         door.SendDestroyData(chr.Client);
                     }
-                    foreach (MapleCharacter chr in door.Town.Characters)
+                    foreach (var chr in door.Town.Characters)
                     {
                         door.SendDestroyData(chr.Client);
                     }
-                    foreach (MapleDoor destroyDoor in Doors)
+                    foreach (var destroyDoor in Doors)
                     {
-                        door.TargetMap.removeMapObject(destroyDoor);
-                        door.Town.removeMapObject(destroyDoor);
+                        door.TargetMap.RemoveMapObject(destroyDoor);
+                        door.Town.RemoveMapObject(destroyDoor);
                     }
                     Doors.Clear();
                     SilentPartyUpdate();
@@ -2514,9 +2576,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                 CancelPlayerBuffs(buffstats);
                 if (effect.IsHide() && Map.Mapobjects.ContainsKey(ObjectId))
                 {
-                    this.IsHidden = false;
+                    IsHidden = false;
                     Map.BroadcastMessage(this, PacketCreator.SpawnPlayerMapobject(this), false);
-                    foreach (MaplePet pett in Pets)
+                    foreach (var pett in Pets)
                     {
                         Map.BroadcastMessage(this, PacketCreator.ShowPet(this, pett, false, false), false);
                     }
@@ -2527,9 +2589,9 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
         public bool HaveItem(int itemid, int quantity, bool checkEquipped, bool exact)
         {
             // if exact is true, then possessed must be EXACTLY equal to quantity. else, possessed can be >= quantity
-            MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
-            MapleInventory iv = Inventorys[type.Value];
-            int possessed = iv.CountById(itemid);
+            var type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
+            var iv = Inventorys[type.Value];
+            var possessed = iv.CountById(itemid);
             if (checkEquipped)
             {
                 possessed += Inventorys[MapleInventoryType.Equipped.Value].CountById(itemid);
@@ -2543,11 +2605,11 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
 
         public bool HaveItem(int[] itemids, int quantity, bool exact)
         {
-            foreach (int itemid in itemids)
+            foreach (var itemid in itemids)
             {
-                MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
-                MapleInventory iv = Inventorys[type.Value];
-                int possessed = iv.CountById(itemid);
+                var type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
+                var iv = Inventorys[type.Value];
+                var possessed = iv.CountById(itemid);
                 possessed += Inventorys[MapleInventoryType.Equipped.Value].CountById(itemid);
                 if (possessed >= quantity)
                 {
@@ -2558,7 +2620,8 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
                             return true;
                         }
                     }
-                    else {
+                    else
+                    {
                         return true;
                     }
                 }
@@ -2566,38 +2629,29 @@ VALUES(@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@
             return false;
         }
 
-        public void controlMonster(MapleMonster monster, bool aggro)
+        public void ControlMonster(MapleMonster monster, bool aggro)
         {
             monster.SetController(this);
-            _controlled.Add(monster);
+            m_controlled.Add(monster);
             Client.Send(PacketCreator.ControlMonster(monster, false, aggro));
         }
 
-        public void stopControllingMonster(MapleMonster monster)
+        public void StopControllingMonster(MapleMonster monster)
         {
-            _controlled.Remove(monster);
+            m_controlled.Remove(monster);
         }
 
-        public List<MapleMonster> getControlledMonsters()
+        public List<MapleMonster> GetControlledMonsters()
         {
-            return _controlled;
+            return m_controlled;
         }
-
-     
-
-        readonly Action<MapleCharacter, int> _cancelCooldownAction = (target, skillId) =>
-                 {
-                     MapleCharacter realTarget = (MapleCharacter)new WeakReference(target).Target;
-                     realTarget?.RemoveCooldown(skillId);
-                 };
     }
 
-    struct MapleBuffStatValueHolder
+    internal struct MapleBuffStatValueHolder
     {
-
-        public MapleStatEffect Effect { get; private set; }
-        public long StartTime { get; private set; }
-        public int Value { get; private set; }
+        public MapleStatEffect Effect { get; }
+        public long StartTime { get; }
+        public int Value { get; }
         public TriggerKey TriggerKey { get; private set; }
 
         public MapleBuffStatValueHolder(MapleStatEffect effect, long startTime, TriggerKey triggerKey, int value)

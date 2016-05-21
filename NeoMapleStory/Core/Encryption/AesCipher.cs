@@ -5,7 +5,7 @@ namespace NeoMapleStory.Core.Encryption
 {
     internal sealed class AesCipher
     {
-        private readonly ICryptoTransform _mCrypto;
+        private readonly ICryptoTransform m_mCrypto;
 
         public AesCipher(byte[] aesKey)
         {
@@ -15,7 +15,7 @@ namespace NeoMapleStory.Core.Encryption
             if (aesKey.Length != 32)
                 throw new ArgumentOutOfRangeException("Key length needs to be 32", "key");
 
-            RijndaelManaged aes = new RijndaelManaged()
+            var aes = new RijndaelManaged
             {
                 Key = aesKey,
                 Mode = CipherMode.ECB,
@@ -24,31 +24,31 @@ namespace NeoMapleStory.Core.Encryption
 
             using (aes)
             {
-                _mCrypto = aes.CreateEncryptor();
+                m_mCrypto = aes.CreateEncryptor();
             }
         }
 
         internal void Transform(byte[] data, byte[] iv)
         {
-            byte[] morphKey = new byte[16];
-            int remaining = data.Length;
-            int start = 0;
-            int length = 0x5B0;
+            var morphKey = new byte[16];
+            var remaining = data.Length;
+            var start = 0;
+            var length = 0x5B0;
 
             while (remaining > 0)
             {
-                for (int i = 0; i < 16; i++)
-                    morphKey[i] = iv[i % 4];
+                for (var i = 0; i < 16; i++)
+                    morphKey[i] = iv[i%4];
 
                 if (remaining < length)
                     length = remaining;
 
-                for (int index = start; index < start + length; index++)
+                for (var index = start; index < start + length; index++)
                 {
-                    if ((index - start) % 16 == 0)
-                        _mCrypto.TransformBlock(morphKey, 0, 16, morphKey, 0);
+                    if ((index - start)%16 == 0)
+                        m_mCrypto.TransformBlock(morphKey, 0, 16, morphKey, 0);
 
-                    data[index] ^= morphKey[(index - start) % 16];
+                    data[index] ^= morphKey[(index - start)%16];
                 }
 
                 start += length;

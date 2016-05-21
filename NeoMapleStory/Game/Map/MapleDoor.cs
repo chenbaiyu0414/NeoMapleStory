@@ -1,20 +1,14 @@
 ﻿using System.Collections.Generic;
-using NeoMapleStory.Server;
 using System.Drawing;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
+using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Map
 {
     public class MapleDoor : AbstractMapleMapObject
     {
-        public MapleCharacter Owner { get; private set; }
-        public MapleMap Town { get; private set; }
-        public IMaplePortal TownPortal { get; private set; }
-        public MapleMap TargetMap { get; private set; }
-        public Point TargetMapPosition { get; private set; }
-
         public MapleDoor(MapleCharacter owner, Point targetPosition)
         {
             Owner = owner;
@@ -36,13 +30,19 @@ namespace NeoMapleStory.Game.Map
             Position = TownPortal.Position;
         }
 
+        public MapleCharacter Owner { get; }
+        public MapleMap Town { get; }
+        public IMaplePortal TownPortal { get; }
+        public MapleMap TargetMap { get; }
+        public Point TargetMapPosition { get; }
+
         private IMaplePortal GetFreePortal()
         {
-            List<IMaplePortal> freePortals = new List<IMaplePortal>();
+            var freePortals = new List<IMaplePortal>();
 
-            foreach (IMaplePortal port in Town.Portals.Values)
+            foreach (var port in Town.Portals.Values)
             {
-                if (port.Type ==  PortalType.DoorPortal)
+                if (port.Type == PortalType.DoorPortal)
                 {
                     freePortals.Add(port);
                 }
@@ -52,19 +52,18 @@ namespace NeoMapleStory.Game.Map
             {
                 if (obj1.PortalId < obj2.PortalId)
                     return -1;
-                else if (obj1.PortalId == obj2.PortalId)
+                if (obj1.PortalId == obj2.PortalId)
                     return 0;
-                else
-                    return 1;
+                return 1;
             });
 
-            foreach (IMapleMapObject obj in Town.Mapobjects.Values)
+            foreach (var obj in Town.Mapobjects.Values)
             {
                 if (obj is MapleDoor)
                 {
-                    MapleDoor door = (MapleDoor)obj;
+                    var door = (MapleDoor) obj;
                     if (door.Owner.Party != null &&
-                            Owner.Party.ContainsMember(new MaplePartyCharacter(door.Owner)))
+                        Owner.Party.ContainsMember(new MaplePartyCharacter(door.Owner)))
                     {
                         freePortals.Remove(door.TownPortal);
                     }
@@ -88,13 +87,15 @@ namespace NeoMapleStory.Game.Map
                     }
                     if (!TargetMap.CanEnter && chr.GmLevel == 0)
                     {
-                        chr.Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, $"您不能进入 {TargetMap.StreetName} : {TargetMap.MapName}"));
+                        chr.Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText,
+                            $"您不能进入 {TargetMap.StreetName} : {TargetMap.MapName}"));
                         chr.Client.Send(PacketCreator.EnableActions());
                         return;
                     }
-                    chr.changeMap(TargetMap, TargetMapPosition);
+                    chr.ChangeMap(TargetMap, TargetMapPosition);
                 }
-                else {
+                else
+                {
                     if (!chr.Map.CanExit && chr.GmLevel == 0)
                     {
                         chr.Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, "您被禁止离开此地图"));
@@ -103,14 +104,16 @@ namespace NeoMapleStory.Game.Map
                     }
                     if (!Town.CanEnter && chr.GmLevel == 0)
                     {
-                        chr.Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, $"您不能进入 {Town.StreetName} : {Town.MapName}"));
+                        chr.Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText,
+                            $"您不能进入 {Town.StreetName} : {Town.MapName}"));
                         chr.Client.Send(PacketCreator.EnableActions());
                         return;
                     }
-                    chr.changeMap(Town, TownPortal);
+                    chr.ChangeMap(Town, TownPortal);
                 }
             }
-            else {
+            else
+            {
                 chr.Client.Send(PacketCreator.EnableActions());
             }
         }
@@ -119,9 +122,11 @@ namespace NeoMapleStory.Game.Map
 
         public override void SendDestroyData(MapleClient client)
         {
-            if (TargetMap.MapId == client.Player.Map.MapId || Owner == client.Player || Owner.Party != null && Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player)))
+            if (TargetMap.MapId == client.Player.Map.MapId || Owner == client.Player ||
+                Owner.Party != null && Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player)))
             {
-                if (Owner.Party != null && (Owner == client.Player || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player))))
+                if (Owner.Party != null &&
+                    (Owner == client.Player || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player))))
                 {
                     client.Send(PacketCreator.PartyPortal(999999999, 999999999, new Point(-1, -1)));
                 }
@@ -134,8 +139,10 @@ namespace NeoMapleStory.Game.Map
         {
             if (TargetMap.MapId == client.Player.Map.MapId || Owner == client.Player && Owner.Party == null)
             {
-                client.Send(PacketCreator.SpawnDoor(Owner.Id, Town.MapId == client.Player.Map.MapId ? TownPortal.Position : TargetMapPosition, true));
-                if (Owner.Party != null && (Owner == client.Player || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player))))
+                client.Send(PacketCreator.SpawnDoor(Owner.Id,
+                    Town.MapId == client.Player.Map.MapId ? TownPortal.Position : TargetMapPosition, true));
+                if (Owner.Party != null &&
+                    (Owner == client.Player || Owner.Party.ContainsMember(new MaplePartyCharacter(client.Player))))
                 {
                     client.Send(PacketCreator.PartyPortal(Town.MapId, TargetMap.MapId, TargetMapPosition));
                 }

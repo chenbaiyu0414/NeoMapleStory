@@ -1,15 +1,14 @@
-﻿using NeoMapleStory.Packet;
-using System;
+﻿using System;
+using NeoMapleStory.Packet;
 
 namespace NeoMapleStory.Server
 {
-    
     public sealed class LoginServer : BaseServer
     {
-
         protected override void OnNewClientConnected(MapleClient client)
         {
-            Console.WriteLine($"玩家 {client.SocketSession.RemoteEndPoint.Address}:{client.SocketSession.RemoteEndPoint.Port} 已连接");
+            Console.WriteLine(
+                $"玩家 {client.SocketSession.RemoteEndPoint.Address}:{client.SocketSession.RemoteEndPoint.Port} 已连接");
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
         }
 
@@ -35,13 +34,14 @@ namespace NeoMapleStory.Server
         public override bool Start()
         {
             Console.WriteLine($"正在启动 {Processor.Label} 监听端口: {Config.Port}");
-            bool result = base.Start();
+            var result = base.Start();
             if (result)
                 Console.WriteLine($"{Processor.Label} 启动成功");
             else
                 Console.WriteLine($"{Processor.Label} 启动失败");
             return result;
         }
+
         public override void Stop()
         {
             Console.WriteLine($"正在停止 {Processor.Label}");

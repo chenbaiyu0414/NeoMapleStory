@@ -1,125 +1,97 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using CSScriptLibrary;
 using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Script.NPC
 {
-    public class NPCScriptManager:AbstractScriptManager
+    public class NpcScriptManager
     {
-        private Dictionary<MapleClient, NPCConversationManager> cms =
-            new Dictionary<MapleClient, NPCConversationManager>();
+        private readonly Dictionary<MapleClient, NpcConversationManager> m_cms =
+            new Dictionary<MapleClient, NpcConversationManager>();
 
-        private Dictionary<MapleClient, object> scripts = new Dictionary<MapleClient,object>();
+        private readonly Dictionary<MapleClient, object> m_scripts = new Dictionary<MapleClient, object>();
 
-        public static NPCScriptManager Instance { get; } = new NPCScriptManager();
+        public static NpcScriptManager Instance { get; } = new NpcScriptManager();
 
         public void Start(MapleClient c, int npcId)
         {
-
-            if (c.Player.GmLevel > 0)
-            {
-                c.Player.DropMessage($"与NPC:{npcId}成功建立对话!");
-            }
-
-            NPCConversationManager cm = new NPCConversationManager(c, npcId);
-
-            if (cms.ContainsKey(c))
-            {
+            if (m_cms.ContainsKey(c))
                 return;
-            }
 
-            cms.Add(c, cm);
+            var cm = new NpcConversationManager(c, npcId);
 
-            string code = GetScriptCode(ScriptType.NPC, npcId, c, cm);
-
-            if (code == null || Instance == null)
+            try
             {
-                cm.SendOk($"#b抱歉，我现在不能为您提供服务！#k\r\nNPC ID: { npcId }");
+                lock (m_cms)
+                {
+                    if (c.Player.GmLevel > 0)
+                    {
+                        c.Player.DropMessage($"与NPC:{npcId}成功建立对话!");
+                    }
+
+                    m_cms.Add(c, cm);
+
+                    dynamic script = CSScript.Load($"Script//NPC//{npcId}.cs").CreateObject("*");
+
+                    if (m_scripts.ContainsKey(c))
+                        m_scripts[c] = script;
+                    else
+                        m_scripts.Add(c, script);
+
+                    script.Start(cm);
+                }
+            }
+            catch (Exception e)
+            {
+                cm.SendOk($"脚本不存在或者脚本错误，请与管理员联系。\r\n我的ID：#b{npcId}#k");
                 cm.Close();
-                return;
+                Console.WriteLine(e);
             }
-
-            dynamic script = CSScript.LoadCode(code).CreateObject("*");
-            script.Start(cm);
-
-            Console.WriteLine(script);
-
-            if (scripts.ContainsKey(c))
-                scripts[c] = script;
-            else
-                scripts.Add(c, script);
-
-            script.Start(cm);
-
-            //log.info("发生了错误的Npc脚本运行,NPC ID： " + npcId);
-            //dispose(c);
-            //this.cms.remove(c);
-
         }
 
-        //public void Start(string filename, MapleClient c, int npc, List<MaplePartyCharacter> chars)
-        //{ 
-        //    // CPQ start
-        //    try
-        //    {
-        //        NPCConversationManager cm = new NPCConversationManager(c, npc, chars, 0);
-        //        cm.Close();
-        //        if (cms.containsKey(c))
-        //        {
-        //            return;
-        //        }
-        //        cms.put(c, cm);
-        //        Invocable iv = getInvocable("npc/" + filename + ".js", c);
-        //        NPCScriptManager npcsm = NPCScriptManager.getInstance();
-        //        if (iv == null || NPCScriptManager.getInstance() == null || npcsm == null)
-        //        {
-        //            cm.Close();
-        //            return;
-        //        }
-        //        engine.put("cm", cm);
-        //        // NPCScript ns = iv.getInterface(NPCScript.class);
-        //        scripts.put(c, ns);
-        //        ns.start(chars);
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        log.error("NPC脚本错误执行 " + filename);
-        //        dispose(c);
-        //        cms.remove(c);
-
-        //    }
-        //}
-
-        //public void Start(MapleClient c, byte mode, byte type, int selection)
-        //{
-        //    INpcScript ns; 
-        //    if (scripts.TryGetValue(c,out ns))
-        //    {
-        //        ns.Start(mode, type, selection);
-        //    }
-        //}
-
-        public void Close(NPCConversationManager cm)
+        public void Choice(MapleClient c, byte isCountinue, byte hasInput, int selection)
         {
-            MapleClient c = cm.Client;
-            cms.Remove(c);
-            scripts.Remove(c);
-            resetContext(ScriptType.NPC, cm.NpcId, c);
+            try
+            {
+                lock (m_cms)
+                {
+                    dynamic ns;
+                    if (m_scripts.TryGetValue(c, out ns))
+                    {
+                        ns.Choice(isCountinue, hasInput, selection);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+        }
+
+        public void Close(NpcConversationManager cm)
+        {
+            lock (m_cms)
+            {
+                var c = cm.Client;
+                m_cms.Remove(c);
+                m_scripts.Remove(c);
+            }
         }
 
         public void Close(MapleClient c)
         {
-            NPCConversationManager npccm;
-            if (cms.TryGetValue(c, out npccm))
+            NpcConversationManager npccm;
+            if (m_cms.TryGetValue(c, out npccm))
             {
                 Close(npccm);
             }
         }
 
-        //public NPCConversationManager getCM(MapleClient c)
-        //{
-        //    return cms.get(c);
-        //}
+        public NpcConversationManager GetCm(MapleClient c)
+        {
+            return m_cms.FirstOrDefault(x => x.Key == c).Value;
+        }
     }
 }

@@ -8,11 +8,10 @@ namespace NeoMapleStory.Game.Data
 
         object Data { get; }
 
-        MapleDataType GetType();
-
         List<IMapleData> Children { get; }
 
-        IMapleData GetChildByPath(string path);
+        MapleDataType GetType();
 
+        IMapleData GetChildByPath(string path);
     }
 }

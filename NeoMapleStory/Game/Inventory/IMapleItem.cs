@@ -11,7 +11,6 @@ namespace NeoMapleStory.Game.Inventory
 
     public interface IMapleItem : IComparable<IMapleItem>
     {
-
         int ItemId { get; }
 
         byte Flag { get; set; }
@@ -28,8 +27,8 @@ namespace NeoMapleStory.Game.Inventory
 
         int UniqueId { get; set; }
 
-        IMapleItem Copy();
-
         MapleItemType Type { get; }
+
+        IMapleItem Copy();
     }
 }

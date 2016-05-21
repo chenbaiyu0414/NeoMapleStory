@@ -1,19 +1,10 @@
-﻿using NeoMapleStory.Game.Inventory;
-using System;
+﻿using System;
+using NeoMapleStory.Game.Inventory;
 
 namespace NeoMapleStory.Game.Client
 {
     public class MapleRing : IComparable<MapleRing>
     {
-
-        public int RingId { get; private set; }
-        public int PartnerRingId { get; private set; }
-        public int PartnerCharacterId { get; set; }
-        public int ItemId { get; private set; }
-        public string PartnerName { get; private set; }
-        public bool IsEquipped { get; set; }
-
-
         private MapleRing(int id, int id2, int partnerId, int itemid, string partnername)
         {
             RingId = id;
@@ -21,6 +12,22 @@ namespace NeoMapleStory.Game.Client
             PartnerCharacterId = partnerId;
             ItemId = itemid;
             PartnerName = partnername;
+        }
+
+        public int RingId { get; }
+        public int PartnerRingId { get; private set; }
+        public int PartnerCharacterId { get; set; }
+        public int ItemId { get; private set; }
+        public string PartnerName { get; private set; }
+        public bool IsEquipped { get; set; }
+
+        public int CompareTo(MapleRing other)
+        {
+            if (RingId < other.RingId)
+            {
+                return -1;
+            }
+            return RingId == other.RingId ? 0 : 1;
         }
 
         public static Equip LoadFromDb(int itemid, byte position, int uniqueid)
@@ -82,19 +89,17 @@ namespace NeoMapleStory.Game.Client
         {
             if (obj is MapleRing)
             {
-                if (((MapleRing)obj).RingId == RingId)
+                if (((MapleRing) obj).RingId == RingId)
                 {
                     return true;
                 }
-                else {
-                    return false;
-                }
+                return false;
             }
             return false;
         }
 
 
-        public override int GetHashCode() => 52 * 5 + RingId;
+        public override int GetHashCode() => 52*5 + RingId;
 
 
         public static bool CheckRingDb(MapleCharacter player)
@@ -127,15 +132,6 @@ namespace NeoMapleStory.Game.Client
             //    db.Rings.Remove(db.Rings.First(x => x.PartnerCharacterId == otherId));
             //    db.SaveChanges();
             //}
-        }
-
-        public int CompareTo(MapleRing other)
-        {
-            if (RingId < other.RingId)
-            {
-                return -1;
-            }
-            return RingId == other.RingId ? 0 : 1;
         }
     }
 }

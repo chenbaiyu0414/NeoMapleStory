@@ -6,15 +6,9 @@ namespace NeoMapleStory.Game.Inventory
 {
     public sealed class MapleInventory
     {
-       
-        public Dictionary<byte, IMapleItem> Inventory { get; private set; } = new Dictionary<byte, IMapleItem>();
-
-        public byte SlotLimit { get; private set; }
-
-       
-        public MapleInventoryType Type { get; private set; }
-
-        public MapleInventory() { }
+        public MapleInventory()
+        {
+        }
 
         public MapleInventory(MapleInventoryType type, byte slotLimit)
         {
@@ -23,13 +17,21 @@ namespace NeoMapleStory.Game.Inventory
             Type = type;
         }
 
+        public Dictionary<byte, IMapleItem> Inventory { get; } = new Dictionary<byte, IMapleItem>();
+
+        public byte SlotLimit { get; }
+
+
+        public MapleInventoryType Type { get; }
+
         public IMapleItem FindById(int itemId) => Inventory.Values.FirstOrDefault(x => x.ItemId == itemId);
 
         public IMapleItem FindByUniqueId(int uniqueId) => Inventory.Values.FirstOrDefault(x => x.UniqueId == uniqueId);
 
         public int CountById(int itemId) => Inventory.Values.Where(x => x.ItemId == itemId).Sum(x => x.Quantity);
 
-        public List<byte> FindAllKeysById(int itemId) => Inventory.Values.Where(x => x.ItemId == itemId).Select(x => x.Position).ToList();
+        public List<byte> FindAllKeysById(int itemId)
+            => Inventory.Values.Where(x => x.ItemId == itemId).Select(x => x.Position).ToList();
 
         public List<IMapleItem> ListById(int itemId)
         {
@@ -40,7 +42,7 @@ namespace NeoMapleStory.Game.Inventory
 
         public byte AddItem(IMapleItem item)
         {
-            byte slotId = GetNextFreeSlot();
+            var slotId = GetNextFreeSlot();
 
             if (slotId == 0xFF)
                 return 0xFF;
@@ -76,15 +78,15 @@ namespace NeoMapleStory.Game.Inventory
 
         public bool Move(byte sSlot, byte dSlot, short slotMax)
         {
-            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+            var ii = MapleItemInformationProvider.Instance;
             IMapleItem iSource;
             IMapleItem iTarget;
 
-            if (!Inventory.TryGetValue(sSlot,out iSource))
+            if (!Inventory.TryGetValue(sSlot, out iSource))
             {
                 throw new Exception("Trying to move empty slot");
             }
-            
+
             if (!Inventory.TryGetValue(dSlot, out iTarget))
             {
                 iSource.Position = dSlot;
@@ -92,8 +94,8 @@ namespace NeoMapleStory.Game.Inventory
                 Inventory.Remove(sSlot);
             }
 
-            Item source = (Item) iSource;
-            Item target = (Item) iTarget;
+            var source = (Item) iSource;
+            var target = (Item) iTarget;
 
             if (target.ItemId == source.ItemId && !ii.IsThrowingStar(source.ItemId) && !ii.IsBullet(source.ItemId))
             {
@@ -103,7 +105,7 @@ namespace NeoMapleStory.Game.Inventory
                 }
                 if (source.Quantity + target.Quantity > slotMax)
                 {
-                    short rest = (short)(source.Quantity + target.Quantity - slotMax);
+                    var rest = (short) (source.Quantity + target.Quantity - slotMax);
                     if (rest + slotMax != source.Quantity + target.Quantity)
                     {
                         return false;
@@ -111,12 +113,14 @@ namespace NeoMapleStory.Game.Inventory
                     source.Quantity = rest;
                     target.Quantity = slotMax;
                 }
-                else {
-                    target.Quantity= (short)(source.Quantity + target.Quantity);
+                else
+                {
+                    target.Quantity = (short) (source.Quantity + target.Quantity);
                     Inventory.Remove(sSlot);
                 }
             }
-            else {
+            else
+            {
                 Swap(target, source);
             }
             return true;
@@ -140,7 +144,7 @@ namespace NeoMapleStory.Game.Inventory
         {
             IMapleItem item;
 
-            if (!Inventory.TryGetValue(slot,out item))
+            if (!Inventory.TryGetValue(slot, out item))
                 return;
 
             item.Quantity -= quantity;
@@ -150,7 +154,6 @@ namespace NeoMapleStory.Game.Inventory
 
             if (item.Quantity == 0 && !allowZero)
                 RemoveSlot(slot);
-
         }
 
         private void RemoveSlot(byte slot) => Inventory.Remove(slot);
@@ -182,6 +185,5 @@ namespace NeoMapleStory.Game.Inventory
             //}
             return 0;
         }
-
     }
 }

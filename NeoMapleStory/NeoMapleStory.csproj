@@ -22,7 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <UseVSHostingProcess>true</UseVSHostingProcess>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -110,6 +110,7 @@
       <HintPath>..\packages\CS-Script.bin.3.12.1.0\lib\net45\System.Reflection.Metadata.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -240,11 +241,11 @@
     <Compile Include="Game\Mob\MapleMonsterStats.cs" />
     <Compile Include="Game\Mob\MonsterStatus.cs" />
     <Compile Include="Game\Script\NPC\AbstractPlayerInteraction.cs" />
-    <Compile Include="Game\Script\NPC\AbstractScriptManager.cs" />
     <Compile Include="Game\Script\Event\EventInstanceManager.cs" />
     <Compile Include="Game\Script\Event\EventManager.cs" />
     <Compile Include="Game\Script\NPC\NPCScriptManager.cs" />
     <Compile Include="Game\Script\NPC\NPCConversationManager.cs" />
+    <Compile Include="Game\Script\ScriptTree.cs" />
     <Compile Include="Game\Shop\MapleShop.cs" />
     <Compile Include="Game\Shop\MapleShopFactory.cs" />
     <Compile Include="Game\Shop\MapleShopItem.cs" />

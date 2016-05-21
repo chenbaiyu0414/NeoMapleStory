@@ -1,15 +1,38 @@
-﻿using NeoMapleStory.Game.Job;
+﻿using System;
+using NeoMapleStory.Game.Job;
 using NeoMapleStory.Server;
-using System;
 
 namespace NeoMapleStory.Game.Inventory
 {
-     public class Equip : Item, IEquip
+    public class Equip : Item, IEquip
     {
+        public Equip(int id, byte position)
+            : base(id, position, 1)
+        {
+            IsRing = false;
+        }
+
+        public Equip(int id, byte position, bool ring)
+            : base(id, position, 1)
+        {
+            IsRing = false;
+            ItemExp = 0;
+            ItemLevel = 0;
+        }
+
+        public Equip(int id, byte position, bool ring, int partnerUniqueId, int partnerId, string partnerName)
+            : base(id, position, 1)
+        {
+            IsRing = false;
+            PartnerUniqueId = partnerUniqueId;
+            PartnerId = partnerId;
+            PartnerName = partnerName;
+        }
+
+        public MapleJob Job { get; set; }
         public byte UpgradeSlots { get; set; }
         public byte Level { get; set; }
         public byte Locked { get; set; }
-        public MapleJob Job { get; set; }
         public short Str { get; set; }
         public short Dex { get; set; }
         public short Int { get; set; }
@@ -34,32 +57,9 @@ namespace NeoMapleStory.Game.Inventory
         public int ItemLevel { get; set; }
         public new MapleItemType Type => MapleItemType.Equip;
 
-        public Equip(int id, byte position)
-            : base(id, position, 1)
-        {
-            IsRing = false;
-        }
-
-        public Equip(int id, byte position, bool ring)
-            : base(id, position, 1)
-        {
-            IsRing = false;
-            ItemExp = 0;
-            ItemLevel = 0;
-        }
-
-        public Equip(int id, byte position, bool ring, int partnerUniqueId, int partnerId, string partnerName)
-            : base(id, position, 1)
-        {
-            IsRing = false;
-            PartnerUniqueId = partnerUniqueId;
-            PartnerId = partnerId;
-            PartnerName = partnerName;
-        }
-
         public new IMapleItem Copy()
         {
-            Equip ret = new Equip(ItemId, Position, IsRing);
+            var ret = new Equip(ItemId, Position, IsRing);
             ret.Str = Str;
             ret.Dex = Dex;
             ret.Int = Int;
@@ -85,6 +85,17 @@ namespace NeoMapleStory.Game.Inventory
             return ret;
         }
 
+        public new short Quantity
+        {
+            get { return base.Quantity; }
+            set
+            {
+                if (value < 0 || value > 1)
+                    Console.WriteLine($"Setting the quantity to {Quantity} on an equip (itemid: {ItemId})");
+                base.Quantity = value;
+            }
+        }
+
         public void GainItemExp(MapleClient c, int gain, bool timeless)
         {
             //itemExp += gain;
@@ -98,20 +109,6 @@ namespace NeoMapleStory.Game.Inventory
             //    gainLevel();
             //    c.getSession().write(MaplePacketCreator.showItemLevelup());
             //}
-        }
-
-        public new short Quantity
-        {
-            get
-            {
-                return base.Quantity;
-            }
-            set
-            {
-                if (value < 0 || value > 1)
-                    Console.WriteLine($"Setting the quantity to {Quantity} on an equip (itemid: {ItemId})");
-                base.Quantity = value;
-            }
         }
     }
 }

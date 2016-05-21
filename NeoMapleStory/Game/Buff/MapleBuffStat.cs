@@ -3,14 +3,14 @@
     public enum MapleBuffStat : long
     {
         Morph = 0x2, //变形
-        Recovery = 0x4,//恢复
-        MapleWarrior = 0x8,//冒险岛勇士
+        Recovery = 0x4, //恢复
+        MapleWarrior = 0x8, //冒险岛勇士
         Stance = 0x10,
-        SharpEyes = 0x20,//火眼晶晶 - 赋予组队成员针对敌人寻找弱点并给予敌人致命伤的能力
-        ManaReflection = 0x40,//魔法反击
-        ShadowClaw = 0x100,// 暗器伤人
-        Infinity = 0x20000000000000L,//终极无限 - 一定时间内搜集周围的魔力,不消耗魔法值
-        HolyShield = 0x400,//圣灵之盾
+        SharpEyes = 0x20, //火眼晶晶 - 赋予组队成员针对敌人寻找弱点并给予敌人致命伤的能力
+        ManaReflection = 0x40, //魔法反击
+        ShadowClaw = 0x100, // 暗器伤人
+        Infinity = 0x20000000000000L, //终极无限 - 一定时间内搜集周围的魔力,不消耗魔法值
+        HolyShield = 0x400, //圣灵之盾
         Hamstring = 0x800,
         Blind = 0x1000,
         Concentrate = 0x2000, // another no op buff
@@ -53,6 +53,6 @@
         Pickpocket = 0x800000000000000L,
         Puppet = 0x800000000000000L, // HACK - shares buffmask with pickpocket - odin special ^.-
         Mesoguard = 0x1000000000000000L,
-        Weaken = 0x4000000000000000L,//SWITCH_CONTROLS=0x8000000000000L
+        Weaken = 0x4000000000000000L //SWITCH_CONTROLS=0x8000000000000L
     }
 }

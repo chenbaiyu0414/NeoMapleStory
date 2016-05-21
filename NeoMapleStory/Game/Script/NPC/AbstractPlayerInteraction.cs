@@ -7,44 +7,45 @@ using NeoMapleStory.Game.Quest;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
+using NeoMapleStory.Settings;
 
 namespace NeoMapleStory.Game.Script.NPC
 {
-
     public class AbstractPlayerInteraction
     {
-        public MapleClient Client { get; private set; }
-        public MapleCharacter Player { get; private set; }
-
         public AbstractPlayerInteraction(MapleClient c)
         {
             Client = c;
             Player = c.Player;
         }
 
+        public MapleClient Client { get; }
+        public MapleCharacter Player { get; }
+
         public string ServerName
         {
-            get { return Settings.ServerSettings.ServerName; }
+            get { return ServerSettings.ServerName; }
         }
 
         public string AdvertisementText
         {
-            get { return Settings.ServerSettings.ServerAdvertisement; }
+            get { return ServerSettings.ServerAdvertisement; }
         }
 
         public void ClearAranPolearm() => Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveItem(11);
 
-        public void WarpMap(int map) => Player.changeMap(GetWarpMap(map), GetWarpMap(map).getPortal(0));
+        public void WarpMap(int map) => Player.ChangeMap(GetWarpMap(map), GetWarpMap(map).GetPortal(0));
 
-        public void WarpMap(int map, int portal) => Player.changeMap(GetWarpMap(map), GetWarpMap(map).getPortal(portal));
+        public void WarpMap(int map, int portal) => Player.ChangeMap(GetWarpMap(map), GetWarpMap(map).GetPortal(portal));
 
-        public void WarpMap(int map, string portal) => Player.changeMap(GetWarpMap(map), GetWarpMap(map).getPortal(portal));
+        public void WarpMap(int map, string portal)
+            => Player.ChangeMap(GetWarpMap(map), GetWarpMap(map).GetPortal(portal));
 
         protected MapleMap GetWarpMap(int map)
             =>
                 Player.EventInstanceManager == null
                     ? Client.ChannelServer.MapFactory.GetMap(map)
-                    : Player.EventInstanceManager.getMapInstance(map);
+                    : Player.EventInstanceManager.GetMapInstance(map);
 
         public MapleMap GetMap(int map) => GetWarpMap(map);
 
@@ -66,13 +67,12 @@ namespace NeoMapleStory.Game.Script.NPC
 
         public void SetTimeOut(int time, int mapId) => TimerManager.Instance.RunOnceTask(() =>
         {
-            MapleMap map = Player.Map;
-            MapleMap outMap = Client.ChannelServer.MapFactory.GetMap(mapId);
+            var map = Player.Map;
+            var outMap = Client.ChannelServer.MapFactory.GetMap(mapId);
             foreach (var player in map.Characters)
             {
-                player.changeMap(outMap, outMap.getPortal(0));
+                player.ChangeMap(outMap, outMap.GetPortal(0));
             }
-
         }, time);
 
         /**
@@ -91,7 +91,7 @@ namespace NeoMapleStory.Game.Script.NPC
             {
                 var ii = MapleItemInformationProvider.Instance;
                 var item = ii.GetEquipById(id);
-                MapleInventoryType type = ii.GetInventoryType(id);
+                var type = ii.GetInventoryType(id);
                 string logInfo =
                     $"{Player.Name} received {quantity} frome a scripted PlayerInteraction ({ToString()})";
 
@@ -104,11 +104,11 @@ namespace NeoMapleStory.Game.Script.NPC
                 {
                     if (randomStats)
                     {
-                        MapleInventoryManipulator.AddFromDrop(Client, ii.RandomizeStats((Equip)item),false ,logInfo );
+                        MapleInventoryManipulator.AddFromDrop(Client, ii.RandomizeStats((Equip) item), false, logInfo);
                     }
                     else
                     {
-                        MapleInventoryManipulator.AddFromDrop(Client, (Equip)item, false, logInfo);
+                        MapleInventoryManipulator.AddFromDrop(Client, (Equip) item, false, logInfo);
                     }
                 }
                 else
@@ -130,22 +130,22 @@ namespace NeoMapleStory.Game.Script.NPC
             {
                 var ii = MapleItemInformationProvider.Instance;
                 var item = ii.GetEquipById(id);
-                MapleInventoryType type = ii.GetInventoryType(id);
+                var type = ii.GetInventoryType(id);
                 string logInfo =
                     $"{Player.Name} received {quantity} frome a scripted PlayerInteraction ({ToString()})";
 
                 if (!MapleInventoryManipulator.CheckSpace(Client, id, quantity, ""))
                 {
-                    MapleInventoryType invtype = ii.GetInventoryType(id);
+                    var invtype = ii.GetInventoryType(id);
                     Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.Popup, "你的背包已满"));
                     return false;
                 }
                 if (type == MapleInventoryType.Equip && !ii.IsThrowingStar(item.ItemId) && !ii.IsBullet(item.ItemId))
                 {
                     if (randomStats)
-                        MapleInventoryManipulator.AddFromDrop(Client, ii.RandomizeStats((Equip)item),false ,logInfo );
+                        MapleInventoryManipulator.AddFromDrop(Client, ii.RandomizeStats((Equip) item), false, logInfo);
                     else
-                        MapleInventoryManipulator.AddFromDrop(Client, (Equip)item, false, logInfo);
+                        MapleInventoryManipulator.AddFromDrop(Client, (Equip) item, false, logInfo);
                 }
                 else
                 {
@@ -224,7 +224,7 @@ namespace NeoMapleStory.Game.Script.NPC
         {
             foreach (var chr in party)
             {
-                MapleClient cl = chr.Client;
+                var cl = chr.Client;
                 if (quantity >= 0)
                 {
                     string logInfo =
@@ -241,10 +241,8 @@ namespace NeoMapleStory.Game.Script.NPC
             }
         }
 
-        public void GivePartyExp(int amount, List<MapleCharacter> party) => party.ForEach(chr =>
-        {
-            chr.gainExp(amount * Client.ChannelServer.ExpRate, true, true);
-        });
+        public void GivePartyExp(int amount, List<MapleCharacter> party)
+            => party.ForEach(chr => { chr.GainExp(amount*Client.ChannelServer.ExpRate, true, true); });
 
         /**
          * remove all items of type from party; combination of haveItem and gainItem
@@ -252,69 +250,69 @@ namespace NeoMapleStory.Game.Script.NPC
 
         public void RemoveFromParty(int id, List<MapleCharacter> party)
         {
-            foreach (MapleCharacter chr in party)
+            foreach (var chr in party)
             {
-                MapleClient cl = chr.Client;
-                MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(id);
-                MapleInventory iv = cl.Player.Inventorys[type.Value];
-                int possesed = iv.CountById(id);
+                var cl = chr.Client;
+                var type = MapleItemInformationProvider.Instance.GetInventoryType(id);
+                var iv = cl.Player.Inventorys[type.Value];
+                var possesed = iv.CountById(id);
 
                 if (possesed > 0)
                 {
                     MapleInventoryManipulator.RemoveById(Client,
                         MapleItemInformationProvider.Instance.GetInventoryType(id), id, possesed, true, false);
-                    cl.Send(PacketCreator.GetShowItemGain(id, (short)-possesed, true));
+                    cl.Send(PacketCreator.GetShowItemGain(id, (short) -possesed, true));
                 }
             }
         }
 
-        public void removeAll(int id) => removeAll(id, Client);
+        public void RemoveAll(int id) => RemoveAll(id, Client);
 
-        public void removeAll(int id, MapleClient cl)
+        public void RemoveAll(int id, MapleClient cl)
         {
-            int possessed =
+            var possessed =
                 cl.Player.Inventorys[MapleItemInformationProvider.Instance.GetInventoryType(id).Value].CountById(id);
             if (possessed > 0)
             {
                 MapleInventoryManipulator.RemoveById(cl, MapleItemInformationProvider.Instance.GetInventoryType(id), id,
                     possessed, true, false);
-                cl.Send(PacketCreator.GetShowItemGain(id, (short)-possessed, true));
+                cl.Send(PacketCreator.GetShowItemGain(id, (short) -possessed, true));
             }
         }
 
-        //public void gainCloseness(int closeness, int index)
-        //{
-        //    MaplePet pet = getPlayer().getPet(index);
-        //    if (pet != null)
-        //    {
-        //        pet.setCloseness(pet.getCloseness() + closeness);
-        //        getClient().getSession().write(MaplePacketCreator.updatePet(pet, true));
-        //    }
+        //public int getCurrentPartyId(int mapid)
         //}
-
-        //public void gainClosenessAll(int closeness)
+        //    return c.getChannelServer().getMapFactory().getMap(mapid).getCharacters().size();
         //{
-        //    for (MaplePet pet : getPlayer().getPets())
-        //    {
-        //        if (pet != null)
-        //        {
-        //            pet.setCloseness(pet.getCloseness() + closeness);
-        //            getClient().getSession().write(MaplePacketCreator.updatePet(pet, true));
-        //        }
-        //    }
-        //}
-
-        //public int getMapId()
-        //{
-        //    return c.getPlayer().getMap().getId();
-        //}
 
         //public int getPlayerCount(int mapid)
-        //{
-        //    return c.getChannelServer().getMapFactory().getMap(mapid).getCharacters().size();
         //}
+        //    return c.getPlayer().getMap().getId();
+        //{
 
-        //public int getCurrentPartyId(int mapid)
+        //public int getMapId()
+        //}
+        //    }
+        //        }
+        //            getClient().getSession().write(MaplePacketCreator.updatePet(pet, true));
+        //            pet.setCloseness(pet.getCloseness() + closeness);
+        //        {
+        //        if (pet != null)
+        //    {
+        //    for (MaplePet pet : getPlayer().getPets())
+        //{
+
+        //public void gainClosenessAll(int closeness)
+        //}
+        //    }
+        //        getClient().getSession().write(MaplePacketCreator.updatePet(pet, true));
+        //        pet.setCloseness(pet.getCloseness() + closeness);
+        //    {
+        //    if (pet != null)
+        //    MaplePet pet = getPlayer().getPet(index);
+        //{
+
+        //public void gainCloseness(int closeness, int index)
         //{
         //    return getMap(mapid).getCurrentPartyId();
         //}

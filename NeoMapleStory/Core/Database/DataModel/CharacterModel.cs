@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace NeoMapleStory.Core.Database.DataModel
 {
     [Table("Characters")]
-     public class CharacterModel
+    public class CharacterModel
     {
         [Key]
         public int Id { get; set; }
@@ -60,7 +60,6 @@ namespace NeoMapleStory.Core.Database.DataModel
         public int TotalCp { get; set; }
 
 
-
         public int Exp { get; set; }
 
         public int Money { get; set; }
@@ -108,6 +107,5 @@ namespace NeoMapleStory.Core.Database.DataModel
         public int VanquisherStage { get; set; }
         public int VanquisherKills { get; set; }
         public int Warning { get; set; }
-
     }
 }

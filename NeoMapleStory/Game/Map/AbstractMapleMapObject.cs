@@ -5,7 +5,6 @@ namespace NeoMapleStory.Game.Map
 {
     public abstract class AbstractMapleMapObject : IMapleMapObject
     {
-
         public int ObjectId { get; set; } = 0;
 
         public Point Position { get; set; }
@@ -13,6 +12,5 @@ namespace NeoMapleStory.Game.Map
         public abstract void SendDestroyData(MapleClient client);
         public abstract void SendSpawnData(MapleClient client);
         public new abstract MapleMapObjectType GetType();
-
     }
 }

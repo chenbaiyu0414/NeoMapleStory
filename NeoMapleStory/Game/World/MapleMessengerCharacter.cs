@@ -4,12 +4,6 @@ namespace NeoMapleStory.Game.World
 {
     public class MapleMessengerCharacter
     {
-        public string CharacterName { get; private set; }
-        public int CharacterId { get; private set; }
-        public int ChannelId { get; private set; }
-        public bool IsOnline { get; set; }
-        public int Position { get;  set; }
-
         public MapleMessengerCharacter(MapleCharacter maplechar)
         {
             CharacterName = maplechar.Name;
@@ -33,9 +27,15 @@ namespace NeoMapleStory.Game.World
             CharacterName = "";
         }
 
+        public string CharacterName { get; }
+        public int CharacterId { get; private set; }
+        public int ChannelId { get; private set; }
+        public bool IsOnline { get; set; }
+        public int Position { get; set; }
+
         public override int GetHashCode()
         {
-            return 1 * 31 + CharacterName == null ? 0 : CharacterName.GetHashCode();
+            return 1*31 + CharacterName == null ? 0 : CharacterName.GetHashCode();
         }
 
         public override bool Equals(object obj)
@@ -52,7 +52,7 @@ namespace NeoMapleStory.Game.World
             {
                 return false;
             }
-            MapleMessengerCharacter other = (MapleMessengerCharacter)obj;
+            var other = (MapleMessengerCharacter) obj;
             if (CharacterName == null)
             {
                 if (other.CharacterName != null)

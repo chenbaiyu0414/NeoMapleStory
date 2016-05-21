@@ -2,7 +2,6 @@
 {
     public interface IEquip : IMapleItem
     {
-
         byte UpgradeSlots { get; set; }
 
         byte Locked { get; set; }
@@ -43,16 +42,15 @@
 
         bool IsRing { get; set; }
 
-       
+
         int PartnerUniqueId { get; set; }
-       
+
         int PartnerId { get; set; }
-       
+
         string PartnerName { get; set; }
 
         int ItemExp { get; set; }
 
         int ItemLevel { get; set; }
-
     }
 }

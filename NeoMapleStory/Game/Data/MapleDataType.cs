@@ -17,6 +17,6 @@
         Sound,
         Uol,
         UnknownType,
-        UnknownExtendedType,
+        UnknownExtendedType
     }
 }

@@ -1,52 +1,57 @@
-﻿using NeoMapleStory.Core;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using NeoMapleStory.Core;
 using NeoMapleStory.Core.Database;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Server;
 using NeoMapleStory.Settings;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace NeoMapleStory.Game.Inventory
 {
     public class MapleItemInformationProvider
     {
-        public static MapleItemInformationProvider Instance { get; } = new MapleItemInformationProvider();
-        protected IMapleDataProvider ItemData;
-        protected IMapleDataProvider EquipData;
-        protected IMapleDataProvider StringData;
         protected IMapleData CashStringData;
-        protected IMapleData ConsumeStringData;
-        protected IMapleData EqpStringData;
-        protected IMapleData EtcStringData;
-        protected IMapleData InsStringData;
-        protected IMapleData PetStringData;
-        protected Dictionary<int, MapleInventoryType> InventoryTypeCache = new Dictionary<int, MapleInventoryType>();
-        protected Dictionary<int, short> SlotMaxCache = new Dictionary<int, short>();
-        protected Dictionary<int, MapleStatEffect> ItemEffects = new Dictionary<int, MapleStatEffect>();
-        protected Dictionary<int, Dictionary<string, int>> EquipStatsCache = new Dictionary<int, Dictionary<string, int>>();
-        protected Dictionary<int, Equip> EquipCache = new Dictionary<int, Equip>();
-        protected Dictionary<int, double> PriceCache = new Dictionary<int, double>();
-        protected Dictionary<int, int> WholePriceCache = new Dictionary<int, int>();
-        protected Dictionary<int, int> ProjectileWatkCache = new Dictionary<int, int>();
-        protected Dictionary<int, string> NameCache = new Dictionary<int, string>();
-        protected Dictionary<int, string> DescCache = new Dictionary<int, string>();
-        protected Dictionary<int, string> MsgCache = new Dictionary<int, string>();
-        protected Dictionary<int, bool> DropRestrictionCache = new Dictionary<int, bool>();
-        protected Dictionary<int, bool> PickupRestrictionCache = new Dictionary<int, bool>();
-        protected Dictionary<int, bool> IsQuestItemCache = new Dictionary<int, bool>();
-        protected Dictionary<int, List<SummonEntry>> SummonEntryCache = new Dictionary<int, List<SummonEntry>>();
-        protected List<Tuple<int, string>> ItemNameCache = new List<Tuple<int, string>>();
-        protected Dictionary<int, int> GetMesoCache = new Dictionary<int, int>();
-        protected Dictionary<int, int> getExpCache = new Dictionary<int, int>();
-        protected Dictionary<int, string> ItemTypeCache = new Dictionary<int, string>();
-        protected Dictionary<int, Dictionary<string, string>> GetExpCardTimes = new Dictionary<int, Dictionary<string, string>>();
-        protected Dictionary<int, int> ScriptedItemCache = new Dictionary<int, int>();
-        protected Dictionary<int, int> MonsterBookId = new Dictionary<int, int>();
         protected Dictionary<int, bool> ConsumeOnPickupCache = new Dictionary<int, bool>();
-        protected Dictionary<int, List<int>> ScrollRestrictionCache = new Dictionary<int, List<int>>();
+        protected IMapleData ConsumeStringData;
+        protected Dictionary<int, string> DescCache = new Dictionary<int, string>();
+        protected Dictionary<int, bool> DropRestrictionCache = new Dictionary<int, bool>();
+        protected IMapleData EqpStringData;
+        protected Dictionary<int, Equip> EquipCache = new Dictionary<int, Equip>();
+        protected IMapleDataProvider EquipData;
+
+        protected Dictionary<int, Dictionary<string, int>> EquipStatsCache =
+            new Dictionary<int, Dictionary<string, int>>();
+
+        protected IMapleData EtcStringData;
+        protected Dictionary<int, int> getExpCache = new Dictionary<int, int>();
+
+        protected Dictionary<int, Dictionary<string, string>> GetExpCardTimes =
+            new Dictionary<int, Dictionary<string, string>>();
+
+        protected Dictionary<int, int> GetMesoCache = new Dictionary<int, int>();
+        protected IMapleData InsStringData;
+        protected Dictionary<int, MapleInventoryType> InventoryTypeCache = new Dictionary<int, MapleInventoryType>();
+        protected Dictionary<int, bool> IsQuestItemCache = new Dictionary<int, bool>();
+        protected IMapleDataProvider ItemData;
+        protected Dictionary<int, MapleStatEffect> ItemEffects = new Dictionary<int, MapleStatEffect>();
+        protected List<Tuple<int, string>> ItemNameCache = new List<Tuple<int, string>>();
+        protected Dictionary<int, string> ItemTypeCache = new Dictionary<int, string>();
         protected Dictionary<int, bool> KarmaCache = new Dictionary<int, bool>();
+        protected Dictionary<int, int> MonsterBookId = new Dictionary<int, int>();
+        protected Dictionary<int, string> MsgCache = new Dictionary<int, string>();
+        protected Dictionary<int, string> NameCache = new Dictionary<int, string>();
+        protected IMapleData PetStringData;
+        protected Dictionary<int, bool> PickupRestrictionCache = new Dictionary<int, bool>();
+        protected Dictionary<int, double> PriceCache = new Dictionary<int, double>();
+        protected Dictionary<int, int> ProjectileWatkCache = new Dictionary<int, int>();
+        protected Dictionary<int, int> ScriptedItemCache = new Dictionary<int, int>();
+        protected Dictionary<int, List<int>> ScrollRestrictionCache = new Dictionary<int, List<int>>();
+        protected Dictionary<int, short> SlotMaxCache = new Dictionary<int, short>();
+        protected IMapleDataProvider StringData;
+        protected Dictionary<int, List<SummonEntry>> SummonEntryCache = new Dictionary<int, List<SummonEntry>>();
+        protected Dictionary<int, int> WholePriceCache = new Dictionary<int, int>();
         //protected Dictionary<int, List<MapleFish>> fishingCache = new Dictionary<int, List<MapleFish>>();
 
         protected MapleItemInformationProvider()
@@ -63,6 +68,8 @@ namespace NeoMapleStory.Game.Inventory
             PetStringData = MapleDataProviderFactory.GetDataProvider("String.wz").GetData("Pet.img");
         }
 
+        public static MapleItemInformationProvider Instance { get; } = new MapleItemInformationProvider();
+
         public MapleInventoryType GetInventoryType(int itemId)
         {
             if (InventoryTypeCache.ContainsKey(itemId))
@@ -70,11 +77,11 @@ namespace NeoMapleStory.Game.Inventory
                 return InventoryTypeCache[itemId];
             }
             MapleInventoryType ret;
-            string idStr = "0" + itemId.ToString();
-            IMapleDataDirectoryEntry root = ItemData.GetRoot();
-            foreach (IMapleDataDirectoryEntry topDir in root.GetSubDirectories())
+            var idStr = "0" + itemId;
+            var root = ItemData.GetRoot();
+            foreach (var topDir in root.GetSubDirectories())
             {
-                foreach (IMapleDataFileEntry iFile in topDir.GetFiles())
+                foreach (var iFile in topDir.GetFiles())
                 {
                     if (iFile.Name == idStr.Substring(0, 4) + ".img")
                     {
@@ -82,7 +89,7 @@ namespace NeoMapleStory.Game.Inventory
                         InventoryTypeCache.Add(itemId, ret);
                         return ret;
                     }
-                    else if (iFile.Name.Equals(idStr.Substring(1) + ".img"))
+                    if (iFile.Name.Equals(idStr.Substring(1) + ".img"))
                     {
                         ret = MapleInventoryType.GetByWzName(topDir.Name);
                         InventoryTypeCache.Add(itemId, ret);
@@ -91,9 +98,9 @@ namespace NeoMapleStory.Game.Inventory
                 }
             }
             root = EquipData.GetRoot();
-            foreach (IMapleDataDirectoryEntry topDir in root.GetSubDirectories())
+            foreach (var topDir in root.GetSubDirectories())
             {
-                foreach (IMapleDataFileEntry iFile in topDir.GetFiles())
+                foreach (var iFile in topDir.GetFiles())
                 {
                     if (iFile.Name.Equals(idStr + ".img"))
                     {
@@ -117,57 +124,57 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return ItemNameCache;
             }
-            List<Tuple<int, string>> itemPairs = new List<Tuple<int, string>>();
+            var itemPairs = new List<Tuple<int, string>>();
             IMapleData itemsData;
 
             itemsData = StringData.GetData("Cash.img");
-            foreach (IMapleData itemFolder in itemsData.Children)
+            foreach (var itemFolder in itemsData.Children)
             {
-                int itemId = int.Parse(itemFolder.Name);
-                string itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
+                var itemId = int.Parse(itemFolder.Name);
+                var itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
                 itemPairs.Add(Tuple.Create(itemId, itemName));
             }
 
             itemsData = StringData.GetData("Consume.img");
-            foreach (IMapleData itemFolder in itemsData.Children)
+            foreach (var itemFolder in itemsData.Children)
             {
-                int itemId = int.Parse(itemFolder.Name);
-                string itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
+                var itemId = int.Parse(itemFolder.Name);
+                var itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
                 itemPairs.Add(Tuple.Create(itemId, itemName));
             }
 
             itemsData = StringData.GetData("Eqp.img").GetChildByPath("Eqp");
-            foreach (IMapleData eqpType in itemsData.Children)
+            foreach (var eqpType in itemsData.Children)
             {
-                foreach (IMapleData itemFolder in eqpType.Children)
+                foreach (var itemFolder in eqpType.Children)
                 {
-                    int itemId = int.Parse(itemFolder.Name);
-                    string itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
+                    var itemId = int.Parse(itemFolder.Name);
+                    var itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
                     itemPairs.Add(Tuple.Create(itemId, itemName));
                 }
             }
 
             itemsData = StringData.GetData("Etc.img").GetChildByPath("Etc");
-            foreach (IMapleData itemFolder in itemsData.Children)
+            foreach (var itemFolder in itemsData.Children)
             {
-                int itemId = int.Parse(itemFolder.Name);
-                string itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
+                var itemId = int.Parse(itemFolder.Name);
+                var itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
                 itemPairs.Add(Tuple.Create(itemId, itemName));
             }
 
             itemsData = StringData.GetData("Ins.img");
-            foreach (IMapleData itemFolder in itemsData.Children)
+            foreach (var itemFolder in itemsData.Children)
             {
-                int itemId = int.Parse(itemFolder.Name);
-                string itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
+                var itemId = int.Parse(itemFolder.Name);
+                var itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
                 itemPairs.Add(Tuple.Create(itemId, itemName));
             }
 
             itemsData = StringData.GetData("Pet.img");
-            foreach (IMapleData itemFolder in itemsData.Children)
+            foreach (var itemFolder in itemsData.Children)
             {
-                int itemId = int.Parse(itemFolder.Name);
-                string itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
+                var itemId = int.Parse(itemFolder.Name);
+                var itemName = MapleDataTool.GetString("name", itemFolder, "NO-NAME");
                 itemPairs.Add(Tuple.Create(itemId, itemName));
             }
             ItemNameCache.AddRange(itemPairs);
@@ -180,8 +187,8 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return ScriptedItemCache[itemId];
             }
-            IMapleData data = GetItemData(itemId);
-            int npcId = MapleDataTool.GetInt("spec/npc", data, 0);
+            var data = GetItemData(itemId);
+            var npcId = MapleDataTool.GetInt("spec/npc", data, 0);
             ScriptedItemCache.Add(itemId, npcId);
 
             return ScriptedItemCache[itemId];
@@ -189,19 +196,20 @@ namespace NeoMapleStory.Game.Inventory
 
         public bool IsExpOrDropCardTime(int itemId)
         {
-            string day = MapleDayInt.GetDayInt(DateTime.Now.DayOfWeek);
+            var day = MapleDayInt.GetDayInt(DateTime.Now.DayOfWeek);
 
             Dictionary<string, string> times;
             if (GetExpCardTimes.ContainsKey(itemId))
             {
                 times = GetExpCardTimes[itemId];
             }
-            else {
-                List<IMapleData> data = GetItemData(itemId).GetChildByPath("info").GetChildByPath("time").Children;
-                Dictionary<string, string> hours = new Dictionary<string, string>();
+            else
+            {
+                var data = GetItemData(itemId).GetChildByPath("info").GetChildByPath("time").Children;
+                var hours = new Dictionary<string, string>();
                 data.ForEach(childdata =>
                 {
-                    string[] time = MapleDataTool.GetString(childdata).Split(':');
+                    var time = MapleDataTool.GetString(childdata).Split(':');
                     //MON:03-07
                     hours.Add(time[0], time[1]);
                 });
@@ -210,9 +218,9 @@ namespace NeoMapleStory.Game.Inventory
             }
             if (times.ContainsKey(day))
             {
-                string[] hourspan = times[day].Split('-');
-                int starthour = int.Parse(hourspan[0]);
-                int endhour = int.Parse(hourspan[1]);
+                var hourspan = times[day].Split('-');
+                var starthour = int.Parse(hourspan[0]);
+                var endhour = int.Parse(hourspan[1]);
                 if (DateTime.Now.Hour >= starthour && DateTime.Now.Hour <= endhour)
                 {
                     return true;
@@ -221,19 +229,9 @@ namespace NeoMapleStory.Game.Inventory
             return false;
         }
 
-        public static class MapleDayInt
-        {
-
-            public static string GetDayInt(DayOfWeek day)
-            {
-                string[] weekday = { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
-                return weekday[(int)day];
-            }
-        }
-
         protected IMapleData GetStringData(int itemId)
         {
-            string cat = "null";
+            var cat = "null";
             IMapleData theData;
             if (itemId >= 5010000)
             {
@@ -288,7 +286,8 @@ namespace NeoMapleStory.Game.Inventory
                 theData = EqpStringData;
                 cat = "Pants";
             }
-            else if (itemId >= 1802000 && itemId < 1803000 || itemId >= 1812000 && itemId < 1813000 || itemId == 1822000 || itemId == 1832000)
+            else if (itemId >= 1802000 && itemId < 1803000 || itemId >= 1812000 && itemId < 1813000 || itemId == 1822000 ||
+                     itemId == 1832000)
             {
                 theData = EqpStringData;
                 cat = "PetEquip";
@@ -330,7 +329,8 @@ namespace NeoMapleStory.Game.Inventory
             {
                 theData = PetStringData;
             }
-            else {
+            else
+            {
                 return null;
             }
             if (cat == "null")
@@ -339,31 +339,24 @@ namespace NeoMapleStory.Game.Inventory
                 {
                     return theData.GetChildByPath(itemId.ToString());
                 }
-                else {
-                    return theData.GetChildByPath("Etc/" + itemId.ToString());
-                }
+                return theData.GetChildByPath("Etc/" + itemId);
             }
-            else
+            if (theData == EqpStringData)
             {
-                if (theData == EqpStringData)
-                {
-                    return theData.GetChildByPath("Eqp/" + cat + "/" + itemId);
-                }
-                else {
-                    return theData.GetChildByPath(cat + "/" + itemId);
-                }
+                return theData.GetChildByPath("Eqp/" + cat + "/" + itemId);
             }
+            return theData.GetChildByPath(cat + "/" + itemId);
         }
 
         protected IMapleData GetItemData(int itemId)
         {
             IMapleData ret = null;
-            string idStr = "0" + itemId;
-            IMapleDataDirectoryEntry root = ItemData.GetRoot();
-            foreach (IMapleDataDirectoryEntry topDir in root.GetSubDirectories())
+            var idStr = "0" + itemId;
+            var root = ItemData.GetRoot();
+            foreach (var topDir in root.GetSubDirectories())
             {
                 // we should have .img files here beginning with the first 4 IID
-                foreach (IMapleDataFileEntry iFile in topDir.GetFiles())
+                foreach (var iFile in topDir.GetFiles())
                 {
                     if (iFile.Name.Equals(idStr.Substring(0, 4) + ".img"))
                     {
@@ -382,9 +375,9 @@ namespace NeoMapleStory.Game.Inventory
                 }
             }
             root = EquipData.GetRoot();
-            foreach (IMapleDataDirectoryEntry topDir in root.GetSubDirectories())
+            foreach (var topDir in root.GetSubDirectories())
             {
-                foreach (IMapleDataFileEntry iFile in topDir.GetFiles())
+                foreach (var iFile in topDir.GetFiles())
                 {
                     if (iFile.Name.Equals(idStr + ".img"))
                     {
@@ -402,34 +395,32 @@ namespace NeoMapleStory.Game.Inventory
                 return SlotMaxCache[itemId];
             }
             short ret = 0;
-            IMapleData item = GetItemData(itemId);
+            var item = GetItemData(itemId);
             if (item != null)
             {
-                IMapleData smEntry = item.GetChildByPath("info/slotMax");
+                var smEntry = item.GetChildByPath("info/slotMax");
                 if (smEntry == null)
                 {
                     if (GetInventoryType(itemId) == MapleInventoryType.Equip)
                     {
                         ret = 1;
                     }
-                    else {
+                    else
+                    {
                         ret = 100;
                     }
                 }
-                else {
+                else
+                {
                     if (IsThrowingStar(itemId) || IsBullet(itemId) || (MapleDataTool.GetInt(smEntry) == 0))
                     {
                         ret = 1;
                     }
-                    ret = (short)MapleDataTool.GetInt(smEntry);
+                    ret = (short) MapleDataTool.GetInt(smEntry);
                     if (IsThrowingStar(itemId))
                     {
                         //ret += c.GetPlayer().GetSkillLevel(SkillFactory.GetSkill(4100000)) * 10;
                     }
-                    else {
-                        // ret += c.GetPlayer().GetSkillLevel(SkillFactory.GetSkill(5200000)) * 10;
-                    }
-
                 }
             }
             if (!IsThrowingStar(itemId) && !IsBullet(itemId))
@@ -451,13 +442,13 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return GetMesoCache[itemId];
             }
-            IMapleData item = GetItemData(itemId);
+            var item = GetItemData(itemId);
             if (item == null)
             {
                 return -1;
             }
-            int pEntry = 0;
-            IMapleData pData = item.GetChildByPath("info/meso");
+            var pEntry = 0;
+            var pData = item.GetChildByPath("info/meso");
             if (pData == null)
             {
                 return -1;
@@ -474,13 +465,13 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return WholePriceCache[itemId];
             }
-            IMapleData item = GetItemData(itemId);
+            var item = GetItemData(itemId);
             if (item == null)
             {
                 return -1;
             }
-            int pEntry = 0;
-            IMapleData pData = item.GetChildByPath("info/price");
+            var pEntry = 0;
+            var pData = item.GetChildByPath("info/price");
             if (pData == null)
             {
                 return -1;
@@ -497,13 +488,13 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return ItemTypeCache[itemId];
             }
-            IMapleData item = GetItemData(itemId);
+            var item = GetItemData(itemId);
             if (item == null)
             {
                 return "";
             }
             string pEntry;
-            IMapleData pData = item.GetChildByPath("info/islot");
+            var pData = item.GetChildByPath("info/islot");
             if (pData == null)
             {
                 return "";
@@ -520,13 +511,13 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return PriceCache[itemId];
             }
-            IMapleData item = GetItemData(itemId);
+            var item = GetItemData(itemId);
             if (item == null)
             {
                 return -1;
             }
-            double pEntry = 0.0;
-            IMapleData pData = item.GetChildByPath("info/unitPrice");
+            var pEntry = 0.0;
+            var pData = item.GetChildByPath("info/unitPrice");
             if (pData != null)
             {
                 try
@@ -538,7 +529,8 @@ namespace NeoMapleStory.Game.Inventory
                     pEntry = MapleDataTool.GetInt(pData);
                 }
             }
-            else {
+            else
+            {
                 pData = item.GetChildByPath("info/price");
                 if (pData == null)
                 {
@@ -557,14 +549,14 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return EquipStatsCache[itemId];
             }
-            Dictionary<string, int> ret = new Dictionary<string, int>();
-            IMapleData item = GetItemData(itemId);
-            IMapleData info = item?.GetChildByPath("info");
+            var ret = new Dictionary<string, int>();
+            var item = GetItemData(itemId);
+            var info = item?.GetChildByPath("info");
             if (info == null)
             {
                 return null;
             }
-            foreach (IMapleData data in info.Children)
+            foreach (var data in info.Children)
             {
                 if (data.Name.StartsWith("inc"))
                 {
@@ -638,14 +630,14 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return ScrollRestrictionCache[itemId];
             }
-            List<int> ret = new List<int>();
-            IMapleData data = GetItemData(itemId);
+            var ret = new List<int>();
+            var data = GetItemData(itemId);
             data = data.GetChildByPath("req");
             if (data == null)
             {
                 return ret;
             }
-            foreach (IMapleData req in data.Children)
+            foreach (var req in data.Children)
             {
                 ret.Add(MapleDataTool.GetInt(req));
             }
@@ -658,12 +650,13 @@ namespace NeoMapleStory.Game.Inventory
             {
                 return SummonEntryCache[itemId];
             }
-            IMapleData data = GetItemData(itemId);
-            int mobSize = data.GetChildByPath("mob").Children.Count;
-            List<SummonEntry> ret = new List<SummonEntry>();
-            for (int x = 0; x < mobSize; x++)
+            var data = GetItemData(itemId);
+            var mobSize = data.GetChildByPath("mob").Children.Count;
+            var ret = new List<SummonEntry>();
+            for (var x = 0; x < mobSize; x++)
             {
-                ret.Add(new SummonEntry(MapleDataTool.ConvertToInt("mob/" + x + "/id", data), MapleDataTool.ConvertToInt("mob/" + x + "/prob", data)));
+                ret.Add(new SummonEntry(MapleDataTool.ConvertToInt("mob/" + x + "/id", data),
+                    MapleDataTool.ConvertToInt("mob/" + x + "/prob", data)));
             }
             if (!ret.Any())
             {
@@ -680,8 +673,8 @@ namespace NeoMapleStory.Game.Inventory
 
         public MapleWeaponType GetWeaponType(int itemId)
         {
-            int cat = itemId / 10000;
-            cat = cat % 100;
+            var cat = itemId/10000;
+            cat = cat%100;
             switch (cat)
             {
                 case 30:
@@ -717,21 +710,20 @@ namespace NeoMapleStory.Game.Inventory
                     return MapleWeaponType.Knuckle;
                 case 49:
                     return MapleWeaponType.Gun;
-
             }
             return MapleWeaponType.NotAWeapon;
         }
 
         public bool IsShield(int itemId)
         {
-            int cat = itemId / 10000;
-            cat = cat % 100;
+            var cat = itemId/10000;
+            cat = cat%100;
             return cat == 9;
         }
 
         public bool IsEquip(int itemId)
         {
-            return itemId / 1000000 == 1;
+            return itemId/1000000 == 1;
         }
 
         public bool IsCleanSlate(int scrollId)
@@ -745,25 +737,25 @@ namespace NeoMapleStory.Game.Inventory
                     return true;
             }
             return false;
-
         }
 
         public IMapleItem ScrollEquipWithId(IMapleItem equip, int scrollId, bool usingWhiteScroll, bool checkIfGm)
         {
             if (equip is Equip)
             {
-                Equip nEquip = (Equip)equip;
-                Dictionary<string, int> stats = GetEquipStats(scrollId);
-                Dictionary<string, int> eqstats = GetEquipStats(equip.ItemId);
-                if ((nEquip.UpgradeSlots > 0 || IsCleanSlate(scrollId)) && Math.Ceiling(Randomizer.NextDouble() * 100.0) <= stats["success"] || (checkIfGm == true))
+                var nEquip = (Equip) equip;
+                var stats = GetEquipStats(scrollId);
+                var eqstats = GetEquipStats(equip.ItemId);
+                if ((nEquip.UpgradeSlots > 0 || IsCleanSlate(scrollId)) &&
+                    Math.Ceiling(Randomizer.NextDouble()*100.0) <= stats["success"] || checkIfGm)
                 {
                     switch (scrollId)
                     {
                         case 2040727:
-                            nEquip.Flag |= (byte)InventorySettings.Items.Flags.Spikes;
+                            nEquip.Flag |= (byte) InventorySettings.Items.Flags.Spikes;
                             return equip;
                         case 2041058:
-                            nEquip.Flag |= (byte)InventorySettings.Items.Flags.Spikes;
+                            nEquip.Flag |= (byte) InventorySettings.Items.Flags.Spikes;
                             return equip;
                         case 2049000:
                         case 2049001:
@@ -777,66 +769,66 @@ namespace NeoMapleStory.Game.Inventory
                         case 2049100:
                         case 2049101:
                         case 2049102:
-                            int increase = 1;
-                            if (Math.Ceiling(Randomizer.NextDouble() * 100.0) <= 50)
+                            var increase = 1;
+                            if (Math.Ceiling(Randomizer.NextDouble()*100.0) <= 50)
                             {
-                                increase = increase * -1;
+                                increase = increase*-1;
                             }
                             if (nEquip.Str > 0)
                             {
-                                nEquip.Str += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Str += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Dex > 0)
                             {
-                                nEquip.Dex += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Dex += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Int > 0)
                             {
-                                nEquip.Int += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Int += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Luk > 0)
                             {
-                                nEquip.Luk += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Luk += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Watk > 0)
                             {
-                                nEquip.Watk += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Watk += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Wdef > 0)
                             {
-                                nEquip.Wdef += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Wdef += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Matk > 0)
                             {
-                                nEquip.Matk += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Matk += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Mdef > 0)
                             {
-                                nEquip.Mdef += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Mdef += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Acc > 0)
                             {
-                                nEquip.Acc += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Acc += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Avoid > 0)
                             {
-                                nEquip.Avoid += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Avoid += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Speed > 0)
                             {
-                                nEquip.Speed += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Speed += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Jump > 0)
                             {
-                                nEquip.Jump += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Jump += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Hp > 0)
                             {
-                                nEquip.Hp += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Hp += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             if (nEquip.Mp > 0)
                             {
-                                nEquip.Mp += (short)(Math.Ceiling(Randomizer.NextDouble() * 5.0) * increase);
+                                nEquip.Mp += (short) (Math.Ceiling(Randomizer.NextDouble()*5.0)*increase);
                             }
                             break;
                         default:
@@ -844,59 +836,59 @@ namespace NeoMapleStory.Game.Inventory
                             {
                                 if (stat.Key.Equals("STR"))
                                 {
-                                    nEquip.Str += (short)stat.Value;
+                                    nEquip.Str += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("DEX"))
                                 {
-                                    nEquip.Dex += (short)stat.Value;
+                                    nEquip.Dex += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("INT"))
                                 {
-                                    nEquip.Int += (short)stat.Value;
+                                    nEquip.Int += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("LUK"))
                                 {
-                                    nEquip.Luk += (short)stat.Value;
+                                    nEquip.Luk += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("PAD"))
                                 {
-                                    nEquip.Watk += (short)stat.Value;
+                                    nEquip.Watk += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("PDD"))
                                 {
-                                    nEquip.Wdef += (short)stat.Value;
+                                    nEquip.Wdef += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("MAD"))
                                 {
-                                    nEquip.Matk += (short)stat.Value;
+                                    nEquip.Matk += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("MDD"))
                                 {
-                                    nEquip.Mdef += (short)stat.Value;
+                                    nEquip.Mdef += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("ACC"))
                                 {
-                                    nEquip.Acc += (short)stat.Value;
+                                    nEquip.Acc += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("EVA"))
                                 {
-                                    nEquip.Avoid += (short)stat.Value;
+                                    nEquip.Avoid += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("Speed"))
                                 {
-                                    nEquip.Speed += (short)stat.Value;
+                                    nEquip.Speed += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("Jump"))
                                 {
-                                    nEquip.Jump += (short)stat.Value;
+                                    nEquip.Jump += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("MHP"))
                                 {
-                                    nEquip.Hp += (short)stat.Value;
+                                    nEquip.Hp += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("MMP"))
                                 {
-                                    nEquip.Mp += (short)stat.Value;
+                                    nEquip.Mp += (short) stat.Value;
                                 }
                                 else if (stat.Key.Equals("afterImage"))
                                 {
@@ -910,12 +902,13 @@ namespace NeoMapleStory.Game.Inventory
                         nEquip.Level++;
                     }
                 }
-                else {
+                else
+                {
                     if (!usingWhiteScroll && !IsCleanSlate(scrollId))
                     {
                         nEquip.UpgradeSlots--;
                     }
-                    if (Math.Ceiling(1.0 + Randomizer.NextDouble() * 100.0) < stats["cursed"])
+                    if (Math.Ceiling(1.0 + Randomizer.NextDouble()*100.0) < stats["cursed"])
                     {
                         return null;
                     }
@@ -929,74 +922,74 @@ namespace NeoMapleStory.Game.Inventory
             Equip nEquip;
             nEquip = new Equip(equipId, 0);
             nEquip.Quantity = 1;
-            Dictionary<string, int> stats = GetEquipStats(equipId);
+            var stats = GetEquipStats(equipId);
             if (stats != null)
             {
                 foreach (var stat in stats)
                 {
                     if (stat.Key.Equals("STR"))
                     {
-                        nEquip.Str = (short)stat.Value;
+                        nEquip.Str = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("DEX"))
                     {
-                        nEquip.Dex = (short)stat.Value;
+                        nEquip.Dex = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("INT"))
                     {
-                        nEquip.Int = (short)stat.Value;
+                        nEquip.Int = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("LUK"))
                     {
-                        nEquip.Luk = (short)stat.Value;
+                        nEquip.Luk = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("PAD"))
                     {
-                        nEquip.Watk = (short)stat.Value;
+                        nEquip.Watk = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("PDD"))
                     {
-                        nEquip.Wdef = (short)stat.Value;
+                        nEquip.Wdef = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("MAD"))
                     {
-                        nEquip.Matk = (short)stat.Value;
+                        nEquip.Matk = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("MDD"))
                     {
-                        nEquip.Mdef = (short)stat.Value;
+                        nEquip.Mdef = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("ACC"))
                     {
-                        nEquip.Acc = (short)stat.Value;
+                        nEquip.Acc = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("EVA"))
                     {
-                        nEquip.Avoid = (short)stat.Value;
+                        nEquip.Avoid = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("Speed"))
                     {
-                        nEquip.Speed = (short)stat.Value;
+                        nEquip.Speed = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("Jump"))
                     {
-                        nEquip.Jump = (short)stat.Value;
+                        nEquip.Jump = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("MHP"))
                     {
-                        nEquip.Hp = (short)stat.Value;
+                        nEquip.Hp = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("MMP"))
                     {
-                        nEquip.Mp = (short)stat.Value;
+                        nEquip.Mp = (short) stat.Value;
                     }
                     else if (stat.Key.Equals("tuc"))
                     {
-                        nEquip.UpgradeSlots = (byte)stat.Value;
+                        nEquip.UpgradeSlots = (byte) stat.Value;
                     }
                     else if (IsDropRestricted(equipId))
                     {
-                        nEquip.Flag |= (byte)InventorySettings.Items.Flags.Untradeable;
+                        nEquip.Flag |= (byte) InventorySettings.Items.Flags.Untradeable;
                     }
                     else if (stat.Key.Equals("afterImage"))
                     {
@@ -1015,8 +1008,8 @@ namespace NeoMapleStory.Game.Inventory
             }
 
             // vary no more than ceil of 10% of stat
-            int lMaxRange = (int)Math.Min(Math.Ceiling(defaultValue * 0.1), maxRange);
-            return (short)(defaultValue - lMaxRange + Math.Floor(Randomizer.NextDouble() * (lMaxRange * 2 + 1)));
+            var lMaxRange = (int) Math.Min(Math.Ceiling(defaultValue*0.1), maxRange);
+            return (short) (defaultValue - lMaxRange + Math.Floor(Randomizer.NextDouble()*(lMaxRange*2 + 1)));
         }
 
         public Equip RandomizeStats(Equip equip)
@@ -1040,15 +1033,15 @@ namespace NeoMapleStory.Game.Inventory
 
         public MapleStatEffect GetItemEffect(int itemId)
         {
-            MapleStatEffect ret = ItemEffects[itemId];
+            var ret = ItemEffects[itemId];
             if (ret == null)
             {
-                IMapleData item = GetItemData(itemId);
+                var item = GetItemData(itemId);
                 if (item == null)
                 {
                     return null;
                 }
-                IMapleData spec = item.GetChildByPath("spec");
+                var spec = item.GetChildByPath("spec");
                 ret = MapleStatEffect.LoadItemEffectFromData(spec, itemId);
                 ItemEffects.Add(itemId, ret);
             }
@@ -1057,26 +1050,22 @@ namespace NeoMapleStory.Game.Inventory
 
         public bool IsBullet(int itemId)
         {
-            int id = itemId / 10000;
+            var id = itemId/10000;
             if (id == 233)
             {
                 return true;
             }
-            else {
-                return false;
-            }
+            return false;
         }
 
         public bool IsRechargable(int itemId)
         {
-            int id = itemId / 10000;
+            var id = itemId/10000;
             if (id == 233 || id == 207)
             {
                 return true;
             }
-            else {
-                return false;
-            }
+            return false;
         }
 
         public bool IsOverall(int itemId)
@@ -1104,20 +1093,18 @@ namespace NeoMapleStory.Game.Inventory
             var type = GetWeaponType(itemId);
             if (type == MapleWeaponType.Axe2H ||
                 type == MapleWeaponType.Blunt2H ||
-              type == MapleWeaponType.Bow ||
-               type == MapleWeaponType.Claw ||
-              type == MapleWeaponType.Crossbow ||
-               type == MapleWeaponType.PoleArm ||
-type == MapleWeaponType.Spear ||
-              type == MapleWeaponType.Sword2H ||
-              type == MapleWeaponType.Gun ||
-               type == MapleWeaponType.Knuckle)
+                type == MapleWeaponType.Bow ||
+                type == MapleWeaponType.Claw ||
+                type == MapleWeaponType.Crossbow ||
+                type == MapleWeaponType.PoleArm ||
+                type == MapleWeaponType.Spear ||
+                type == MapleWeaponType.Sword2H ||
+                type == MapleWeaponType.Gun ||
+                type == MapleWeaponType.Knuckle)
             {
                 return true;
             }
-            else
-                return false;
-
+            return false;
         }
 
         public bool IsTownScroll(int itemId)
@@ -1141,13 +1128,13 @@ type == MapleWeaponType.Spear ||
             {
                 return getExpCache[itemId];
             }
-            IMapleData item = GetItemData(itemId);
+            var item = GetItemData(itemId);
             if (item == null)
             {
                 return 0;
             }
-            int pEntry = 0;
-            IMapleData pData = item.GetChildByPath("spec/exp");
+            var pEntry = 0;
+            var pData = item.GetChildByPath("spec/exp");
             if (pData == null)
             {
                 return 0;
@@ -1165,7 +1152,7 @@ type == MapleWeaponType.Spear ||
             {
                 return atk;
             }
-            IMapleData data = GetItemData(itemId);
+            var data = GetItemData(itemId);
             atk = MapleDataTool.GetInt("info/incPAD", data, 0);
             ProjectileWatkCache.Add(itemId, atk);
             return atk;
@@ -1173,8 +1160,8 @@ type == MapleWeaponType.Spear ||
 
         public bool CanScroll(int scrollid, int itemid)
         {
-            int scrollCategoryQualifier = scrollid / 100 % 100;
-            int itemCategoryQualifier = itemid / 10000 % 100;
+            var scrollCategoryQualifier = scrollid/100%100;
+            var itemCategoryQualifier = itemid/10000%100;
             return scrollCategoryQualifier == itemCategoryQualifier;
         }
 
@@ -1184,12 +1171,12 @@ type == MapleWeaponType.Spear ||
             {
                 return NameCache[itemId];
             }
-            IMapleData strings = GetStringData(itemId);
+            var strings = GetStringData(itemId);
             if (strings == null)
             {
                 return null;
             }
-            string ret = MapleDataTool.GetString("name", strings, null);
+            var ret = MapleDataTool.GetString("name", strings, null);
             NameCache.Add(itemId, ret);
             return ret;
         }
@@ -1200,12 +1187,12 @@ type == MapleWeaponType.Spear ||
             {
                 return DescCache[itemId];
             }
-            IMapleData strings = GetStringData(itemId);
+            var strings = GetStringData(itemId);
             if (strings == null)
             {
                 return null;
             }
-            string ret = MapleDataTool.GetString("desc", strings, null);
+            var ret = MapleDataTool.GetString("desc", strings, null);
             DescCache.Add(itemId, ret);
             return ret;
         }
@@ -1216,12 +1203,12 @@ type == MapleWeaponType.Spear ||
             {
                 return MsgCache[itemId];
             }
-            IMapleData strings = GetStringData(itemId);
+            var strings = GetStringData(itemId);
             if (strings == null)
             {
                 return null;
             }
-            string ret = MapleDataTool.GetString("msg", strings, null);
+            var ret = MapleDataTool.GetString("msg", strings, null);
             MsgCache.Add(itemId, ret);
             return ret;
         }
@@ -1232,9 +1219,9 @@ type == MapleWeaponType.Spear ||
             {
                 return DropRestrictionCache[itemId];
             }
-            IMapleData data = GetItemData(itemId);
+            var data = GetItemData(itemId);
 
-            bool bRestricted = MapleDataTool.ConvertToInt("info/tradeBlock", data, 0) == 1;
+            var bRestricted = MapleDataTool.ConvertToInt("info/tradeBlock", data, 0) == 1;
             if (!bRestricted)
             {
                 bRestricted = MapleDataTool.ConvertToInt("info/quest", data, 0) == 1;
@@ -1250,8 +1237,8 @@ type == MapleWeaponType.Spear ||
             {
                 return PickupRestrictionCache[itemId];
             }
-            IMapleData data = GetItemData(itemId);
-            bool bRestricted = MapleDataTool.ConvertToInt("info/only", data, 0) == 1;
+            var data = GetItemData(itemId);
+            var bRestricted = MapleDataTool.ConvertToInt("info/only", data, 0) == 1;
 
             PickupRestrictionCache.Add(itemId, bRestricted);
             return bRestricted;
@@ -1259,18 +1246,18 @@ type == MapleWeaponType.Spear ||
 
         public Dictionary<string, int> GetSkillStats(int itemId, double playerJob)
         {
-            Dictionary<string, int> ret = new Dictionary<string, int>();
-            IMapleData item = GetItemData(itemId);
+            var ret = new Dictionary<string, int>();
+            var item = GetItemData(itemId);
             if (item == null)
             {
                 return null;
             }
-            IMapleData info = item.GetChildByPath("info");
+            var info = item.GetChildByPath("info");
             if (info == null)
             {
                 return null;
             }
-            foreach (IMapleData data in info.Children)
+            foreach (var data in info.Children)
             {
                 if (data.Name.StartsWith("inc"))
                 {
@@ -1281,17 +1268,17 @@ type == MapleWeaponType.Spear ||
             ret.Add("reqSkillLevel", MapleDataTool.GetInt("reqSkillLevel", info, 0));
             ret.Add("success", MapleDataTool.GetInt("success", info, 0));
 
-            IMapleData skill = info.GetChildByPath("skill");
-            int curskill = 1;
-            int size = skill.Children.Count;
-            for (int i = 0; i < size; i++)
+            var skill = info.GetChildByPath("skill");
+            var curskill = 1;
+            var size = skill.Children.Count;
+            for (var i = 0; i < size; i++)
             {
                 curskill = MapleDataTool.GetInt(i.ToString(), skill, 0);
                 if (curskill == 0) // end - no more;
                 {
                     break;
                 }
-                double skillJob = Math.Floor(curskill / 10000D);
+                var skillJob = Math.Floor(curskill/10000D);
                 if (skillJob == playerJob)
                 {
                     ret.Add("skillid", curskill);
@@ -1308,13 +1295,13 @@ type == MapleWeaponType.Spear ||
 
         public List<int> PetsCanConsume(int itemId)
         {
-            List<int> ret = new List<int>();
-            IMapleData data = GetItemData(itemId);
-            int curPetId = 0;
-            int size = data.Children.Count;
-            for (int i = 0; i < size; i++)
+            var ret = new List<int>();
+            var data = GetItemData(itemId);
+            var curPetId = 0;
+            var size = data.Children.Count;
+            for (var i = 0; i < size; i++)
             {
-                curPetId = MapleDataTool.GetInt("spec/" + i.ToString(), data, 0);
+                curPetId = MapleDataTool.GetInt("spec/" + i, data, 0);
                 if (curPetId == 0)
                 {
                     break;
@@ -1330,8 +1317,8 @@ type == MapleWeaponType.Spear ||
             {
                 return IsQuestItemCache[itemId];
             }
-            IMapleData data = GetItemData(itemId);
-            bool questItem = MapleDataTool.ConvertToInt("info/quest", data, 0) == 1;
+            var data = GetItemData(itemId);
+            var questItem = MapleDataTool.ConvertToInt("info/quest", data, 0) == 1;
             IsQuestItemCache.Add(itemId, questItem);
             return questItem;
         }
@@ -1376,37 +1363,14 @@ type == MapleWeaponType.Spear ||
             }
         }
 
-        public class SummonEntry
-        {
-
-            private readonly int _chance;
-            private readonly int _mobId;
-
-            public SummonEntry(int a, int b)
-            {
-                _mobId = a;
-                _chance = b;
-            }
-
-            public int GetChance()
-            {
-                return _chance;
-            }
-
-            public int GetMobId()
-            {
-                return _mobId;
-            }
-        }
-
         public bool IsKarmaAble(int itemId)
         {
             if (KarmaCache.ContainsKey(itemId))
             {
                 return KarmaCache[itemId];
             }
-            IMapleData data = GetItemData(itemId);
-            bool bRestricted = MapleDataTool.ConvertToInt("info/tradeAvailable", data, 0) > 0;
+            var data = GetItemData(itemId);
+            var bRestricted = MapleDataTool.ConvertToInt("info/tradeAvailable", data, 0) > 0;
             KarmaCache.Add(itemId, bRestricted);
             return bRestricted;
         }
@@ -1418,69 +1382,102 @@ type == MapleWeaponType.Spear ||
                 return ConsumeOnPickupCache[itemId];
             }
 
-            IMapleData data = GetItemData(itemId);
+            var data = GetItemData(itemId);
 
-            bool consume = MapleDataTool.ConvertToInt("spec/consumeOnPickup", data, 0) == 1 || MapleDataTool.ConvertToInt("specEx/consumeOnPickup", data, 0) == 1;
+            var consume = MapleDataTool.ConvertToInt("spec/consumeOnPickup", data, 0) == 1 ||
+                          MapleDataTool.ConvertToInt("specEx/consumeOnPickup", data, 0) == 1;
 
             ConsumeOnPickupCache.Add(itemId, consume);
             return consume;
         }
 
-        //private void loadCardIdData()
-        //{
-        //    PreparedStatement ps = null;
-        //    ResultSet rs = null;
-        //    try
-        //    {
-        //        ps = DatabaseConnection.GetConnection().prepareStatement("SELECT cardid, mobid FROM monstercarddata");
-        //        rs = ps.executeQuery();
-        //        while (rs.next())
-        //            monsterBookID.Add(rs.GetInt(1), rs.GetInt(2));
-        //    }
-        //    catch (SQLException e)
-        //    {
-        //    }
-        //    ly
-        //    {
-        //        try
-        //        {
-        //            if (rs != null)
-        //                rs.close();
-        //            if (ps != null)
-        //                ps.close();
-        //        }
-        //        catch (SQLException e)
-        //        {
-        //        }
-        //    }
-        //}
+        public static class MapleDayInt
+        {
+            public static string GetDayInt(DayOfWeek day)
+            {
+                string[] weekday = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
+                return weekday[(int) day];
+            }
+        }
 
-        //public int GetCardMobId(int id)
-        //{
-        //    return monsterBookID.Get(id);
+        public class SummonEntry
+        {
+            private readonly int m_chance;
+            private readonly int m_mobId;
+
+            public SummonEntry(int a, int b)
+            {
+                m_mobId = a;
+                m_chance = b;
+            }
+
+            public int GetChance()
+            {
+                return m_chance;
+            }
+
+            public int GetMobId()
+            {
+                return m_mobId;
+            }
+        }
+
         //}
+        //    }
+        //        return rewards;
+        //        fishingCache.Add(itemId, rewards);
+        //        }
+        //            rewards.Add(new MapleFish(rewardItem, prob, count, effect));
+        //            string effect = MapleDataTool.GetString("Effect", child, "");
+        //            int count = MapleDataTool.GetInt("count", child, 0);
+        //            int prob = MapleDataTool.GetInt("prob", child, 0);
+        //            int rewardItem = MapleDataTool.GetInt("item", child, 0);
+        //        {
+        //        for (IMapleData child : rewardData.Children)
+        //        IMapleData rewardData = data.GetChildByPath("reward");
+        //        IMapleData data = GetItemData(itemId);
+        //        List<MapleFish> rewards = new ArrayList<>();
+        //    else {
+        //    }
+        //        return fishingCache.Get(itemId);
+        //    {
+        //    if (fishingCache.ContainsKey(itemId))
+        //{
 
         //public List<MapleFish> GetFishReward(int itemId)
-        //{
-        //    if (fishingCache.ContainsKey(itemId))
-        //    {
-        //        return fishingCache.Get(itemId);
-        //    }
-        //    else {
-        //        List<MapleFish> rewards = new ArrayList<>();
-        //        IMapleData data = GetItemData(itemId);
-        //        IMapleData rewardData = data.GetChildByPath("reward");
-        //        for (IMapleData child : rewardData.Children)
-        //        {
-        //            int rewardItem = MapleDataTool.GetInt("item", child, 0);
-        //            int prob = MapleDataTool.GetInt("prob", child, 0);
-        //            int count = MapleDataTool.GetInt("count", child, 0);
-        //            string effect = MapleDataTool.GetString("Effect", child, "");
-        //            rewards.Add(new MapleFish(rewardItem, prob, count, effect));
-        //        }
-        //        fishingCache.Add(itemId, rewards);
-        //        return rewards;
-        //    }
         //}
+        //    return monsterBookID.Get(id);
+        //{
+
+        //public int GetCardMobId(int id)
+        //}
+        //    }
+        //        }
+        //        {
+        //        catch (SQLException e)
+        //        }
+        //                ps.close();
+        //            if (ps != null)
+        //                rs.close();
+        //            if (rs != null)
+        //        {
+        //        try
+        //    {
+        //    ly
+        //    }
+        //    {
+        //    catch (SQLException e)
+        //    }
+        //            monsterBookID.Add(rs.GetInt(1), rs.GetInt(2));
+        //        while (rs.next())
+        //        rs = ps.executeQuery();
+        //        ps = DatabaseConnection.GetConnection().prepareStatement("SELECT cardid, mobid FROM monstercarddata");
+        //    {
+        //    try
+        //    ResultSet rs = null;
+        //    PreparedStatement ps = null;
+        //{
+
+        //private void loadCardIdData()
     }
 }

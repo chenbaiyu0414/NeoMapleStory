@@ -1,9 +1,9 @@
-﻿using NeoMapleStory.Core;
+﻿using System;
+using NeoMapleStory.Core;
+using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.Job;
-using System;
-using NeoMapleStory.Game.Client;
 
 namespace NeoMapleStory.Game.Quest
 {
@@ -35,85 +35,84 @@ namespace NeoMapleStory.Game.Quest
             {
                 return MapleQuestRequirementType.Job;
             }
-            else if (name.Equals("quest"))
+            if (name.Equals("quest"))
             {
                 return MapleQuestRequirementType.Quest;
             }
-            else if (name.Equals("item"))
+            if (name.Equals("item"))
             {
                 return MapleQuestRequirementType.Item;
             }
-            else if (name.Equals("lvmin"))
+            if (name.Equals("lvmin"))
             {
                 return MapleQuestRequirementType.MinLevel;
             }
-            else if (name.Equals("lvmax"))
+            if (name.Equals("lvmax"))
             {
                 return MapleQuestRequirementType.MaxLevel;
             }
-            else if (name.Equals("end"))
+            if (name.Equals("end"))
             {
                 return MapleQuestRequirementType.EndDate;
             }
-            else if (name.Equals("mob"))
+            if (name.Equals("mob"))
             {
                 return MapleQuestRequirementType.Mob;
             }
-            else if (name.Equals("npc"))
+            if (name.Equals("npc"))
             {
                 return MapleQuestRequirementType.Npc;
             }
-            else if (name.Equals("fieldEnter"))
+            if (name.Equals("fieldEnter"))
             {
                 return MapleQuestRequirementType.FieldEnter;
             }
-            else if (name.Equals("interval"))
+            if (name.Equals("interval"))
             {
                 return MapleQuestRequirementType.Interval;
             }
-            else if (name.Equals("startscript"))
+            if (name.Equals("startscript"))
             {
                 return MapleQuestRequirementType.Script;
             }
-            else if (name.Equals("endscript"))
+            if (name.Equals("endscript"))
             {
                 return MapleQuestRequirementType.Script;
             }
-            else if (name.Equals("pet"))
+            if (name.Equals("pet"))
             {
                 return MapleQuestRequirementType.Pet;
             }
-            else if (name.Equals("pettamenessmin"))
+            if (name.Equals("pettamenessmin"))
             {
                 return MapleQuestRequirementType.MinPetTameness;
             }
-            else if (name.Equals("mbmin"))
+            if (name.Equals("mbmin"))
             {
                 return MapleQuestRequirementType.MonsterBook;
             }
-            else if (name.Equals("questComplete"))
+            if (name.Equals("questComplete"))
             {
                 return MapleQuestRequirementType.CompleteQuest;
             }
-            else {
-                return MapleQuestRequirementType.Undefined;
-            }
+            return MapleQuestRequirementType.Undefined;
         }
     }
 
-     public class MapleQuestRequirement
+    public class MapleQuestRequirement
     {
-        public MapleQuestRequirementType Type { get; private set; }
-        public IMapleData RequirData { get; private set; }
-        private readonly MapleQuest _mQuest;
+        private readonly MapleQuest m_mQuest;
 
 
         public MapleQuestRequirement(MapleQuest quest, MapleQuestRequirementType type, IMapleData data)
         {
             Type = type;
             RequirData = data;
-            _mQuest = quest;
+            m_mQuest = quest;
         }
+
+        public MapleQuestRequirementType Type { get; }
+        public IMapleData RequirData { get; }
 
         public bool Check(MapleCharacter c, int? npcid)
         {
@@ -126,7 +125,7 @@ namespace NeoMapleStory.Game.Quest
                 case MapleQuestRequirementType.Job:
                     foreach (var jobEntry in RequirData.Children)
                     {
-                        short jobid = MapleDataTool.GetShort(jobEntry, -1);
+                        var jobid = MapleDataTool.GetShort(jobEntry, -1);
                         if (jobid == -1)
                         {
                             return true;
@@ -140,38 +139,41 @@ namespace NeoMapleStory.Game.Quest
                 case MapleQuestRequirementType.Quest:
                     foreach (var questEntry in RequirData.Children)
                     {
-                        int qid = MapleDataTool.GetInt(questEntry.GetChildByPath("id"), -1);
+                        var qid = MapleDataTool.GetInt(questEntry.GetChildByPath("id"), -1);
                         if (qid == -1)
                         {
                             return true;
                         }
-                        MapleQuestStatus q = c.GetQuest(MapleQuest.GetInstance(qid));
-                        if (q == null && MapleDataTool.GetInt(questEntry.GetChildByPath("state"), 0) == (int)MapleQuestStatusType.NotStarted)
+                        var q = c.GetQuest(MapleQuest.GetInstance(qid));
+                        if (q == null &&
+                            MapleDataTool.GetInt(questEntry.GetChildByPath("state"), 0) ==
+                            (int) MapleQuestStatusType.NotStarted)
                         {
                             continue;
                         }
-                        if (q == null || (int)q.Status != MapleDataTool.GetInt(questEntry.GetChildByPath("state"), 0))
+                        if (q == null || (int) q.Status != MapleDataTool.GetInt(questEntry.GetChildByPath("state"), 0))
                         {
                             return false;
                         }
                     }
                     return true;
                 case MapleQuestRequirementType.Item:
-                    MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+                    var ii = MapleItemInformationProvider.Instance;
                     foreach (var itemEntry in RequirData.Children)
                     {
-                        int itemId = MapleDataTool.GetInt(itemEntry.GetChildByPath("id"), -1);
+                        var itemId = MapleDataTool.GetInt(itemEntry.GetChildByPath("id"), -1);
                         if (itemId == -1)
                         {
                             return true;
                         }
                         short quantity = 0;
-                        MapleInventoryType iType = ii.GetInventoryType(itemId);
+                        var iType = ii.GetInventoryType(itemId);
                         foreach (var item in c.Inventorys[iType.Value].ListById(itemId))
                         {
                             quantity += item.Quantity;
                         }
-                        if (quantity < MapleDataTool.GetInt(itemEntry.GetChildByPath("count"), 0) || MapleDataTool.GetInt(itemEntry.GetChildByPath("count"), 0) <= 0 && quantity > 0)
+                        if (quantity < MapleDataTool.GetInt(itemEntry.GetChildByPath("count"), 0) ||
+                            MapleDataTool.GetInt(itemEntry.GetChildByPath("count"), 0) <= 0 && quantity > 0)
                         {
                             return false;
                         }
@@ -182,23 +184,24 @@ namespace NeoMapleStory.Game.Quest
                 case MapleQuestRequirementType.MaxLevel:
                     return c.Level <= MapleDataTool.GetInt(RequirData, 200);
                 case MapleQuestRequirementType.EndDate:
-                    string timeStr = MapleDataTool.GetString(RequirData, null);
+                    var timeStr = MapleDataTool.GetString(RequirData, null);
                     if (timeStr == null)
                     {
                         return true;
                     }
-                    DateTime cal = new DateTime(int.Parse(timeStr.Substring(0, 4)), int.Parse(timeStr.Substring(4, 6)), int.Parse(timeStr.Substring(6, 8)), int.Parse(timeStr.Substring(8, 10)), 0, 0);
+                    var cal = new DateTime(int.Parse(timeStr.Substring(0, 4)), int.Parse(timeStr.Substring(4, 6)),
+                        int.Parse(timeStr.Substring(6, 8)), int.Parse(timeStr.Substring(8, 10)), 0, 0);
                     return cal.GetTimeMilliseconds() > DateTime.Now.GetTimeMilliseconds();
                 case MapleQuestRequirementType.Mob:
                     foreach (var mobEntry in RequirData.Children)
                     {
-                        int mobId = MapleDataTool.GetInt(mobEntry.GetChildByPath("id"), -1);
-                        int killReq = MapleDataTool.GetInt(mobEntry.GetChildByPath("count"), 1);
+                        var mobId = MapleDataTool.GetInt(mobEntry.GetChildByPath("id"), -1);
+                        var killReq = MapleDataTool.GetInt(mobEntry.GetChildByPath("count"), 1);
                         if (mobId == -1)
                         {
                             return true; // let the thing slide I guess
                         }
-                        if (c.GetQuest(_mQuest).GetMobKills(mobId) < killReq)
+                        if (c.GetQuest(m_mQuest).GetMobKills(mobId) < killReq)
                         {
                             return false;
                         }
@@ -214,14 +217,16 @@ namespace NeoMapleStory.Game.Quest
                     {
                         return true;
                     }
-                    IMapleData zeroField = RequirData.GetChildByPath("0");
+                    var zeroField = RequirData.GetChildByPath("0");
                     if (zeroField != null)
                     {
                         return MapleDataTool.GetInt(zeroField) == c.Map.MapId;
                     }
                     return false;
                 case MapleQuestRequirementType.Interval:
-                    return c.GetQuest(_mQuest).Status != MapleQuestStatusType.Completed || c.GetQuest(_mQuest).CompletionTime <= DateTime.Now.GetTimeMilliseconds() - MapleDataTool.GetInt(RequirData) * 60 * 1000;
+                    return c.GetQuest(m_mQuest).Status != MapleQuestStatusType.Completed ||
+                           c.GetQuest(m_mQuest).CompletionTime <=
+                           DateTime.Now.GetTimeMilliseconds() - MapleDataTool.GetInt(RequirData)*60*1000;
                 //case  MapleQuestRequirementType.PET:
                 //case  MapleQuestRequirementType.MIN_PET_TAMENESS:
                 case MapleQuestRequirementType.CompleteQuest:
@@ -235,15 +240,15 @@ namespace NeoMapleStory.Game.Quest
             }
         }
 
-        public override string ToString() => $"{Type} {RequirData} {_mQuest}";
+        public override string ToString() => $"{Type} {RequirData} {m_mQuest}";
+        //        sb.Append("TYPE: ");
+        //        StringBuilder sb = new StringBuilder();
+        //    {
+        //    try
+        //{
 
 
         //public string getDebug(MapleCharacter c)
-        //{
-        //    try
-        //    {
-        //        StringBuilder sb = new StringBuilder();
-        //        sb.Append("TYPE: ");
         //        sb.Append(type);
         //        sb.Append(" ");
         //        if (data == null)

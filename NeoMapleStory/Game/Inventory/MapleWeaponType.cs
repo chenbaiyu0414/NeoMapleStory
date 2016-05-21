@@ -2,6 +2,11 @@
 {
     public class MapleWeaponType
     {
+        public MapleWeaponType(double maxDamageMultiplier)
+        {
+            DamageMultiplier = maxDamageMultiplier;
+        }
+
         public static MapleWeaponType NotAWeapon { get; } = new MapleWeaponType(0);
         public static MapleWeaponType Bow { get; } = new MapleWeaponType(3.4);
         public static MapleWeaponType Claw { get; } = new MapleWeaponType(3.6);
@@ -21,9 +26,5 @@
         public static MapleWeaponType Gun { get; } = new MapleWeaponType(3.6);
 
         public double DamageMultiplier { get; private set; }
-        public MapleWeaponType(double maxDamageMultiplier)
-        {
-            DamageMultiplier = maxDamageMultiplier;
-        }
     }
 }

@@ -20,15 +20,16 @@ namespace NeoMapleStory.Core
             {
                 timeStampinMillis -= 3600000L; //60 * 60 * 1000
             }
-            timeStampinMillis += 14 * 60 * 60 * 1000;
+            timeStampinMillis += 14*60*60*1000;
 
             long time;
             if (roundToMinutes)
             {
-                time = timeStampinMillis / 1000 / 60 * 600000000;
+                time = timeStampinMillis/1000/60*600000000;
             }
-            else {
-                time = timeStampinMillis * 10000;
+            else
+            {
+                time = timeStampinMillis*10000;
             }
             return time + FtUtOffset;
         }
@@ -40,14 +41,15 @@ namespace NeoMapleStory.Core
         //public static long RENWU_TIME = 814568955L;
         //public static int QUESTFINISH_TIME = 1300000000;
 
-        public static long GetTimeMilliseconds(this DateTime datetime) => (long)(datetime - new DateTime(1970, 1, 1, 0, 0, 0)).TotalMilliseconds;
-
-        //public static long GetTime(int Kinds = 0)
-        //{
-        //    TimeSpan span = DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0);
-        //    long currenttimemillis = (long)span.TotalMilliseconds;
+        public static long GetTimeMilliseconds(this DateTime datetime)
+            => (long) (datetime - new DateTime(1970, 1, 1, 0, 0, 0)).TotalMilliseconds;
 
         //    switch (Kinds)
+        //    long currenttimemillis = (long)span.TotalMilliseconds;
+        //    TimeSpan span = DateTime.Now - new DateTime(1970, 1, 1, 0, 0, 0);
+        //{
+
+        //public static long GetTime(int Kinds = 0)
         //    {
         //        case -1:
         //            return MAX_TIME;

@@ -2,7 +2,7 @@
 
 namespace NeoMapleStory.Game.Life
 {
-     public class Element
+    public class Element
     {
         public static Element Neutral { get; } = new Element();
         public static Element Fire { get; } = new Element();
@@ -10,11 +10,6 @@ namespace NeoMapleStory.Game.Life
         public static Element Lighting { get; } = new Element();
         public static Element Poison { get; } = new Element();
         public static Element Holy { get; } = new Element();
-
-        public Element()
-        {
-
-        }
 
         public static Element GetByChar(char c)
         {

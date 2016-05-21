@@ -1,39 +1,20 @@
-﻿using NeoMapleStory.Core;
-using NeoMapleStory.Server;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using NeoMapleStory.Core;
+using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Client
 {
-     public class AutobanManager
+    public class AutobanManager
     {
-        private class ExpirationEntry : IComparable<ExpirationEntry>
-        {
+        private static readonly int AutobanPoints = 1000;
+        private readonly List<ExpirationEntry> m_mExpirations = new List<ExpirationEntry>();
 
-            public readonly long MTime;
-            public readonly int MAcc;
-            public readonly int MPoints;
-
-            public ExpirationEntry(long time, int acc, int points)
-            {
-                MTime = time;
-                MAcc = acc;
-                MPoints = points;
-            }
-
-            public int CompareTo(ExpirationEntry other)
-            {
-                return (int)(MTime - other.MTime);
-            }
-        }
+        private readonly Dictionary<int, int> m_mPoints = new Dictionary<int, int>();
+        private readonly Dictionary<int, List<string>> m_mReasons = new Dictionary<int, List<string>>();
 
         public static AutobanManager Instance { get; } = new AutobanManager();
-
-        private readonly Dictionary<int, int> _mPoints = new Dictionary<int, int>();
-        private readonly Dictionary<int, List<string>> _mReasons = new Dictionary<int, List<string>>();
-        private readonly List<ExpirationEntry> _mExpirations = new List<ExpirationEntry>();
-        private static readonly int AutobanPoints = 1000;
 
         public void Autoban(MapleClient c, string reason)
         {
@@ -44,13 +25,12 @@ namespace NeoMapleStory.Game.Client
             AddPoints(c, AutobanPoints, 0, reason);
         }
 
-        public void broadcastMessage(MapleClient c)
+        public void BroadcastMessage(MapleClient c)
         {
             //c.ChannelServer.getWorldInterface().broadcastGMMessage(null, PacketCreator.ServerNotice(PacketCreator.ServerMessageType.LightBlueText, $"{c.Character.CharacterName } 已被永久封号.").getBytes());
-
         }
 
-        public void broadcastMessage(MapleClient c, string s)
+        public void BroadcastMessage(MapleClient c, string s)
         {
             //c.ChannelServer.getWorldInterface().broadcastMessage(null, PacketCreator.ServerNotice(PacketCreator.ServerMessageType.Notice, s).getBytes());
         }
@@ -61,33 +41,34 @@ namespace NeoMapleStory.Game.Client
             {
                 return;
             }
-            int acc = c.Player.AccountId;
+            var acc = c.Player.AccountId;
             List<string> reasonList;
-            if (_mPoints.ContainsKey(acc))
+            if (m_mPoints.ContainsKey(acc))
             {
-                if (_mPoints[acc] >= AutobanPoints)
+                if (m_mPoints[acc] >= AutobanPoints)
                 {
                     return;
                 }
-                _mPoints.Add(acc, _mPoints[acc + points]);
-                reasonList = _mReasons[acc];
+                m_mPoints.Add(acc, m_mPoints[acc + points]);
+                reasonList = m_mReasons[acc];
                 reasonList.Add(reason);
             }
-            else {
-                _mPoints.Add(acc, points);
+            else
+            {
+                m_mPoints.Add(acc, points);
                 reasonList = new List<string>();
                 reasonList.Add(reason);
-                _mReasons.Add(acc, reasonList);
+                m_mReasons.Add(acc, reasonList);
             }
-            if (_mPoints[acc] >= AutobanPoints)
+            if (m_mPoints[acc] >= AutobanPoints)
             {
-                string name = c.Player.Name;
-                StringBuilder banReason = new StringBuilder("Autoban for Character ");
+                var name = c.Player.Name;
+                var banReason = new StringBuilder("Autoban for Character ");
                 banReason.Append(name);
                 banReason.Append(" (IP ");
-                banReason.Append(c.SocketSession.RemoteEndPoint.Address.ToString());
+                banReason.Append(c.SocketSession.RemoteEndPoint.Address);
                 banReason.Append("): ");
-                foreach (string s in _mReasons[acc])
+                foreach (var s in m_mReasons[acc])
                 {
                     banReason.Append(s);
                     banReason.Append(", ");
@@ -100,22 +81,43 @@ namespace NeoMapleStory.Game.Client
             }
             if (expiration > 0)
             {
-                _mExpirations.Add(new ExpirationEntry(DateTime.Now.GetTimeMilliseconds() + expiration, acc, points));
+                m_mExpirations.Add(new ExpirationEntry(DateTime.Now.GetTimeMilliseconds() + expiration, acc, points));
             }
         }
 
         public void Run()
         {
-            long now = DateTime.Now.GetTimeMilliseconds();
-            foreach (ExpirationEntry e in _mExpirations)
+            var now = DateTime.Now.GetTimeMilliseconds();
+            foreach (var e in m_mExpirations)
             {
                 if (e.MTime <= now)
                 {
-                    _mPoints.Add(e.MAcc, _mPoints[e.MAcc] - e.MPoints);
+                    m_mPoints.Add(e.MAcc, m_mPoints[e.MAcc] - e.MPoints);
                 }
-                else {
+                else
+                {
                     return;
                 }
+            }
+        }
+
+        private class ExpirationEntry : IComparable<ExpirationEntry>
+        {
+            public readonly int MAcc;
+            public readonly int MPoints;
+
+            public readonly long MTime;
+
+            public ExpirationEntry(long time, int acc, int points)
+            {
+                MTime = time;
+                MAcc = acc;
+                MPoints = points;
+            }
+
+            public int CompareTo(ExpirationEntry other)
+            {
+                return (int) (MTime - other.MTime);
             }
         }
     }

@@ -1,8 +1,8 @@
-﻿using NeoMapleStory.Game.Client;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using NeoMapleStory.Core;
+using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Map;
 using NeoMapleStory.Game.Mob;
@@ -11,26 +11,27 @@ namespace NeoMapleStory.Game.Script.Event
 {
     public class EventInstanceManager
     {
-        private List<MapleCharacter> chars = new List<MapleCharacter>();
-        private List<MapleMonster> mobs = new List<MapleMonster>();
-        private Dictionary<MapleCharacter, int> killCount = new Dictionary<MapleCharacter, int>();
-        private EventManager em;
-        private MapleMapFactory mapFactory;
-        public string Name { get; private set; }
-        public NameValueCollection props { get; } = new NameValueCollection();
-        private long timeStarted = 0;
-        private long eventTime = 0;
+        private readonly List<MapleCharacter> m_chars = new List<MapleCharacter>();
+        private readonly EventManager m_em;
+        private long m_eventTime;
+        private Dictionary<MapleCharacter, int> m_killCount = new Dictionary<MapleCharacter, int>();
+        private readonly MapleMapFactory m_mapFactory;
+        private readonly List<MapleMonster> m_mobs = new List<MapleMonster>();
+        private long m_timeStarted;
 
         public EventInstanceManager(EventManager em, string name)
         {
-            this.em = em;
-            this.Name = name;
-            mapFactory = new MapleMapFactory(MapleDataProviderFactory.GetDataProvider("Map.wz"),
+            this.m_em = em;
+            Name = name;
+            m_mapFactory = new MapleMapFactory(MapleDataProviderFactory.GetDataProvider("Map.wz"),
                 MapleDataProviderFactory.GetDataProvider("String.wz"))
             {
                 ChannelId = em.ChannelServer.ChannelId
             };
         }
+
+        public string Name { get; private set; }
+        public NameValueCollection Props { get; } = new NameValueCollection();
 
         //public void registerPlayer(MapleCharacter chr)
         //{
@@ -52,20 +53,20 @@ namespace NeoMapleStory.Game.Script.Event
         //    ChannelServer.getInstance(1).addInstanceId();
         //}
 
-        public void startEventTimer(long time)
+        public void StartEventTimer(long time)
         {
-            timeStarted = DateTime.Now.GetTimeMilliseconds();
-            eventTime = time;
+            m_timeStarted = DateTime.Now.GetTimeMilliseconds();
+            m_eventTime = time;
         }
 
-        public bool isTimerStarted()
+        public bool IsTimerStarted()
         {
-            return eventTime > 0 && timeStarted > 0;
+            return m_eventTime > 0 && m_timeStarted > 0;
         }
 
-        public long getTimeLeft()
+        public long GetTimeLeft()
         {
-            return eventTime - (DateTime.Now.GetTimeMilliseconds() - timeStarted);
+            return m_eventTime - (DateTime.Now.GetTimeMilliseconds() - m_timeStarted);
         }
 
         //public void registerParty(MapleParty party, MapleMap map)
@@ -88,16 +89,16 @@ namespace NeoMapleStory.Game.Script.Event
         //    }
         //}
 
-        public void unregisterPlayer(MapleCharacter chr)
+        public void UnregisterPlayer(MapleCharacter chr)
         {
-            this.chars.Remove(chr);
+            m_chars.Remove(chr);
             chr.EventInstanceManager = null;
         }
 
 
-        public void registerMonster(MapleMonster mob)
+        public void RegisterMonster(MapleMonster mob)
         {
-            mobs.Add(mob);
+            m_mobs.Add(mob);
             mob.EventInstanceManager = this;
         }
 
@@ -192,13 +193,13 @@ namespace NeoMapleStory.Game.Script.Event
             //ps.close();
         }
 
-        public MapleMap getMapInstance(int mapId)
+        public MapleMap GetMapInstance(int mapId)
         {
-            bool wasLoaded = mapFactory.IsMapLoaded(mapId);
-            MapleMap map = mapFactory.GetMap(mapId);
+            var wasLoaded = m_mapFactory.IsMapLoaded(mapId);
+            var map = m_mapFactory.GetMap(mapId);
             if (!wasLoaded)
             {
-                if (em.props.Get("shuffleReactors") != null && em.props.Get("shuffleReactors") == "true")
+                if (m_em.Props.Get("shuffleReactors") != null && m_em.Props.Get("shuffleReactors") == "true")
                 {
                     //map.shuffleReactors();
                 }
@@ -235,24 +236,25 @@ namespace NeoMapleStory.Game.Script.Event
 
         //}
 
-        public bool isLeader(MapleCharacter chr)
+        public bool IsLeader(MapleCharacter chr)
         {
-            return (chr.Party.Leader.CharacterId == chr.Id);
+            return chr.Party.Leader.CharacterId == chr.Id;
         }
 
-        //public void saveAllBossQuestPoints(int bossPoints)
-        //{
-        //    for (MapleCharacter character : chars)
-        //    {
-        //        int points = character.getBossPoints();
-        //        character.setBossPoints(points + bossPoints);
-        //    }
         //}
+        //    character.setBossPoints(points + bossPoints);
+        //    int points = character.getBossPoints();
+        //{
 
         //public void saveBossQuestPoints(int bossPoints, MapleCharacter character)
-        //{
-        //    int points = character.getBossPoints();
-        //    character.setBossPoints(points + bossPoints);
         //}
+        //    }
+        //        character.setBossPoints(points + bossPoints);
+        //        int points = character.getBossPoints();
+        //    {
+        //    for (MapleCharacter character : chars)
+        //{
+
+        //public void saveAllBossQuestPoints(int bossPoints)
     }
 }

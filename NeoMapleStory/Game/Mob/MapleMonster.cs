@@ -1,23 +1,54 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using NeoMapleStory.Core;
+using NeoMapleStory.Core.IO;
+using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client;
+using NeoMapleStory.Game.Job;
 using NeoMapleStory.Game.Life;
 using NeoMapleStory.Game.Map;
+using NeoMapleStory.Game.Quest;
 using NeoMapleStory.Game.Script.Event;
+using NeoMapleStory.Game.Skill;
+using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
-using System.Linq;
-using NeoMapleStory.Core.IO;
-using NeoMapleStory.Core;
-using NeoMapleStory.Game.Buff;
-using NeoMapleStory.Game.Job;
-using NeoMapleStory.Game.Quest;
-using NeoMapleStory.Game.Skill;
 
 namespace NeoMapleStory.Game.Mob
 {
     public class MapleMonster : AbstractLoadedMapleLife
     {
+        private readonly List<MonsterStatusEffect> m_activeEffects = new List<MonsterStatusEffect>();
+
+        private readonly List<IAttackerEntry> m_attackers = new List<IAttackerEntry>();
+
+        private readonly WeakReference<MapleCharacter> m_controller = new WeakReference<MapleCharacter>(null);
+
+        private bool m_controllerHasAggro;
+        private bool m_controllerKnowsAboutAggro;
+        private MapleCharacter m_highestDamageChar;
+        private readonly Dictionary<Tuple<int, int>, int> m_skillsUsedTimes = new Dictionary<Tuple<int, int>, int>();
+
+        private readonly Dictionary<MonsterStatus, MonsterStatusEffect> m_stati =
+            new Dictionary<MonsterStatus, MonsterStatusEffect>();
+
+
+        private readonly List<Tuple<int, int>> m_usedSkills = new List<Tuple<int, int>>();
+
+        public List<MonsterKilled.MonsterKilledEvent> Listeners = new List<MonsterKilled.MonsterKilledEvent>();
+
+
+        public MapleMonster(int id, MapleMonsterStats stats) : base(id)
+        {
+            InitWithStats(stats);
+        }
+
+        public MapleMonster(MapleMonster monster) : base(monster)
+        {
+            InitWithStats(monster.Stats);
+        }
+
         public MapleMonsterStats Stats { get; set; }
         public MapleMonsterStats OverrideStats { get; set; }
 
@@ -40,64 +71,36 @@ namespace NeoMapleStory.Game.Mob
 
         public bool IsHpLock { get; set; } = false;
 
-        public OutPacket BossHPBarPacket
+        public OutPacket BossHpBarPacket
             => PacketCreator.ShowBossHp(Id, Hp, MaxHp, Stats.TagColor, Stats.TagBgColor);
 
         public EventInstanceManager EventInstanceManager { get; set; }
 
-        public bool HasBossHPBar => (IsBoss && Stats.TagColor > 0) || IsHt || IsPb;
-
-        public List<MonsterKilled.MonsterKilledEvent> listeners = new List<MonsterKilled.MonsterKilledEvent>();
-
-        private WeakReference<MapleCharacter> controller = new WeakReference<MapleCharacter>(null);
-
-        private Dictionary<MonsterStatus, MonsterStatusEffect> stati =
-            new Dictionary<MonsterStatus, MonsterStatusEffect>();
-
-        private List<MonsterStatusEffect> activeEffects = new List<MonsterStatusEffect>();
+        public bool HasBossHpBar => (IsBoss && Stats.TagColor > 0) || IsHt || IsPb;
         public List<MonsterStatus> MonsterBuffs { get; } = new List<MonsterStatus>();
-
-
-        private List<Tuple<int, int>> usedSkills = new List<Tuple<int, int>>();
-        private Dictionary<Tuple<int, int>, int> skillsUsedTimes = new Dictionary<Tuple<int, int>, int>();
-
-        private List<AttackerEntry> attackers = new List<AttackerEntry>();
 
         public bool IsMoveLock { get; set; } = false;
 
-        private bool _controllerHasAggro;
-        private bool _controllerKnowsAboutAggro;
-        private MapleCharacter highestDamageChar;
-
         public bool ControllerHasAggro
         {
-            get { return !IsFake && _controllerHasAggro; }
+            get { return !IsFake && m_controllerHasAggro; }
             set
             {
-                if (!IsFake) _controllerHasAggro = value;
+                if (!IsFake) m_controllerHasAggro = value;
             }
         }
 
 
         public bool ControllerKnowsAboutAggro
         {
-            get { return !IsFake && _controllerKnowsAboutAggro; }
+            get { return !IsFake && m_controllerKnowsAboutAggro; }
             set
             {
-                if (!IsFake) _controllerKnowsAboutAggro = value;
+                if (!IsFake) m_controllerKnowsAboutAggro = value;
             }
         }
 
-
-        public MapleMonster(int id, MapleMonsterStats stats) : base(id)
-        {
-            InitWithStats(stats);
-        }
-
-        public MapleMonster(MapleMonster monster) : base(monster)
-        {
-            InitWithStats(monster.Stats);
-        }
+        public int VenomMultiplier { get; set; }
 
         private void InitWithStats(MapleMonsterStats stats)
         {
@@ -119,45 +122,47 @@ namespace NeoMapleStory.Game.Mob
 
             client.Send(IsFake ? PacketCreator.SpawnFakeMonster(this, 0) : PacketCreator.SpawnMonster(this, false));
 
-            if (stati.Any())
+            if (m_stati.Any())
             {
-                activeEffects.ForEach((mse) =>
-                {
-                    client.Send(PacketCreator.ApplyMonsterStatus(ObjectId, mse.stati, mse.getSkill().SkillId, false, 0));
-                });
+                m_activeEffects.ForEach(
+                    mse =>
+                    {
+                        client.Send(PacketCreator.ApplyMonsterStatus(ObjectId, mse.Stati, mse.GetSkill().SkillId, false,
+                            0));
+                    });
             }
 
-            if (HasBossHPBar)
+            if (HasBossHpBar)
             {
-                client.Send(BossHPBarPacket);
+                client.Send(BossHpBarPacket);
             }
         }
 
         public MapleCharacter GetController()
         {
-            MapleCharacter target = null;
-            controller.TryGetTarget(out target);
+            MapleCharacter target;
+            m_controller.TryGetTarget(out target);
             return target;
         }
 
         public void SetController(MapleCharacter chr)
         {
-            controller.SetTarget(chr);
+            m_controller.SetTarget(chr);
         }
 
-        public void switchController(MapleCharacter newController, bool immediateAggro)
+        public void SwitchController(MapleCharacter newController, bool immediateAggro)
         {
-            MapleCharacter controllers = GetController();
+            var controllers = GetController();
             if (controllers == newController)
             {
                 return;
             }
             if (controllers != null)
             {
-                controllers.stopControllingMonster(this);
+                controllers.StopControllingMonster(this);
                 controllers.Client.Send(PacketCreator.StopControllingMonster(ObjectId));
             }
-            newController.controlMonster(this, immediateAggro);
+            newController.ControlMonster(this, immediateAggro);
             SetController(newController);
             if (immediateAggro)
             {
@@ -166,7 +171,7 @@ namespace NeoMapleStory.Game.Mob
             ControllerKnowsAboutAggro = false;
         }
 
-        public bool canUseSkill(MobSkill toUse)
+        public bool CanUseSkill(MobSkill toUse)
         {
             //if (toUse == null)
             //{
@@ -202,82 +207,77 @@ namespace NeoMapleStory.Game.Mob
             return false;
         }
 
-        public void usedSkill(int skillId, int level, int cooltime)
+        public void UsedSkill(int skillId, int level, int cooltime)
         {
             var skillTuple = new Tuple<int, int>(skillId, level);
 
-            usedSkills.Add(skillTuple);
+            m_usedSkills.Add(skillTuple);
 
-            if (skillsUsedTimes.ContainsKey(skillTuple))
+            if (m_skillsUsedTimes.ContainsKey(skillTuple))
             {
-                int times = skillsUsedTimes[skillTuple] + 1;
-                skillsUsedTimes.Remove(skillTuple);
+                var times = m_skillsUsedTimes[skillTuple] + 1;
+                m_skillsUsedTimes.Remove(skillTuple);
 
-                if (skillsUsedTimes.ContainsKey(skillTuple))
-                    skillsUsedTimes[skillTuple] = times;
+                if (m_skillsUsedTimes.ContainsKey(skillTuple))
+                    m_skillsUsedTimes[skillTuple] = times;
                 else
-                    skillsUsedTimes.Add(skillTuple, times);
+                    m_skillsUsedTimes.Add(skillTuple, times);
             }
             else
             {
-                if (skillsUsedTimes.ContainsKey(skillTuple))
-                    skillsUsedTimes[skillTuple] = 1;
+                if (m_skillsUsedTimes.ContainsKey(skillTuple))
+                    m_skillsUsedTimes[skillTuple] = 1;
                 else
-                    skillsUsedTimes.Add(skillTuple, 1);
+                    m_skillsUsedTimes.Add(skillTuple, 1);
             }
 
-            TimerManager.Instance.RunOnceTask(() =>
-            {
-                clearSkill(skillId, level);
-            }, cooltime);
+            TimerManager.Instance.RunOnceTask(() => { ClearSkill(skillId, level); }, cooltime);
         }
 
-        public void clearSkill(int skillId, int level)
+        public void ClearSkill(int skillId, int level)
         {
-            int index = -1;
-            foreach (var skill in usedSkills.Where(skill => skill.Item1 == skillId && skill.Item2 == level))
+            var index = -1;
+            foreach (var skill in m_usedSkills.Where(skill => skill.Item1 == skillId && skill.Item2 == level))
             {
-                index = usedSkills.IndexOf(skill);
+                index = m_usedSkills.IndexOf(skill);
                 break;
             }
             if (index != -1)
             {
-                usedSkills.RemoveAt(index);
+                m_usedSkills.RemoveAt(index);
             }
         }
 
-        public bool isAttackedBy(MapleCharacter chr)
+        public bool IsAttackedBy(MapleCharacter chr)
         {
             //return attackers.Any((aentry)=> (aentry.Contains(chr)));
             return true;
         }
 
-        public int VenomMultiplier { get; set; } = 0;
-
-        public ElementalEffectiveness getEffectiveness(Element e)
+        public ElementalEffectiveness GetEffectiveness(Element e)
         {
-            if (activeEffects.Any() && stati.ContainsKey(MonsterStatus.Doom))
+            if (m_activeEffects.Any() && m_stati.ContainsKey(MonsterStatus.Doom))
             {
                 return ElementalEffectiveness.Normal; // like blue snails
             }
             return Stats.GetEffectiveness(e);
         }
 
-        public void damage(MapleCharacter from, int damage, bool updateAttackTime)
+        public void Damage(MapleCharacter from, int damage, bool updateAttackTime)
         {
-            AttackerEntry attacker = null;
+            IAttackerEntry attacker;
 
-            //if (from.Party != null)
-            //{
-            //    attacker = new PartyAttackerEntry(from.getParty().getId(), from.getClient().getChannelServer());
-            //}
-            //else
-            //{
-            attacker = new SingleAttackerEntry(from, from.Client.ChannelServer, this);
-            //}
+            if (from.Party != null)
+            {
+                attacker = new PartyAttackerEntry(from.Party.PartyId, from.Client.ChannelServer, this);
+            }
+            else
+            {
+                attacker = new SingleAttackerEntry(from, from.Client.ChannelServer, this);
+            }
 
-            bool replaced = false;
-            foreach (AttackerEntry aentry in attackers)
+            var replaced = false;
+            foreach (var aentry in m_attackers)
             {
                 if (aentry.Equals(attacker))
                 {
@@ -288,33 +288,33 @@ namespace NeoMapleStory.Game.Mob
             }
             if (!replaced)
             {
-                attackers.Add(attacker);
+                m_attackers.Add(attacker);
             }
 
-            int rDamage = Math.Max(0, Math.Min(damage, Hp));
+            var rDamage = Math.Max(0, Math.Min(damage, Hp));
             if (IsHpLock)
             {
                 rDamage = 0;
             }
-            attacker.addDamage(from, rDamage, updateAttackTime);
+            attacker.AddDamage(from, rDamage, updateAttackTime);
             Hp -= rDamage;
 
-            byte remhppercentage = (byte)Math.Ceiling(Hp * 100.0 / MaxHp);
+            var remhppercentage = (byte)Math.Ceiling(Hp * 100.0 / MaxHp);
             if (remhppercentage < 1)
             {
                 remhppercentage = 1;
             }
-            long okTime = DateTime.Now.GetTimeMilliseconds() - 4000;
+            var okTime = DateTime.Now.GetTimeMilliseconds() - 4000;
 
-            if (HasBossHPBar)
+            if (HasBossHpBar)
             {
                 //from.Map.BroadcastMessage(makeBossHPBarPacket(), Position);
             }
             else if (!IsBoss)
             {
-                foreach (AttackerEntry mattacker in attackers)
+                foreach (var mattacker in m_attackers)
                 {
-                    foreach (AttackingMapleCharacter cattacker in mattacker.getAttackers())
+                    foreach (var cattacker in mattacker.GetAttackers())
                     {
                         // current attacker is on the map of the monster
                         if (cattacker.Attacker.Map.MapId == from.Map.MapId)
@@ -329,12 +329,12 @@ namespace NeoMapleStory.Game.Mob
             }
         }
 
-        public int getDrop(MapleCharacter killer)
+        public int GetDrop(MapleCharacter killer)
         {
-            MapleMonsterInformationProvider mi = MapleMonsterInformationProvider.Instance;
-            int lastAssigned = -1;
-            int minChance = 1;
-            List<MapleMonsterInformationProvider.DropEntry> dl = mi.RetrieveDropChances(Id);
+            var mi = MapleMonsterInformationProvider.Instance;
+            var lastAssigned = -1;
+            var minChance = 1;
+            var dl = mi.RetrieveDropChances(Id);
             foreach (var d in dl)
             {
                 if (d.Chance > minChance)
@@ -345,13 +345,13 @@ namespace NeoMapleStory.Game.Mob
             foreach (var d in dl)
             {
                 d.AssignedRangeStart = lastAssigned + 1;
-                d.AssignedRangeLength = (int) Math.Ceiling(1.0/d.Chance*minChance);
+                d.AssignedRangeLength = (int)Math.Ceiling(1.0 / d.Chance * minChance);
                 lastAssigned += d.AssignedRangeLength;
             }
-            int c = (int) (Randomizer.NextDouble()*minChance);
+            var c = (int)(Randomizer.NextDouble() * minChance);
             foreach (var d in dl)
             {
-                int itemid = d.ItemId;
+                var itemid = d.ItemId;
                 if ((c >= d.AssignedRangeStart) && (c < d.AssignedRangeStart + d.AssignedRangeLength))
                 {
                     if (d.QuestId != 0)
@@ -370,13 +370,14 @@ namespace NeoMapleStory.Game.Mob
             return -1;
         }
 
-        public int getMaxDrops(MapleCharacter chr)
+        public int GetMaxDrops(MapleCharacter chr)
         {
-            ChannelServer cserv = chr.Client.ChannelServer;
+            var cserv = chr.Client.ChannelServer;
             int maxDrops;
-            if (isPQMonster())
+            if (IsPqMonster())
             {
-                maxDrops = 1; //PQ Monsters always drop a max of 1 item (pass) - I think? MonsterCarnival monsters don't count
+                maxDrops = 1;
+                //PQ Monsters always drop a max of 1 item (pass) - I think? MonsterCarnival monsters don't count
             }
             else if (Stats.IsExplosive)
             {
@@ -389,21 +390,22 @@ namespace NeoMapleStory.Game.Mob
             else
             {
                 maxDrops = 4 * cserv.DropRate;
-                if (stati.ContainsKey(MonsterStatus.Taunt))
+                if (m_stati.ContainsKey(MonsterStatus.Taunt))
                 {
-                    int alterDrops = stati[MonsterStatus.Taunt].stati[MonsterStatus.Taunt];
-                    maxDrops *= 1 + (alterDrops / 100);
+                    var alterDrops = m_stati[MonsterStatus.Taunt].Stati[MonsterStatus.Taunt];
+                    maxDrops *= 1 + alterDrops / 100;
                 }
             }
             return maxDrops;
         }
 
-        public bool isPQMonster()
+        public bool IsPqMonster()
         {
-            return (Id >= 9300000 && Id <= 9300003) || (Id >= 9300005 && Id <= 9300010) || (Id >= 9300012 && Id <= 9300017) || (Id >= 9300169 && Id <= 9300171);
+            return (Id >= 9300000 && Id <= 9300003) || (Id >= 9300005 && Id <= 9300010) ||
+                   (Id >= 9300012 && Id <= 9300017) || (Id >= 9300169 && Id <= 9300171);
         }
 
-        public void heal(int hp, int mp)
+        public void Heal(int hp, int mp)
         {
             var hp2Heal = Hp + hp;
             var mp2Heal = Mp + mp;
@@ -425,29 +427,29 @@ namespace NeoMapleStory.Game.Mob
             Map.BroadcastMessage(PacketCreator.HealMonster(ObjectId, hp));
         }
 
-        public bool applyStatus(MapleCharacter from, MonsterStatusEffect status, bool poison, long duration)
+        public bool ApplyStatus(MapleCharacter from, MonsterStatusEffect status, bool poison, long duration)
         {
-            return applyStatus(from, status, poison, duration, false);
+            return ApplyStatus(from, status, poison, duration, false);
         }
 
-        public bool applyStatus(MapleCharacter from, MonsterStatusEffect status, bool poison, long duration, bool venom)
+        public bool ApplyStatus(MapleCharacter from, MonsterStatusEffect status, bool poison, long duration, bool venom)
         {
-            switch (Stats.GetEffectiveness(status.getSkill().Element).Value)
+            switch (Stats.GetEffectiveness(status.GetSkill().Element).Value)
             {
-                case 1://IMMUNE:
-                case 2://STRONG:        
+                case 1: //IMMUNE:
+                case 2: //STRONG:        
                     return false;
-                case 0://NORMAL:
-                case 3://WEAK:
+                case 0: //NORMAL:
+                case 3: //WEAK:
                     break;
                 default:
                     throw new Exception(
-                        $"Unknown elemental effectiveness:{Stats.GetEffectiveness(status.getSkill().Element)}");
+                        $"Unknown elemental effectiveness:{Stats.GetEffectiveness(status.GetSkill().Element)}");
             }
 
             // compos don't have an elemental (they have 2 - so we have to hack here...)
             ElementalEffectiveness effectiveness = null;
-            switch (status.getSkill().SkillId)
+            switch (status.GetSkill().SkillId)
             {
                 case 2111006:
                     effectiveness = Stats.GetEffectiveness(Element.Poison);
@@ -478,32 +480,32 @@ namespace NeoMapleStory.Game.Mob
                 return false;
             }
 
-            if (IsBoss && !(status.stati.ContainsKey(MonsterStatus.Speed)))
+            if (IsBoss && !status.Stati.ContainsKey(MonsterStatus.Speed))
             {
                 return false;
             }
 
-            status.stati.Keys.ToList().ForEach(stat =>
-           {
-               MonsterStatusEffect oldEffect;
-               if (stati.TryGetValue(stat, out oldEffect))
-               {
-                   oldEffect.removeActiveStatus(stat);
-                   if (!oldEffect.stati.Any())
-                   {
+            status.Stati.Keys.ToList().ForEach(stat =>
+            {
+                MonsterStatusEffect oldEffect;
+                if (m_stati.TryGetValue(stat, out oldEffect))
+                {
+                    oldEffect.RemoveActiveStatus(stat);
+                    if (!oldEffect.Stati.Any())
+                    {
                         //oldEffect.getCancelTask().cancel(false);
                         //oldEffect.cancelPoisonSchedule();
-                        activeEffects.Remove(oldEffect);
-                   }
-               }
-           });
+                        m_activeEffects.Remove(oldEffect);
+                    }
+                }
+            });
 
-            TimerManager timerManager = TimerManager.Instance;
+            var timerManager = TimerManager.Instance;
             Action cancelTask = () =>
             {
                 if (IsAlive)
                 {
-                    OutPacket packet = PacketCreator.CancelMonsterStatus(ObjectId, status.stati);
+                    var packet = PacketCreator.CancelMonsterStatus(ObjectId, status.Stati);
                     Map.BroadcastMessage(packet, Position);
                     if (GetController() != null && !GetController().VisibleMapObjects.Contains(this))
                     {
@@ -512,11 +514,8 @@ namespace NeoMapleStory.Game.Mob
                 }
                 try
                 {
-                    activeEffects.Remove(status);
-                    status.stati.Keys.ToList().ForEach(stat =>
-                    {
-                        stati.Remove(stat);
-                    });
+                    m_activeEffects.Remove(status);
+                    status.Stati.Keys.ToList().ForEach(stat => { m_stati.Remove(stat); });
                 }
                 catch (Exception e)
                 {
@@ -529,34 +528,34 @@ namespace NeoMapleStory.Game.Mob
             {
                 if (poison)
                 {
-                    int poisonLevel = from.getSkillLevel(status.getSkill());
-                    int poisonDamage = Math.Min(short.MaxValue, (int)(MaxHp / (70.0 - poisonLevel) + 0.999));
-                    status.setValue(MonsterStatus.Poison, poisonDamage);
+                    var poisonLevel = from.GetSkillLevel(status.GetSkill());
+                    var poisonDamage = Math.Min(short.MaxValue, (int)(MaxHp / (70.0 - poisonLevel) + 0.999));
+                    status.SetValue(MonsterStatus.Poison, poisonDamage);
                     //status.setPoisonSchedule(timerManager.register(new PoisonTask(poisonDamage, from, status, cancelTask, false), 1000, 1000));
                 }
                 else if (venom)
                 {
                     if (from.Job == MapleJob.Nightlord || from.Job == MapleJob.Shadower)
                     {
-                        int poisonLevel = 0;
-                        int matk = 0;
+                        var poisonLevel = 0;
+                        var matk = 0;
                         if (from.Job == MapleJob.Nightlord)
                         {
-                            poisonLevel = from.getSkillLevel(SkillFactory.GetSkill(4120005));
+                            poisonLevel = from.GetSkillLevel(SkillFactory.GetSkill(4120005));
                             if (poisonLevel <= 0)
                             {
                                 return false;
                             }
-                            matk = SkillFactory.GetSkill(4120005).GetEffect(poisonLevel)._matk;
+                            matk = SkillFactory.GetSkill(4120005).GetEffect(poisonLevel).Matk;
                         }
                         else if (from.Job == MapleJob.Shadower)
                         {
-                            poisonLevel = from.getSkillLevel(SkillFactory.GetSkill(4220005));
+                            poisonLevel = from.GetSkillLevel(SkillFactory.GetSkill(4220005));
                             if (poisonLevel <= 0)
                             {
                                 return false;
                             }
-                            matk = SkillFactory.GetSkill(4220005).GetEffect(poisonLevel)._matk;
+                            matk = SkillFactory.GetSkill(4220005).GetEffect(poisonLevel).Matk;
                         }
                         else
                         {
@@ -564,20 +563,20 @@ namespace NeoMapleStory.Game.Mob
                         }
 
                         int luk = from.Luk;
-                        int maxDmg = (int)Math.Ceiling(Math.Min(short.MaxValue, 0.2 * luk * matk));
-                        int minDmg = (int)Math.Ceiling(Math.Min(short.MaxValue, 0.1 * luk * matk));
-                        int gap = maxDmg - minDmg;
+                        var maxDmg = (int)Math.Ceiling(Math.Min(short.MaxValue, 0.2 * luk * matk));
+                        var minDmg = (int)Math.Ceiling(Math.Min(short.MaxValue, 0.1 * luk * matk));
+                        var gap = maxDmg - minDmg;
                         if (gap == 0)
                         {
                             gap = 1;
                         }
-                        int poisonDamage = 0;
-                        for (int i = 0; i < VenomMultiplier; i++)
+                        var poisonDamage = 0;
+                        for (var i = 0; i < VenomMultiplier; i++)
                         {
                             poisonDamage = poisonDamage + Randomizer.Next(gap) + minDmg;
                         }
                         poisonDamage = Math.Min(short.MaxValue, poisonDamage);
-                        status.setValue(MonsterStatus.Poison, poisonDamage);
+                        status.SetValue(MonsterStatus.Poison, poisonDamage);
                         //status.setPoisonSchedule(timerManager.register(new PoisonTask(poisonDamage, from, status, cancelTask, false), 1000, 1000));
                     }
                     else
@@ -585,26 +584,27 @@ namespace NeoMapleStory.Game.Mob
                         return false;
                     }
                 }
-                else if (status.getSkill().SkillId == 4111003)
+                else if (status.GetSkill().SkillId == 4111003)
                 {
                     // shadow web
-                    int webDamage = (int)(MaxHp / 50.0 + 0.999);
+                    var webDamage = (int)(MaxHp / 50.0 + 0.999);
                     // actually shadow web works different but similar...
                     //status.setPoisonSchedule(timerManager.schedule(new PoisonTask(webDamage, from, status, cancelTask, true), 3500));
                 }
 
-                foreach (var stat in status.stati.Keys)
+                foreach (var stat in status.Stati.Keys)
                 {
-                    if (stati.ContainsKey(stat))
-                        stati[stat] = status;
+                    if (m_stati.ContainsKey(stat))
+                        m_stati[stat] = status;
                     else
-                        stati.Add(stat, status);
+                        m_stati.Add(stat, status);
                 }
 
-                activeEffects.Add(status);
+                m_activeEffects.Add(status);
 
-                int animationTime = status.getSkill().AnimationTime;
-                OutPacket packet = PacketCreator.ApplyMonsterStatus(ObjectId, status.stati, status.getSkill().SkillId, false, 0);
+                var animationTime = status.GetSkill().AnimationTime;
+                var packet = PacketCreator.ApplyMonsterStatus(ObjectId, status.Stati, status.GetSkill().SkillId, false,
+                    0);
                 Map.BroadcastMessage(packet, Position);
                 if (GetController() != null && !GetController().VisibleMapObjects.Contains(this))
                 {
@@ -616,7 +616,7 @@ namespace NeoMapleStory.Game.Mob
             return true;
         }
 
-        public MapleCharacter killBy(MapleCharacter killer)
+        public MapleCharacter KillBy(MapleCharacter killer)
         {
             long totalBaseExpL;
             // update exp
@@ -626,93 +626,85 @@ namespace NeoMapleStory.Game.Mob
             //}
             //else
             //{
-                totalBaseExpL = Stats.Exp*killer.Client.ChannelServer.ExpRate;
-                    /** killer.getClient().getPlayer().hasEXPCard();*/
+            totalBaseExpL = Stats.Exp * killer.Client.ChannelServer.ExpRate;
+            /** killer.getClient().getPlayer().hasEXPCard();*/
             //}
 
-            int totalBaseExp = (int)Math.Min(int.MaxValue, totalBaseExpL);
-            AttackerEntry highest = null;
-            int highdamage = 0;
-            foreach (var attackEntry in attackers)
+            var totalBaseExp = (int)Math.Min(int.MaxValue, totalBaseExpL);
+            IAttackerEntry highest = null;
+            var highdamage = 0;
+            foreach (var attackEntry in m_attackers)
             {
-                if (attackEntry.getDamage() > highdamage)
+                if (attackEntry.GetDamage() > highdamage)
                 {
                     highest = attackEntry;
-                    highdamage = attackEntry.getDamage();
+                    highdamage = attackEntry.GetDamage();
                 }
             }
 
-            foreach (AttackerEntry attackEntry in attackers)
+            foreach (var attackEntry in m_attackers)
             {
-                int baseExp = (int)Math.Ceiling(totalBaseExp * ((double)attackEntry.getDamage() / MaxHp));
-                attackEntry.killedMob(killer.Map, baseExp, attackEntry == highest);
+                var baseExp = (int)Math.Ceiling(totalBaseExp * ((double)attackEntry.GetDamage() / MaxHp));
+                attackEntry.KilledMob(killer.Map, baseExp, attackEntry == highest);
             }
 
-            if (this.GetController() != null)
-            { 
+            if (GetController() != null)
+            {
                 // this can/should only happen when a hidden gm attacks the monster
-                GetController().Client.Send(PacketCreator.StopControllingMonster(this.ObjectId));
-                GetController().stopControllingMonster(this);
+                GetController().Client.Send(PacketCreator.StopControllingMonster(ObjectId));
+                GetController().StopControllingMonster(this);
             }
-            if (this.IsBoss)
+            if (IsBoss)
             {
                 //killer.finishAchievement(6);
             }
 
-           //List<int > toSpawn = this.getRevives();
+            var toSpawn = Stats.Revives;
 
-           // bool canSpawn = true;
-        
-            //if (EventInstanceManager != null)
-            //{
-            //    if (eventInstance.getName().indexOf("BossQuest", 0) != -1)
-            //    {
-            //        canSpawn = false;
-            //    }
-            //}
+            var canSpawn = true;
 
-            //if (toSpawn != null && canSpawn)
-            //{
-            //    final MapleMap reviveMap = killer.getMap();
-
-            //    TimerManager.getInstance().schedule(()-> {
-            //        toSpawn.stream().map((mid)->MapleLifeFactory.getMonster(mid)).map((mob)-> {
-            //            if (eventInstance != null)
-            //            {
-            //                eventInstance.registerMonster(mob);
-            //            }
-            //            return mob;
-            //        }).map((mob)-> {
-            //            mob.setPosition(getPosition());
-            //            return mob;
-            //        }).map((mob)-> {
-            //            if (dropsDisabled())
-            //            {
-            //                mob.disableDrops();
-            //            }
-            //            return mob;
-            //        }).forEach((mob)-> {
-            //            reviveMap.spawnRevives(mob);
-            //        });
-            //    }, this.getAnimationTime("die1"));
-            //}
-            //if (eventInstance != null)
-            //{
-            //    eventInstance.unregisterMonster(this);
-            //}
-            foreach (var listener in listeners)
+            if (EventInstanceManager != null)
             {
-                var arg = new MonsterKilledEventArgs {monster = this, highestDamageChar = highestDamageChar};
+                if (EventInstanceManager.Name.IndexOf("BossQuest", 0, StringComparison.Ordinal) != -1)
+                {
+                    canSpawn = false;
+                }
+            }
+
+            if (toSpawn != null && canSpawn)
+            {
+                var reviveMap = killer.Map;
+
+                TimerManager.Instance.RunOnceTask(() =>
+                {
+                    foreach (var mid in toSpawn)
+                    {
+                        var mob = MapleLifeFactory.GetMonster(mid);
+                        EventInstanceManager?.RegisterMonster(mob);
+                        mob.Position = Position;
+                        //if (dropdisabled)
+                        //    mob.dropdisabled;
+                        reviveMap.SpawnRevives(mob);
+                    }
+                }, Stats.GetAnimationTime("die1"));
+            }
+            if (EventInstanceManager != null)
+            {
+                //EventInstanceManager.unregisterMonster(this);
+            }
+            foreach (var listener in Listeners)
+            {
+                var arg = new MonsterKilledEventArgs { Monster = this, HighestDamageChar = m_highestDamageChar };
                 listener(this, arg);
             }
-            MapleCharacter ret = highestDamageChar;
-            highestDamageChar = null; // may not keep hard references to chars outside of PlayerStorage or MapleMap
+            var ret = m_highestDamageChar;
+            m_highestDamageChar = null; // may not keep hard references to chars outside of PlayerStorage or MapleMap
             return ret;
         }
 
-        public void applyMonsterBuff(MonsterStatus status, int x, int skillId, int duration, MobSkill skill)
+        public void ApplyMonsterBuff(MonsterStatus status, int x, int skillId, int duration, MobSkill skill)
         {
-            TimerManager timerManager = TimerManager.Instance;
+            var timerManager = TimerManager.Instance;
 
             var applyPacket = PacketCreator.ApplyMonsterStatus(ObjectId,
                 new Dictionary<MonsterStatus, int> { { status, x } }, skillId, true, 0, skill);
@@ -723,12 +715,11 @@ namespace NeoMapleStory.Game.Mob
                 GetController().Client.Send(applyPacket);
             }
 
-
             timerManager.RunOnceTask(() =>
             {
                 if (IsAlive)
                 {
-                    OutPacket packet = PacketCreator.CancelMonsterStatus(ObjectId,
+                    var packet = PacketCreator.CancelMonsterStatus(ObjectId,
                         new Dictionary<MonsterStatus, int> { { status, x } });
                     Map.BroadcastMessage(packet, Position);
                     if (GetController() != null && !GetController().VisibleMapObjects.Contains(this))
@@ -741,7 +732,7 @@ namespace NeoMapleStory.Game.Mob
             MonsterBuffs.Add(status);
         }
 
-        public void giveExpToCharacter(MapleCharacter attacker, int exp, bool highestDamage, int numExpSharers)
+        public void GiveExpToCharacter(MapleCharacter attacker, int exp, bool highestDamage, int numExpSharers)
         {
             if (Id == 9300027)
             {
@@ -753,19 +744,19 @@ namespace NeoMapleStory.Game.Mob
                 //{
                 //    eventInstance.monsterKilled(attacker, this);
                 //}
-                highestDamageChar = attacker;
+                m_highestDamageChar = attacker;
             }
             if (attacker.Hp > 0)
             {
-                int personalExp = exp;
+                var personalExp = exp;
                 if (exp > 0)
                 {
-                    if (stati.ContainsKey(MonsterStatus.Taunt))
+                    if (m_stati.ContainsKey(MonsterStatus.Taunt))
                     {
-                        int alterExp = stati[MonsterStatus.Taunt].stati[MonsterStatus.Taunt];
+                        var alterExp = m_stati[MonsterStatus.Taunt].Stati[MonsterStatus.Taunt];
                         personalExp *= (int)(1.0 + alterExp / 100.0);
                     }
-                    int? holySymbol = attacker.GetBuffedValue(MapleBuffStat.HolySymbol);
+                    var holySymbol = attacker.GetBuffedValue(MapleBuffStat.HolySymbol);
                     if (holySymbol != null)
                     {
                         if (numExpSharers == 1)
@@ -782,16 +773,16 @@ namespace NeoMapleStory.Game.Mob
                 {
                     personalExp = int.MaxValue;
                 }
-                personalExp /= attacker._diseases.Contains(MapleDisease.Curse) ? 2 : 1;
-                attacker.gainExp(personalExp, true, false, highestDamage);
+                personalExp /= attacker.Diseases.Contains(MapleDisease.Curse) ? 2 : 1;
+                attacker.GainExp(personalExp, true, false, highestDamage);
 
                 try
                 {
-                    attacker.mobKilled(Id);
+                    attacker.MobKilled(Id);
                 }
                 catch (Exception e)
                 {
-                    //log.info("Quest Bug", npe);
+                    Console.WriteLine(e);
                 }
             }
         }
@@ -802,8 +793,8 @@ namespace NeoMapleStory.Game.Mob
 
         public class MonsterKilledEventArgs : EventArgs
         {
-            public MapleMonster monster { get; set; }
-            public MapleCharacter highestDamageChar { get; set; }
+            public MapleMonster Monster { get; set; }
+            public MapleCharacter HighestDamageChar { get; set; }
         }
 
         public class MonsterKilled
@@ -814,60 +805,58 @@ namespace NeoMapleStory.Game.Mob
 
             public void OnCustomerEvent(MonsterKilledEventArgs e)
             {
-                if (CustomerEvent != null)
-                    CustomerEvent(this, e);
+                CustomerEvent?.Invoke(this, e);
             }
         }
 
 
         private class AttackingMapleCharacter
         {
-
-            public MapleCharacter Attacker { get; private set; }
-            public long LastAttackTime { get; set; }
-
             public AttackingMapleCharacter(MapleCharacter attacker, long lastAttackTime)
             {
                 Attacker = attacker;
                 LastAttackTime = lastAttackTime;
             }
+
+            public MapleCharacter Attacker { get; }
+            public long LastAttackTime { get; }
         }
 
-        private interface AttackerEntry
+        private interface IAttackerEntry
         {
+            List<AttackingMapleCharacter> GetAttackers();
 
-            List<AttackingMapleCharacter> getAttackers();
+            void AddDamage(MapleCharacter from, int damage, bool updateAttackTime);
 
-            void addDamage(MapleCharacter from, int damage, bool updateAttackTime);
+            int GetDamage();
 
-            int getDamage();
+            bool Contains(MapleCharacter chr);
 
-            bool contains(MapleCharacter chr);
-
-            void killedMob(MapleMap map, int baseExp, bool mostDamage);
+            void KilledMob(MapleMap map, int baseExp, bool mostDamage);
         }
 
-        private class SingleAttackerEntry : AttackerEntry
+        private class SingleAttackerEntry : IAttackerEntry
         {
+            private readonly int m_chrid;
+            private readonly ChannelServer m_cserv;
 
-            private int damage;
-            private int chrid;
-            private long lastAttackTime;
-            private ChannelServer cserv;
-            private MapleMonster monster;
+            private int m_damage;
+            private long m_lastAttackTime;
+            private readonly MapleMonster m_monster;
+
             public SingleAttackerEntry(MapleCharacter from, ChannelServer cserv, MapleMonster monster)
             {
-                this.chrid = from.Id;
-                this.cserv = cserv;
-                this.monster = monster;
+                m_chrid = from.Id;
+                m_cserv = cserv;
+                m_monster = monster;
             }
 
 
-            public void addDamage(MapleCharacter from, int damage, bool updateAttackTime)
+            public void AddDamage(MapleCharacter from, int damage, bool updateAttackTime)
             {
-                if (chrid == from.Id)
+                if (m_chrid == from.Id)
                 {
-                    this.damage += damage;
+                    m_damage += damage;
                 }
                 else
                 {
@@ -875,57 +864,208 @@ namespace NeoMapleStory.Game.Mob
                 }
                 if (updateAttackTime)
                 {
-                    lastAttackTime = DateTime.Now.GetTimeMilliseconds();
+                    m_lastAttackTime = DateTime.Now.GetTimeMilliseconds();
                 }
             }
 
 
-            public List<AttackingMapleCharacter> getAttackers()
+            public List<AttackingMapleCharacter> GetAttackers()
             {
-                MapleCharacter chr = cserv.Characters.FirstOrDefault(x => x.Id == chrid);
+                var chr = m_cserv.Characters.FirstOrDefault(x => x.Id == m_chrid);
                 return chr != null
-                    ? new List<AttackingMapleCharacter> { new AttackingMapleCharacter(chr, lastAttackTime) }
+                    ? new List<AttackingMapleCharacter> { new AttackingMapleCharacter(chr, m_lastAttackTime) }
                     : new List<AttackingMapleCharacter>();
             }
 
 
-            public bool contains(MapleCharacter chr)
+            public bool Contains(MapleCharacter chr)
             {
-                return chrid == chr.Id;
+                return m_chrid == chr.Id;
             }
 
 
-            public int getDamage()
+            public int GetDamage()
             {
-                return damage;
+                return m_damage;
             }
 
 
-            public void killedMob(MapleMap map, int baseExp, bool mostDamage)
+            public void KilledMob(MapleMap map, int baseExp, bool mostDamage)
             {
-                MapleCharacter chr = cserv.Characters.FirstOrDefault(x => x.Id == chrid);
+                var chr = m_cserv.Characters.FirstOrDefault(x => x.Id == m_chrid);
                 if (chr != null && chr.Map.MapId == map.MapId)
                 {
-                    monster.giveExpToCharacter(chr, baseExp, mostDamage, 1);
+                    m_monster.GiveExpToCharacter(chr, baseExp, mostDamage, 1);
                 }
-            }
-
-            public override int GetHashCode()
-            {
-                return chrid;
-            }
-
-            public override bool Equals(object obj)
-            {
-                if (this == obj)
-                {
-                    return true;
-                }
-
-                SingleAttackerEntry other = (SingleAttackerEntry) obj;
-                return chrid == other?.chrid;
             }
         }
 
+        private class OnePartyAttacker
+        {
+
+            public MapleParty LastKnownParty { get; set; }
+            public int Damage { get; set; }
+            public long LastAttackTime { get; set; }
+
+            public OnePartyAttacker(MapleParty lastKnownParty, int damage)
+            {
+                LastKnownParty = lastKnownParty;
+                Damage = damage;
+                LastAttackTime = DateTime.Now.GetTimeMilliseconds();
+            }
+        }
+
+        private class PartyAttackerEntry : IAttackerEntry
+        {
+
+            private int m_totDamage;
+            private Dictionary<int, OnePartyAttacker> m_attackers;
+            private int m_partyId;
+            private ChannelServer m_cserv;
+            private MapleMonster m_monster;
+
+            public PartyAttackerEntry(int partyid, ChannelServer cserv, MapleMonster monster)
+            {
+                this.m_partyId = partyid;
+                this.m_cserv = cserv;
+                m_attackers = new Dictionary<int, OnePartyAttacker>(6);
+                m_monster = monster;
+            }
+
+
+            private Dictionary<MapleCharacter, OnePartyAttacker> ResolveAttackers()
+            {
+                var ret = new Dictionary<MapleCharacter, OnePartyAttacker>(m_attackers.Count);
+                m_attackers.ToList().ForEach((aentry) =>
+                {
+                    MapleCharacter chr = m_cserv.Characters.FirstOrDefault(x => x.Id == aentry.Key);
+                    if (chr != null)
+                    {
+                        if (ret.ContainsKey(chr))
+                            ret[chr] = aentry.Value;
+                        else
+                            ret.Add(chr, aentry.Value);
+                    }
+                });
+                return ret;
+            }
+
+            public List<AttackingMapleCharacter> GetAttackers()
+            {
+                List<AttackingMapleCharacter> ret = new List<AttackingMapleCharacter>(m_attackers.Count);
+                m_attackers.ToList().ForEach((entry) =>
+                {
+                    MapleCharacter chr = m_cserv.Characters.FirstOrDefault(x => x.Id == entry.Key);
+                    if (chr != null)
+                    {
+                        ret.Add(new AttackingMapleCharacter(chr, entry.Value.LastAttackTime));
+                    }
+                });
+                return ret;
+            }
+
+            public void AddDamage(MapleCharacter from, int damage, bool updateAttackTime)
+            {
+                OnePartyAttacker oldPartyAttacker;
+                if (m_attackers.TryGetValue(from.Id, out oldPartyAttacker))
+                {
+                    oldPartyAttacker.Damage += damage;
+                    oldPartyAttacker.LastKnownParty = from.Party;
+                    if (updateAttackTime)
+                    {
+                        oldPartyAttacker.LastAttackTime = DateTime.Now.GetTimeMilliseconds();
+                    }
+                }
+                else
+                {
+                    // TODO actually this causes wrong behaviour when the party changes between attacks
+                    // only the last setup will get exp - but otherwise we'd have to store the full party
+                    // constellation for every attack/everytime it changes, might be wanted/needed in the
+                    // future but not now
+                    OnePartyAttacker onePartyAttacker = new OnePartyAttacker(from.Party, damage);
+
+                    if (m_attackers.ContainsKey(from.Id))
+                        m_attackers[from.Id] = onePartyAttacker;
+                    else
+                        m_attackers.Add(from.Id, onePartyAttacker);
+
+                    if (!updateAttackTime)
+                    {
+                        onePartyAttacker.LastAttackTime = 0;
+                    }
+                }
+                m_totDamage += damage;
+            }
+
+            public int GetDamage() => m_totDamage;
+
+            public bool Contains(MapleCharacter chr) => m_attackers.ContainsKey(chr.Id);
+
+            public void KilledMob(MapleMap map, int baseExp, bool mostDamage)
+            {
+                Dictionary<MapleCharacter, OnePartyAttacker> attackers = ResolveAttackers();
+
+                MapleCharacter highest = null;
+                int highestDamage = 0;
+
+                Dictionary<MapleCharacter, int> expMap = new Dictionary<MapleCharacter, int>(6);
+                foreach (var attacker in attackers)
+                {
+                    MapleParty party = attacker.Value.LastKnownParty;
+                    double averagePartyLevel = 0;
+
+                    List<MapleCharacter> expApplicable = new List<MapleCharacter>();
+                    foreach (var partychar in party.GetMembers())
+                    {
+                        if (attacker.Key.Level - partychar.Level <= 5 || m_monster.Stats.Level - partychar.Level <= 5)
+                        {
+                            MapleCharacter pchr = m_cserv.Characters.FirstOrDefault(x => x.Name == partychar.CharacterName);
+                            if (pchr == null) continue;
+                            if (!pchr.IsAlive || pchr.Map != map) continue;
+                            expApplicable.Add(pchr);
+                            averagePartyLevel += pchr.Level;
+                        }
+                    }
+                    double expBonus = 1.0;
+                    if (expApplicable.Count > 1)
+                    {
+                        expBonus = 1.10 + 0.05 * expApplicable.Count;
+                        averagePartyLevel /= expApplicable.Count;
+                    }
+
+                    int iDamage = attacker.Value.Damage;
+                    if (iDamage > highestDamage)
+                    {
+                        highest = attacker.Key;
+                        highestDamage = iDamage;
+                    }
+                    double innerBaseExp = baseExp * ((double)iDamage / m_totDamage);
+                    double expFraction = innerBaseExp * expBonus / (expApplicable.Count + 1);
+
+                    foreach (var expReceiver in expApplicable)
+                    {
+                        int oexp;
+                        int iexp = !expMap.TryGetValue(expReceiver, out oexp) ? 0 : oexp;
+                        double expWeight = expReceiver == attacker.Key ? 2.0 : 1.0;
+                        double levelMod = expReceiver.Level / averagePartyLevel;
+                        if (levelMod > 1.0 || m_attackers.ContainsKey(expReceiver.Id))
+                        {
+                            levelMod = 1.0;
+                        }
+                        iexp += (int)Math.Round(expFraction * expWeight * levelMod);
+                        if (expMap.ContainsKey(expReceiver))
+                            expMap[expReceiver] = iexp;
+                        else
+                            expMap.Add(expReceiver, iexp);
+                    }
+                }
+                // FUCK we are done -.-
+                foreach (var expReceiver in expMap)
+                {
+                    bool white = mostDamage && expReceiver.Key == highest;
+                    m_monster.GiveExpToCharacter(expReceiver.Key, expReceiver.Value, white, expMap.Count);
+                }
+            }
+        }
     }
 }

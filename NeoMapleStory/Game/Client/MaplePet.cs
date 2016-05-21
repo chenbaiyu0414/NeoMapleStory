@@ -1,12 +1,16 @@
-﻿using NeoMapleStory.Game.Inventory;
-using System.Drawing;
+﻿using System.Drawing;
 using NeoMapleStory.Core.Database.DataModel;
+using NeoMapleStory.Game.Inventory;
 
 namespace NeoMapleStory.Game.Client
 {
-
     public class MaplePet : Item
     {
+        private MaplePet(int id, byte position, int uniqueid) : base(id, position, 1)
+        {
+            UniqueId = uniqueid;
+        }
+
         public PetModel PetInfo { get; set; }
 
         public int Fh { get; set; }
@@ -15,15 +19,9 @@ namespace NeoMapleStory.Game.Client
 
         public Point Pos { get; set; }
 
-        private MaplePet(int id, byte position, int uniqueid) : base(id, position, 1)
-        {
-            UniqueId = uniqueid;
-        }
-
         public static MaplePet LoadFromDb(int itemid, byte position, int uniqueid)
         {
-
-            MaplePet ret = new MaplePet(itemid, position, uniqueid);
+            var ret = new MaplePet(itemid, position, uniqueid);
 
             //using (var db = new NeoDatabase())
             //{
@@ -54,14 +52,15 @@ namespace NeoMapleStory.Game.Client
             //ps.close();
         }
 
-        //public static int createPet(int itemid, MapleCharacter chr)
-        //{
-        //    try
-        //    {
-        //        MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
+        //        PreparedStatement ps = con.prepareStatement("INSERT INTO pets (name, level, closeness, fullness, uniqueid) VALUES (?, ?, ?, ?, ?)");
 
         //        Connection con = DatabaseConnection.getConnection();
-        //        PreparedStatement ps = con.prepareStatement("INSERT INTO pets (name, level, closeness, fullness, uniqueid) VALUES (?, ?, ?, ?, ?)");
+        //        MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
+        //    {
+        //    try
+        //{
+
+        //public static int createPet(int itemid, MapleCharacter chr)
         //        ps.setString(1, mii.getName(itemid));
         //        ps.setInt(2, 1);
         //        ps.setInt(3, 0);
@@ -137,4 +136,3 @@ namespace NeoMapleStory.Game.Client
         //}
     }
 }
-

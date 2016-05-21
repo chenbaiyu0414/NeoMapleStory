@@ -5,35 +5,36 @@ namespace NeoMapleStory.Game.Mob
 {
     public class MonsterStatusEffect
     {
-        public Dictionary<MonsterStatus, int> stati { get; private set; }
-        private ISkill skill;
-        private bool monsterSkill;
+        private readonly bool m_monsterSkill;
+        private readonly ISkill m_skill;
         //private ScheduledFuture<?> cancelTask;
         //private ScheduledFuture<?> poisonSchedule;
 
         public MonsterStatusEffect(Dictionary<MonsterStatus, int> stati, ISkill skillId, bool monsterSkill)
         {
-            this.stati = new Dictionary<MonsterStatus, int>(stati);
-            this.skill = skillId;
-            this.monsterSkill = monsterSkill;
+            this.Stati = new Dictionary<MonsterStatus, int>(stati);
+            m_skill = skillId;
+            this.m_monsterSkill = monsterSkill;
         }
 
-        public void setValue(MonsterStatus status, int newVal)
+        public Dictionary<MonsterStatus, int> Stati { get; }
+
+        public void SetValue(MonsterStatus status, int newVal)
         {
-            if (stati.ContainsKey(status))
-                stati[status] = newVal;
+            if (Stati.ContainsKey(status))
+                Stati[status] = newVal;
             else
-                stati.Add(status, newVal);
+                Stati.Add(status, newVal);
         }
 
-        public ISkill getSkill()
+        public ISkill GetSkill()
         {
-            return skill;
+            return m_skill;
         }
 
-        public bool isMonsterSkill()
+        public bool IsMonsterSkill()
         {
-            return monsterSkill;
+            return m_monsterSkill;
         }
 
         //public ScheduledFuture<?> getCancelTask()
@@ -46,20 +47,21 @@ namespace NeoMapleStory.Game.Mob
         //    this.cancelTask = cancelTask;
         //}
 
-        public void removeActiveStatus(MonsterStatus stat)
+        public void RemoveActiveStatus(MonsterStatus stat)
         {
-            stati.Remove(stat);
+            Stati.Remove(stat);
         }
 
-        //public void setPoisonSchedule(ScheduledFuture<?> poisonSchedule)
+        //    {
+        //    if (poisonSchedule != null)
         //{
-        //    this.poisonSchedule = poisonSchedule;
-        //}
 
         //public void cancelPoisonSchedule()
+        //}
+        //    this.poisonSchedule = poisonSchedule;
         //{
-        //    if (poisonSchedule != null)
-        //    {
+
+        //public void setPoisonSchedule(ScheduledFuture<?> poisonSchedule)
         //        poisonSchedule.cancel(false);
         //    }
         //}

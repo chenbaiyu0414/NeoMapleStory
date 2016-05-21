@@ -1,14 +1,14 @@
-﻿using NeoMapleStory.Core.Database;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using NeoMapleStory.Core.Database;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.Job;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Settings;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 
 namespace NeoMapleStory.Server
 {
@@ -16,8 +16,8 @@ namespace NeoMapleStory.Server
     {
         public static void OnGENDER_RESULT(MapleClient c, InPacket p)
         {
-            byte gender = p.ReadByte();//00 男 01女
-            string username = p.ReadMapleString();//username 
+            var gender = p.ReadByte(); //00 男 01女
+            var username = p.ReadMapleString(); //username 
             DatabaseHelper.ChangeGender(username, gender);
             c.Send(LoginPacket.GenderChanged(username, c.AccountId.ToString()));
             c.Send(LoginPacket.LicenseRequest());
@@ -25,7 +25,7 @@ namespace NeoMapleStory.Server
 
         public static void OnLISENCE_RESULT(MapleClient c, InPacket p)
         {
-            bool isAgree = p.ReadBool();
+            var isAgree = p.ReadBool();
             if (isAgree)
                 c.Send(LoginPacket.LicenseResult());
             else
@@ -34,8 +34,8 @@ namespace NeoMapleStory.Server
 
         public static void LOGIN_AUTH(MapleClient c, InPacket p)
         {
-            string username = p.ReadMapleString();
-            string password = p.ReadMapleString();
+            var username = p.ReadMapleString();
+            var password = p.ReadMapleString();
 
 
             var result = DatabaseHelper.Login(c, username, password);
@@ -55,7 +55,7 @@ namespace NeoMapleStory.Server
                     c.Send(LoginPacket.ServerListEnd());
                     break;
                 default:
-                    c.Send(LoginPacket.AuthAccountFailed((int)result));
+                    c.Send(LoginPacket.AuthAccountFailed((int) result));
                     break;
             }
         }
@@ -76,17 +76,18 @@ namespace NeoMapleStory.Server
 
         public static void SERVERSTATUS_REQUEST(MapleClient c, InPacket p)
         {
-            int load = MasterServer.Instance.ChannelServers.Sum(cservs => cservs.ClientCount);
+            var load = MasterServer.Instance.ChannelServers.Sum(cservs => cservs.ClientCount);
 
             if (MasterServer.Instance.LoginServer.Config.MaxConnectionNumber <= load)
             {
                 c.Send(LoginPacket.ServerStatus(2));
             }
-            else if (MasterServer.Instance.LoginServer.Config.MaxConnectionNumber * 0.9 <= load)
+            else if (MasterServer.Instance.LoginServer.Config.MaxConnectionNumber*0.9 <= load)
             {
                 c.Send(LoginPacket.ServerStatus(1));
             }
-            else {
+            else
+            {
                 c.Send(LoginPacket.ServerStatus(0));
             }
         }
@@ -103,20 +104,20 @@ namespace NeoMapleStory.Server
 
         public static void CHECK_CHAR_NAME(MapleClient c, InPacket p)
         {
-            string name = p.ReadMapleString();
-            bool nameused = DatabaseHelper.CheckNameUsed(name);
+            var name = p.ReadMapleString();
+            var nameused = DatabaseHelper.CheckNameUsed(name);
             c.Send(LoginPacket.CharNameResponse(name, nameused));
         }
 
         public static void CREATE_CHAR(MapleClient c, InPacket p)
         {
-            string name = p.ReadMapleString();
+            var name = p.ReadMapleString();
 
-            int job = p.ReadInt();
-            int face = p.ReadInt();
-            int hair = p.ReadInt();
-            int hairColor = 0;
-            int skinColor = 0;
+            var job = p.ReadInt();
+            var face = p.ReadInt();
+            var hair = p.ReadInt();
+            var hairColor = 0;
+            var skinColor = 0;
 
             if (job == 0)
             {
@@ -126,16 +127,17 @@ namespace NeoMapleStory.Server
             {
                 skinColor = 11;
             }
-            else {
+            else
+            {
                 skinColor = 0;
             }
 
-            int top = p.ReadInt();
-            int bottom = p.ReadInt();
-            int shoes = p.ReadInt();
-            int weapon = p.ReadInt();
+            var top = p.ReadInt();
+            var bottom = p.ReadInt();
+            var shoes = p.ReadInt();
+            var weapon = p.ReadInt();
 
-            MapleCharacter newchar = MapleCharacter.GetDefault(c);
+            var newchar = MapleCharacter.GetDefault(c);
             if (c.IsGm)
             {
                 newchar.GmLevel = 1;
@@ -154,7 +156,8 @@ namespace NeoMapleStory.Server
                 newchar.Luk = 4;
                 newchar.RemainingAp = 0;
             }
-            else {
+            else
+            {
                 newchar.Str = 4;
                 newchar.Dex = 4;
                 newchar.Int = 4;
@@ -181,30 +184,30 @@ namespace NeoMapleStory.Server
                 newchar.Inventorys[MapleInventoryType.Etc.Value].AddItem(new Item(4161048, 0, 1));
             }
 
-            MapleInventory equip = newchar.Inventorys[MapleInventoryType.Equipped.Value];
+            var equip = newchar.Inventorys[MapleInventoryType.Equipped.Value];
 
-            Equip equipTop = new Equip(top, 5)
+            var equipTop = new Equip(top, 5)
             {
                 Wdef = 3,
                 UpgradeSlots = 7
             };
             equip.AddFromDb(equipTop.Copy());
 
-            Equip equipBottom = new Equip(bottom, 6)
+            var equipBottom = new Equip(bottom, 6)
             {
                 Wdef = 2,
                 UpgradeSlots = 7
             };
             equip.AddFromDb(equipBottom.Copy());
 
-            Equip equipShoes = new Equip(shoes, 7)
+            var equipShoes = new Equip(shoes, 7)
             {
                 Wdef = 2,
                 UpgradeSlots = 7
             };
             equip.AddFromDb(equipShoes.Copy());
 
-            Equip equipWeapon = new Equip(weapon, 11)
+            var equipWeapon = new Equip(weapon, 11)
             {
                 Watk = 15,
                 UpgradeSlots = 7
@@ -216,21 +219,22 @@ namespace NeoMapleStory.Server
             c.Send(LoginPacket.AddNewCharEntry(newchar, true));
         }
 
-        public static void CHAR_SELECT(MapleClient c,InPacket p)
+        public static void CHAR_SELECT(MapleClient c, InPacket p)
         {
             if (c.State != MapleClient.LoginState.LoggedIn)
                 return;
 
-            int charId = p.ReadInt();
+            var charId = p.ReadInt();
 
             c.State = MapleClient.LoginState.ServerTransition;
-            c.Send(LoginPacket.GetServerIp(System.Net.IPAddress.Parse("127.0.0.1"), 7575, charId));
+            c.Send(LoginPacket.GetServerIp(IPAddress.Parse("127.0.0.1"), 7575, charId));
         }
 
         public static void ERROR_LOG(MapleClient c, InPacket p)
         {
             Console.WriteLine($"错误信息：{p.ReadMapleString()}");
         }
+
         public static void PLAYER_UPDATE(MapleClient c, InPacket p)
         {
             c?.Player?.SaveToDb(true);

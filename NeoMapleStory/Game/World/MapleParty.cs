@@ -1,59 +1,59 @@
-﻿using NeoMapleStory.Game.Client;
-using NeoMapleStory.Server;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using NeoMapleStory.Game.Client;
+using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.World
 {
     public class MapleParty
     {
-        public MaplePartyCharacter Leader { get; set; }     
+        private readonly List<MaplePartyCharacter> m_mMembers = new List<MaplePartyCharacter>();
+
+        public MapleParty(int id, MaplePartyCharacter chrfor)
+        {
+            Leader = chrfor;
+            m_mMembers.Add(Leader);
+            PartyId = id;
+        }
+
+        public MaplePartyCharacter Leader { get; set; }
         public int PartyId { get; set; }
         public int Cp { get; set; }
         public int Team { get; set; }
         public int TotalCp { get; set; }
         public MapleParty CpqEnemy { get; set; } = null;
 
-        private readonly List<MaplePartyCharacter> _mMembers = new List<MaplePartyCharacter>();
-
-        public MapleParty(int id, MaplePartyCharacter chrfor)
-        {
-            Leader = chrfor;
-            _mMembers.Add(Leader);
-            PartyId = id;
-        }
-
         public bool ContainsMember(MaplePartyCharacter member)
         {
-            return _mMembers.Contains(member);
+            return m_mMembers.Contains(member);
         }
 
         public void AddMember(MaplePartyCharacter member)
         {
-            _mMembers.Add(member);
+            m_mMembers.Add(member);
         }
 
         public void RemoveMember(MaplePartyCharacter member)
         {
-            _mMembers.Remove(member);
+            m_mMembers.Remove(member);
         }
 
         public void UpdateMember(MaplePartyCharacter member)
         {
-            for (int i = 0; i < _mMembers.Count; i++)
+            for (var i = 0; i < m_mMembers.Count; i++)
             {
-                MaplePartyCharacter chr = _mMembers[i];
+                var chr = m_mMembers[i];
                 if (chr.Equals(member))
                 {
-                    _mMembers[i] = member;
+                    m_mMembers[i] = member;
                 }
             }
         }
 
-        public MaplePartyCharacter GetMemberById(int id)=> _mMembers.FirstOrDefault(x => x.ChannelId == id);
+        public MaplePartyCharacter GetMemberById(int id) => m_mMembers.FirstOrDefault(x => x.ChannelId == id);
 
 
-        public List<MaplePartyCharacter> GetMembers() => _mMembers;
+        public List<MaplePartyCharacter> GetMembers() => m_mMembers;
 
 
         public List<MapleCharacter> GetPartyMembers(MapleParty party)
@@ -63,9 +63,10 @@ namespace NeoMapleStory.Game.World
                 return null;
             }
 
-            List<MapleCharacter> chars = new List<MapleCharacter>();
+            var chars = new List<MapleCharacter>();
 
-            MasterServer.Instance.ChannelServers.ForEach(server => {
+            MasterServer.Instance.ChannelServers.ForEach(server =>
+            {
                 server.GetPartyMembers(party).ForEach(chr =>
                 {
                     if (chr != null)
@@ -82,7 +83,7 @@ namespace NeoMapleStory.Game.World
 
         public override int GetHashCode()
         {
-            return 1 * 31 + PartyId;
+            return 1*31 + PartyId;
         }
 
         public override bool Equals(object obj)
@@ -99,7 +100,7 @@ namespace NeoMapleStory.Game.World
             {
                 return false;
             }
-            MapleParty other = (MapleParty)obj;
+            var other = (MapleParty) obj;
             if (PartyId != other.PartyId)
             {
                 return false;

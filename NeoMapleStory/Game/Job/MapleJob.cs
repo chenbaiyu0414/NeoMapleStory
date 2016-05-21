@@ -1,7 +1,13 @@
-﻿namespace NeoMapleStory.Game.Job
+﻿using System.Reflection;
+
+namespace NeoMapleStory.Game.Job
 {
     public class MapleJob
     {
+        public MapleJob(short jobId)
+        {
+            JobId = jobId;
+        }
 
         public static MapleJob Beginner { get; } = new MapleJob(0);
         public static MapleJob Warrior { get; } = new MapleJob(100);
@@ -68,19 +74,14 @@
         public static MapleJob Ares3 { get; } = new MapleJob(2111);
         public static MapleJob Ares4 { get; } = new MapleJob(2112);
 
-        public short JobId { get; private set; }
-
-        public MapleJob(short jobId)
-        {
-            JobId = jobId;
-        }
+        public short JobId { get; }
 
         public static MapleJob GetByJobId(short id)
         {
-            var props = typeof(MapleJob).GetProperties(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+            var props = typeof(MapleJob).GetProperties(BindingFlags.Static | BindingFlags.Public);
             foreach (var prop in props)
             {
-                MapleJob job = (MapleJob)prop.GetValue(prop, null);
+                var job = (MapleJob) prop.GetValue(prop, null);
                 if (job.JobId == id)
                     return job;
             }
@@ -89,17 +90,17 @@
 
         public static bool operator ==(MapleJob job, MapleJob otherjob)
         {
-            return job.JobId >= otherjob.JobId && job.JobId / 100 == otherjob.JobId / 100;
+            return job.JobId >= otherjob.JobId && job.JobId/100 == otherjob.JobId/100;
         }
 
         public static bool operator !=(MapleJob job, MapleJob otherjob)
         {
-            return job.JobId < otherjob.JobId || job.JobId / 100 != otherjob.JobId / 100;
+            return job.JobId < otherjob.JobId || job.JobId/100 != otherjob.JobId/100;
         }
 
         public override bool Equals(object obj)
         {
-            return this == (MapleJob)obj;
+            return this == (MapleJob) obj;
         }
 
         public override int GetHashCode()
@@ -114,178 +115,176 @@
 
         public string GetJobName()
         {
-            MapleJob job = this;
+            var job = this;
             if (job == Beginner)
             {
                 return "新手";
             }
-            else if (job == Thief)
+            if (job == Thief)
             {
                 return "飞侠";
             }
-            else if (job == Warrior)
+            if (job == Warrior)
             {
                 return "战士";
             }
-            else if (job == Magician)
+            if (job == Magician)
             {
                 return "魔法师";
             }
-            else if (job == Bowman)
+            if (job == Bowman)
             {
                 return "弓箭手";
             }
-            else if (job == Pirate)
+            if (job == Pirate)
             {
                 return "海盗";
             }
-            else if (job == Bandit)
+            if (job == Bandit)
             {
                 return "侠客";
             }
-            else if (job == Assassin)
+            if (job == Assassin)
             {
                 return "刺客";
             }
-            else if (job == Spearman)
+            if (job == Spearman)
             {
                 return "枪战士";
             }
-            else if (job == Page)
+            if (job == Page)
             {
                 return "准骑士";
             }
-            else if (job == Fighter)
+            if (job == Fighter)
             {
                 return "剑客";
             }
-            else if (job == Cleric)
+            if (job == Cleric)
             {
                 return "牧师";
             }
-            else if (job == IlWizard)
+            if (job == IlWizard)
             {
                 return "冰雷法师";
             }
-            else if (job == FpWizard)
+            if (job == FpWizard)
             {
                 return "火毒法师";
             }
-            else if (job == Hunter)
+            if (job == Hunter)
             {
                 return "猎人";
             }
-            else if (job == Crossbowman)
+            if (job == Crossbowman)
             {
                 return "弩弓手";
             }
-            else if (job == Gunslinger)
+            if (job == Gunslinger)
             {
                 return "Gunslinger";
             }
-            else if (job == Brawler)
+            if (job == Brawler)
             {
                 return "Brawler";
             }
-            else if (job == Chiefbandit)
+            if (job == Chiefbandit)
             {
                 return "独行客";
             }
-            else if (job == Hermit)
+            if (job == Hermit)
             {
                 return "无影人";
             }
-            else if (job == Dragonknight)
+            if (job == Dragonknight)
             {
                 return "黑骑士";
             }
-            else if (job == Whiteknight)
+            if (job == Whiteknight)
             {
                 return "骑士";
             }
-            else if (job == Crusader)
+            if (job == Crusader)
             {
                 return "勇士";
             }
-            else if (job == Paladin)
+            if (job == Paladin)
             {
                 return "圣骑士";
             }
-            else if (job == Priest)
+            if (job == Priest)
             {
                 return "祭祀";
             }
-            else if (job == IlMage)
+            if (job == IlMage)
             {
                 return "冰雷/巫师";
             }
-            else if (job == FpMage)
+            if (job == FpMage)
             {
                 return "火毒/巫师";
             }
-            else if (job == Ranger)
+            if (job == Ranger)
             {
                 return "射手";
             }
-            else if (job == Sniper)
+            if (job == Sniper)
             {
                 return "游侠";
             }
-            else if (job == Marauder)
+            if (job == Marauder)
             {
                 return "Marauder";
             }
-            else if (job == Outlaw)
+            if (job == Outlaw)
             {
                 return "Outlaw";
             }
-            else if (job == Shadower)
+            if (job == Shadower)
             {
                 return "侠盗";
             }
-            else if (job == Nightlord)
+            if (job == Nightlord)
             {
                 return "隐士";
             }
-            else if (job == Darkknight)
+            if (job == Darkknight)
             {
                 return "Dark Knight";
             }
-            else if (job == Hero)
+            if (job == Hero)
             {
                 return "英雄";
             }
-            else if (job == Paladin)
+            if (job == Paladin)
             {
                 return "圣骑士";
             }
-            else if (job == IlArchmage)
+            if (job == IlArchmage)
             {
                 return "魔导师/冰雷";
             }
-            else if (job == FpArchmage)
+            if (job == FpArchmage)
             {
                 return "魔导师/火毒";
             }
-            else if (job == Bowmaster)
+            if (job == Bowmaster)
             {
                 return "神射手";
             }
-            else if (job == Crossbowmaster)
+            if (job == Crossbowmaster)
             {
                 return "箭神";
             }
-            else if (job == Buccaneer)
+            if (job == Buccaneer)
             {
                 return "Buccaneer";
             }
-            else if (job == Corsair)
+            if (job == Corsair)
             {
                 return "Corsair";
             }
-            else {
-                return "管理员";
-            }
+            return "管理员";
         }
 
         public static MapleJob GetBy5ByteEncoding(int encoded)

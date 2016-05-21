@@ -1,11 +1,11 @@
-﻿using NeoMapleStory.Core.IO;
-using System.Drawing;
+﻿using System.Drawing;
+using NeoMapleStory.Core.IO;
 
 namespace NeoMapleStory.Game.Movement
 {
     public interface ILifeMovementFragment
     {
-        void Serialize(OutPacket packet);
         Point Position { get; }
+        void Serialize(OutPacket packet);
     }
 }

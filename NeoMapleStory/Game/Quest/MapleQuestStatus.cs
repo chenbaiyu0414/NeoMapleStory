@@ -1,40 +1,20 @@
-﻿using NeoMapleStory.Core;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using NeoMapleStory.Core;
 
 namespace NeoMapleStory.Game.Quest
 {
     public enum MapleQuestStatusType
     {
-
         Undefined = -1,
         NotStarted,
         Started,
         Completed
     }
 
-     public class MapleQuestStatus
+    public class MapleQuestStatus
     {
-        public MapleQuest Quest { get; private set; }
-        public MapleQuestStatusType Status { get; set; }
-        public Dictionary<int, int> KilledMobs { get; private set; } = new Dictionary<int, int>();
-        public int Npcid { get; set; }
-        public long CompletionTime { get; set; }
-
-        public int Forfeited
-        {
-            get { return Forfeited; }
-            set
-            {
-                if (value >= Forfeited)
-                    Forfeited = value;
-                else
-                    throw new Exception("无法设置比旧值低的forfeis");
-            }
-        }
-
-
         public MapleQuestStatus(MapleQuest quest, MapleQuestStatusType status)
         {
             Quest = quest;
@@ -58,17 +38,35 @@ namespace NeoMapleStory.Game.Quest
             }
         }
 
+        public MapleQuest Quest { get; }
+        public MapleQuestStatusType Status { get; set; }
+        public Dictionary<int, int> KilledMobs { get; } = new Dictionary<int, int>();
+        public int Npcid { get; set; }
+        public long CompletionTime { get; set; }
+
+        public int Forfeited
+        {
+            get { return Forfeited; }
+            set
+            {
+                if (value >= Forfeited)
+                    Forfeited = value;
+                else
+                    throw new Exception("无法设置比旧值低的forfeis");
+            }
+        }
+
         private void RegisterMobs()
         {
-            List<int> relevants = Quest.GetRelevantMobs();
-            foreach (int i in relevants)
+            var relevants = Quest.GetRelevantMobs();
+            foreach (var i in relevants)
                 KilledMobs.Add(i, 0);
         }
 
         public bool MobKilled(int id)
         {
             int value;
-            if (KilledMobs.TryGetValue(id,out value))
+            if (KilledMobs.TryGetValue(id, out value))
             {
                 KilledMobs.Add(id, value + 1);
                 return true;
@@ -85,10 +83,9 @@ namespace NeoMapleStory.Game.Quest
         public int GetMobKills(int id) => KilledMobs.ContainsKey(id) ? KilledMobs[id] : 0;
 
 
-        public Dictionary<int,int> GetMobKills() => KilledMobs;
+        public Dictionary<int, int> GetMobKills() => KilledMobs;
 
 
         public int GetMobNum(int id) => KilledMobs.Values.ElementAtOrDefault(id);
-
     }
 }

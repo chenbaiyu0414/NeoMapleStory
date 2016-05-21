@@ -2,6 +2,15 @@
 {
     public class MapleInventoryType
     {
+        public MapleInventoryType()
+        {
+        }
+
+        public MapleInventoryType(byte value)
+        {
+            Value = value;
+        }
+
         public static MapleInventoryType Undefined { get; } = new MapleInventoryType(0);
         public static MapleInventoryType Equip { get; } = new MapleInventoryType(1);
         public static MapleInventoryType Use { get; } = new MapleInventoryType(2);
@@ -10,19 +19,9 @@
         public static MapleInventoryType Cash { get; } = new MapleInventoryType(5);
         public static MapleInventoryType Equipped { get; } = new MapleInventoryType(6);
 
-        public byte Value { get; private set; }
+        public byte Value { get; }
 
-        public static MapleInventoryType[] TypeList { get; } = { Undefined, Equip, Use, Setup, Etc, Cash, Equipped };
-
-        public MapleInventoryType()
-        {
-
-        }
-
-        public MapleInventoryType(byte value)
-        {
-            Value = value;
-        }
+        public static MapleInventoryType[] TypeList { get; } = {Undefined, Equip, Use, Setup, Etc, Cash, Equipped};
 
         //public short GetBitfieldEncoding()
         //{
@@ -80,8 +79,8 @@
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != this.GetType()) return false;
-            return Equals((MapleInventoryType)obj);
+            if (obj.GetType() != GetType()) return false;
+            return Equals((MapleInventoryType) obj);
         }
 
         public override int GetHashCode()

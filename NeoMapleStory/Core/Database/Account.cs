@@ -8,24 +8,24 @@
         public bool IsGm { get; set; }
 
         /// <summary>
-        /// 点券
+        ///     点券
         /// </summary>
         public int NexonPoint { get; set; }
 
         /// <summary>
-        /// 抵用券
+        ///     抵用券
         /// </summary>
         public int MaplePoint { get; set; }
 
-        //public DateTime BirthDate { get; set; } = DateTime.Now.Date;
-
-        //[EmailAddress]
-        //[MaxLength(320)]
-        //public string Email { get; set; }
+        //public bool IsLogged { get; set; } = false;
 
         //public DateTime RegisterDate { get; set; } = DateTime.Now;
+        //public string Email { get; set; }
+        //[MaxLength(320)]
 
-        //public bool IsLogged { get; set; } = false;
+        //[EmailAddress]
+
+        //public DateTime BirthDate { get; set; } = DateTime.Now.Date;
 
         //public DateTime? LastLoginTime { get; set; } = null;
 

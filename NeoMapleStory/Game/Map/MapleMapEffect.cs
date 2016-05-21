@@ -6,14 +6,14 @@ namespace NeoMapleStory.Game.Map
 {
     public class MapleMapEffect
     {
-        private readonly string _mMsg;
-        private readonly int _mItemId;
-        private readonly bool _mActive = true;
+        private readonly bool m_mActive = true;
+        private readonly int m_mItemId;
+        private readonly string m_mMsg;
 
         public MapleMapEffect(string msg, int itemId)
         {
-            _mMsg = msg;
-            _mItemId = itemId;
+            m_mMsg = msg;
+            m_mItemId = itemId;
         }
 
         public OutPacket CreateDestroyData()
@@ -23,7 +23,7 @@ namespace NeoMapleStory.Game.Map
 
         public OutPacket CreateStartData()
         {
-            return  PacketCreator.StartMapEffect(_mMsg, _mItemId, _mActive);
+            return PacketCreator.StartMapEffect(m_mMsg, m_mItemId, m_mActive);
         }
 
         public void SendStartData(MapleClient client)

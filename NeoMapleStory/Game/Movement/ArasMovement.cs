@@ -1,16 +1,16 @@
-﻿using NeoMapleStory.Core.IO;
-using System.Drawing;
+﻿using System.Drawing;
+using NeoMapleStory.Core.IO;
 
 namespace NeoMapleStory.Game.Movement
 {
-    public class ArasMovement:AbstractLifeMovement
+    public class ArasMovement : AbstractLifeMovement
     {
-        public short Unk { get; set; }
-
         public ArasMovement(byte type, Point position, short unk, byte newstate)
-        :base(type, position, unk, newstate)
-        { 
+            : base(type, position, unk, newstate)
+        {
         }
+
+        public short Unk { get; set; }
 
         public override void Serialize(OutPacket lew)
         {

@@ -12,6 +12,7 @@ namespace NeoMapleStory.Core.Database.DataModel
 
         [ForeignKey("CharacterId")]
         public virtual CharacterModel CharacterInfo { get; set; }
+
         public int CharacterId { get; set; }
 
         public int ItemId { get; set; }

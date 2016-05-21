@@ -1,159 +1,159 @@
-﻿using NeoMapleStory.Core;
-using NeoMapleStory.Game.Buff;
-using NeoMapleStory.Game.Data;
-using NeoMapleStory.Game.Job;
-using NeoMapleStory.Game.Map;
-using NeoMapleStory.Game.Mob;
-using NeoMapleStory.Game.Skill;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using NeoMapleStory.Core;
+using NeoMapleStory.Game.Buff;
+using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Inventory;
-using NeoMapleStory.Game.World;
+using NeoMapleStory.Game.Job;
+using NeoMapleStory.Game.Map;
+using NeoMapleStory.Game.Mob;
+using NeoMapleStory.Game.Skill;
 using NeoMapleStory.Packet;
 
 namespace NeoMapleStory.Game.Client
 {
-     public class MapleStatEffect
+    public class MapleStatEffect
     {
-        public short _watk, _matk, _wdef, _mdef, _acc, _avoid, _hands, _speed, _jump;
+        public int AttackCount;
+        private int m_bulletCount, m_bulletConsume;
+        public int Cooldown;
+        private List<MapleDisease> m_cureDebuffs;
+        public int Duration;
+        private int m_fixDamage;
 
 
-        private short _hp, _mp;
-        private double _hpR, _mpR;
-        private short _mpCon, _hpCon;
-        public int _duration;
-        private bool _overTime;
-        private int _sourceid;
-        private int _moveTo;
-        private bool _skill;
-        private List<Tuple<MapleBuffStat, int>> _statups;
-        public Dictionary<MonsterStatus, int> _monsterStatus;
+        private short m_hp, m_mp;
+        private double m_hpR, m_mpR;
+        private bool m_isMorph;
+        private int m_itemCon, m_itemConNo;
+        private Point m_lt, m_rb;
+        private int m_mastery, m_range;
+        private int m_mobCount;
+        private int m_moneyCon;
+        public Dictionary<MonsterStatus, int> MonsterStatus;
+        private int m_morphId;
+        private int m_moveTo;
+        public short MpCon, HpCon;
+        private bool m_overTime;
+        private double m_prop;
+        private string m_remark;
+        private object m_ret;
+        private bool m_skill;
+        private int m_sourceid;
+        private List<Tuple<MapleBuffStat, int>> m_statups;
+        public short Watk, Matk, Wdef, Mdef, Acc, Avoid, Hands, Speed, Jump;
+
         public int X { get; private set; }
         public int Y { get; private set; }
         public int Z { get; private set; }
-        private double _prop;
-        private int _itemCon, _itemConNo;
-        private int _fixDamage;
-         public int _damage { get; set; }
-       private int  _attackCount, _bulletCount, _bulletConsume;
-        private Point _lt, _rb;
-        private int _mobCount;
-        private int _moneyCon;
-        private int _cooldown;
-        private bool _isMorph;
-        private int _morphId;
-        private List<MapleDisease> _cureDebuffs;
-        private int _mastery, _range;
-        private string _remark;
-        private object _ret;
-
-        public MapleStatEffect()
-        {
-        }
+        public int Damage { get; set; }
 
         public string GetRemark()
         {
-            return _remark;
+            return m_remark;
         }
 
         public static MapleStatEffect LoadSkillEffectFromData(IMapleData source, int skillid, bool overtime, string lvl)
-        => LoadFromData(source, skillid, true, overtime, "Level " + lvl);
+            => LoadFromData(source, skillid, true, overtime, "Level " + lvl);
 
 
         public static MapleStatEffect LoadItemEffectFromData(IMapleData source, int itemid)
- => LoadFromData(source, itemid, false, false, "");
-        
+            => LoadFromData(source, itemid, false, false, "");
 
-        private static void AddBuffStatTupleToListIfNotZero(List<Tuple<MapleBuffStat, int>> list, MapleBuffStat buffstat, int val)
+
+        private static void AddBuffStatTupleToListIfNotZero(List<Tuple<MapleBuffStat, int>> list, MapleBuffStat buffstat,
+            int val)
         {
-            if (val!= 0)
+            if (val != 0)
             {
                 list.Add(Tuple.Create(buffstat, val));
             }
         }
 
-        private static MapleStatEffect LoadFromData(IMapleData source, int sourceid, bool skill, bool overTime, string remarrk)
+        private static MapleStatEffect LoadFromData(IMapleData source, int sourceid, bool skill, bool overTime,
+            string remarrk)
         {
-            MapleStatEffect ret = new MapleStatEffect();
-            ret._duration = MapleDataTool.ConvertToInt("time", source, -1);
-            ret._hp = (short)MapleDataTool.GetInt("hp", source, 0);
-            ret._hpR = MapleDataTool.GetInt("hpR", source, 0) / 100.0;
-            ret._mp = (short)MapleDataTool.GetInt("mp", source, 0);
-            ret._mpR = MapleDataTool.GetInt("mpR", source, 0) / 100.0;
-            ret._mpCon = (short)MapleDataTool.GetInt("mpCon", source, 0);
-            ret._hpCon = (short)MapleDataTool.GetInt("hpCon", source, 0);
-            int iprop = MapleDataTool.GetInt("prop", source, 100);
-            ret._prop = iprop / 100.0;
-            ret._attackCount = MapleDataTool.GetInt("attackCount", source, 1);
-            ret._mobCount = MapleDataTool.GetInt("mobCount", source, 1);
-            ret._cooldown = MapleDataTool.GetInt("cooltime", source, 0);
-            ret._morphId = MapleDataTool.GetInt("morph", source, 0);
-            ret._isMorph = ret._morphId > 0 ? true : false;
-            ret._remark = remarrk;
-            ret._sourceid = sourceid;
-            ret._skill = skill;
+            var ret = new MapleStatEffect();
+            ret.Duration = MapleDataTool.ConvertToInt("time", source, -1);
+            ret.m_hp = (short) MapleDataTool.GetInt("hp", source, 0);
+            ret.m_hpR = MapleDataTool.GetInt("hpR", source, 0)/100.0;
+            ret.m_mp = (short) MapleDataTool.GetInt("mp", source, 0);
+            ret.m_mpR = MapleDataTool.GetInt("mpR", source, 0)/100.0;
+            ret.MpCon = (short) MapleDataTool.GetInt("mpCon", source, 0);
+            ret.HpCon = (short) MapleDataTool.GetInt("hpCon", source, 0);
+            var iprop = MapleDataTool.GetInt("prop", source, 100);
+            ret.m_prop = iprop/100.0;
+            ret.AttackCount = MapleDataTool.GetInt("attackCount", source, 1);
+            ret.m_mobCount = MapleDataTool.GetInt("mobCount", source, 1);
+            ret.Cooldown = MapleDataTool.GetInt("cooltime", source, 0);
+            ret.m_morphId = MapleDataTool.GetInt("morph", source, 0);
+            ret.m_isMorph = ret.m_morphId > 0 ? true : false;
+            ret.m_remark = remarrk;
+            ret.m_sourceid = sourceid;
+            ret.m_skill = skill;
 
-            if (!ret._skill && ret._duration > -1)
+            if (!ret.m_skill && ret.Duration > -1)
             {
-                ret._overTime = true;
+                ret.m_overTime = true;
             }
-            else {
-                ret._duration *= 1000; // items have their times stored in ms, of course
-                ret._overTime = overTime;
-            }
-
-            List<Tuple<MapleBuffStat, int>> statups = new List<Tuple<MapleBuffStat, int>>();
-
-            ret._watk = (short)MapleDataTool.GetInt("pad", source, 0);
-            ret._wdef = (short)MapleDataTool.GetInt("pdd", source, 0);
-            ret._matk = (short)MapleDataTool.GetInt("mad", source, 0);
-            ret._mdef = (short)MapleDataTool.GetInt("mdd", source, 0);
-            ret._acc = (short)MapleDataTool.ConvertToInt("acc", source, 0);
-            ret._avoid = (short)MapleDataTool.GetInt("eva", source, 0);
-            ret._speed = (short)MapleDataTool.GetInt("speed", source, 0);
-            ret._jump = (short)MapleDataTool.GetInt("jump", source, 0);
-            if (ret._overTime && ret.GetSummonMovementType() == null)
+            else
             {
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Watk, ret._watk);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Wdef, ret._wdef);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Matk, ret._matk);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Mdef, ret._mdef);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Acc, ret._acc);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Avoid, ret._avoid);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Speed, ret._speed);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Jump, ret._jump);
-                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Morph, ret._morphId);
+                ret.Duration *= 1000; // items have their times stored in ms, of course
+                ret.m_overTime = overTime;
             }
 
-            IMapleData ltd = source.GetChildByPath("lt");
+            var statups = new List<Tuple<MapleBuffStat, int>>();
+
+            ret.Watk = (short) MapleDataTool.GetInt("pad", source, 0);
+            ret.Wdef = (short) MapleDataTool.GetInt("pdd", source, 0);
+            ret.Matk = (short) MapleDataTool.GetInt("mad", source, 0);
+            ret.Mdef = (short) MapleDataTool.GetInt("mdd", source, 0);
+            ret.Acc = (short) MapleDataTool.ConvertToInt("acc", source, 0);
+            ret.Avoid = (short) MapleDataTool.GetInt("eva", source, 0);
+            ret.Speed = (short) MapleDataTool.GetInt("speed", source, 0);
+            ret.Jump = (short) MapleDataTool.GetInt("jump", source, 0);
+            if (ret.m_overTime && ret.GetSummonMovementType() == null)
+            {
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Watk, ret.Watk);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Wdef, ret.Wdef);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Matk, ret.Matk);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Mdef, ret.Mdef);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Acc, ret.Acc);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Avoid, ret.Avoid);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Speed, ret.Speed);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Jump, ret.Jump);
+                AddBuffStatTupleToListIfNotZero(statups, MapleBuffStat.Morph, ret.m_morphId);
+            }
+
+            var ltd = source.GetChildByPath("lt");
             if (ltd != null)
             {
-                ret._lt = (Point)ltd.Data;
-                ret._rb = (Point)source.GetChildByPath("rb").Data;
+                ret.m_lt = (Point) ltd.Data;
+                ret.m_rb = (Point) source.GetChildByPath("rb").Data;
             }
 
-            int x = MapleDataTool.GetInt("x", source, 0);
+            var x = MapleDataTool.GetInt("x", source, 0);
             ret.X = x;
             ret.Y = MapleDataTool.GetInt("y", source, 0);
             ret.Z = MapleDataTool.GetInt("z", source, 0);
-            ret._damage = MapleDataTool.ConvertToInt("damage", source, 100);
-            ret._bulletCount = MapleDataTool.ConvertToInt("bulletCount", source, 1);
-            ret._bulletConsume = MapleDataTool.ConvertToInt("bulletConsume", source, 0);
-            ret._moneyCon = MapleDataTool.ConvertToInt("moneyCon", source, 0);
+            ret.Damage = MapleDataTool.ConvertToInt("damage", source, 100);
+            ret.m_bulletCount = MapleDataTool.ConvertToInt("bulletCount", source, 1);
+            ret.m_bulletConsume = MapleDataTool.ConvertToInt("bulletConsume", source, 0);
+            ret.m_moneyCon = MapleDataTool.ConvertToInt("moneyCon", source, 0);
 
-            ret._itemCon = MapleDataTool.GetInt("itemCon", source, 0);
-            ret._itemConNo = MapleDataTool.GetInt("itemConNo", source, 0);
-            ret._fixDamage = MapleDataTool.GetInt("fixdamage", source, 0);
+            ret.m_itemCon = MapleDataTool.GetInt("itemCon", source, 0);
+            ret.m_itemConNo = MapleDataTool.GetInt("itemConNo", source, 0);
+            ret.m_fixDamage = MapleDataTool.GetInt("fixdamage", source, 0);
 
-            ret._moveTo = MapleDataTool.GetInt("moveTo", source, -1);
+            ret.m_moveTo = MapleDataTool.GetInt("moveTo", source, -1);
 
-            ret._mastery = MapleDataTool.ConvertToInt("mastery", source, 0);
-            ret._range = MapleDataTool.ConvertToInt("range", source, 0);
+            ret.m_mastery = MapleDataTool.ConvertToInt("mastery", source, 0);
+            ret.m_range = MapleDataTool.ConvertToInt("range", source, 0);
 
-            List<MapleDisease> localCureDebuffs = new List<MapleDisease>();
+            var localCureDebuffs = new List<MapleDisease>();
 
             if (MapleDataTool.GetInt("poison", source, 0) > 0)
             {
@@ -175,12 +175,13 @@ namespace NeoMapleStory.Game.Client
             {
                 localCureDebuffs.Add(MapleDisease.Curse);
             }
-            ret._cureDebuffs = localCureDebuffs;
+            ret.m_cureDebuffs = localCureDebuffs;
 
-            Dictionary<MonsterStatus, int> monsterStatus = new Dictionary<MonsterStatus, int>();
+            var monsterStatus = new Dictionary<MonsterStatus, int>();
 
             if (skill)
-            { // 出租的,因为我们不能从datafile……
+            {
+                // 出租的,因为我们不能从datafile……
                 switch (sourceid)
                 {
                     case 2001002: // 魔法守卫
@@ -191,10 +192,10 @@ namespace NeoMapleStory.Game.Client
                         statups.Add(Tuple.Create(MapleBuffStat.Invincible, x));
                         break;
                     case 9001004: // 隐藏
-                        ret._duration = 60 * 120 * 1000;
-                        ret._overTime = true;
+                        ret.Duration = 60*120*1000;
+                        ret.m_overTime = true;
                         goto case 14001003;
-                    //夜行者 NIGHT_KNIGHT
+                        //夜行者 NIGHT_KNIGHT
                     case 14001003: // 隐身
                         statups.Add(Tuple.Create(MapleBuffStat.Darksight, x));
                         break;
@@ -216,7 +217,7 @@ namespace NeoMapleStory.Game.Client
                         break;
                     case 3101004: // 灵魂的箭头
                     case 3201004:
-                    case 21120002://战神之舞
+                    case 21120002: //战神之舞
                     case 13101003: //精灵使者-无形箭
                         statups.Add(Tuple.Create(MapleBuffStat.Soularrow, x));
                         break;
@@ -226,28 +227,28 @@ namespace NeoMapleStory.Game.Client
                     case 1211003:
                     case 1211004:
                     case 1211005:
-                    case 1221003://圣灵之剑
-                    case 11101002://终极剑
-                    case 15111006://闪光击
-                    case 1221004://圣灵之锤
+                    case 1221003: //圣灵之剑
+                    case 11101002: //终极剑
+                    case 15111006: //闪光击
+                    case 1221004: //圣灵之锤
                     case 1211006: // 寒冰钝器
-                    case 21111005://冰雪矛
+                    case 21111005: //冰雪矛
                     case 1211007:
 
                     case 1211008:
                     case 15101006:
                         statups.Add(Tuple.Create(MapleBuffStat.WkCharge, x));
                         break;
-                    case 21120007://战神之盾
+                    case 21120007: //战神之盾
                         statups.Add(Tuple.Create(MapleBuffStat.MagicGuard, x));
                         break;
-                    case 21111001://灵巧击退MAGIC_GUARD
+                    case 21111001: //灵巧击退MAGIC_GUARD
                         statups.Add(Tuple.Create(MapleBuffStat.Wdef, x));
                         break;
-                    case 21100005://连环吸血
+                    case 21100005: //连环吸血
                         statups.Add(Tuple.Create(MapleBuffStat.Infinity, x));
                         break;
-                    case 21101003://抗压
+                    case 21101003: //抗压
                         statups.Add(Tuple.Create(MapleBuffStat.Powerguard, x));
                         break;
                     /*case 21111005: //冰雪矛
@@ -286,45 +287,45 @@ namespace NeoMapleStory.Game.Client
                         break;
                     case 1101006: // 愤怒
                     case 11101003: // 愤怒之火
-                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int)ret._wdef));
+                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int) ret.Wdef));
                         goto case 1121010;
                     case 1121010: // enrage
-                        statups.Add(Tuple.Create(MapleBuffStat.Watk, (int)ret._watk));
+                        statups.Add(Tuple.Create(MapleBuffStat.Watk, (int) ret.Watk));
                         break;
                     case 1301006: // iron will
-                        statups.Add(Tuple.Create(MapleBuffStat.Mdef, (int)ret._mdef));
+                        statups.Add(Tuple.Create(MapleBuffStat.Mdef, (int) ret.Mdef));
                         goto case 1001003;
                     case 1001003: // iron body
-                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int)ret._wdef));
+                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int) ret.Wdef));
                         break;
                     case 2001003: // magic armor
-                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int)ret._wdef));
+                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int) ret.Wdef));
                         break;
                     case 2101001: // meditation
                     case 2201001: // meditation
-                        statups.Add(Tuple.Create(MapleBuffStat.Matk, (int)ret._matk));
+                        statups.Add(Tuple.Create(MapleBuffStat.Matk, (int) ret.Matk));
                         break;
                     case 4101004: // 轻功
                     case 4201003: // 轻功
                     case 9001001: // gm轻功
-                        statups.Add(Tuple.Create(MapleBuffStat.Speed, (int)ret._speed));
-                        statups.Add(Tuple.Create(MapleBuffStat.Jump, (int)ret._jump));
+                        statups.Add(Tuple.Create(MapleBuffStat.Speed, (int) ret.Speed));
+                        statups.Add(Tuple.Create(MapleBuffStat.Jump, (int) ret.Jump));
                         break;
                     case 2301004: //祝福 
-                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int)ret._wdef));
-                        statups.Add(Tuple.Create(MapleBuffStat.Mdef, (int)ret._mdef));
+                        statups.Add(Tuple.Create(MapleBuffStat.Wdef, (int) ret.Wdef));
+                        statups.Add(Tuple.Create(MapleBuffStat.Mdef, (int) ret.Mdef));
                         goto case 3001003;
                     case 3001003: //二连射
-                        statups.Add(Tuple.Create(MapleBuffStat.Acc, (int)ret._acc));
-                        statups.Add(Tuple.Create(MapleBuffStat.Avoid, (int)ret._avoid));
+                        statups.Add(Tuple.Create(MapleBuffStat.Acc, (int) ret.Acc));
+                        statups.Add(Tuple.Create(MapleBuffStat.Avoid, (int) ret.Avoid));
                         break;
                     case 9001003: //GM祝福
-                        statups.Add(Tuple.Create(MapleBuffStat.Matk, (int)ret._matk));
+                        statups.Add(Tuple.Create(MapleBuffStat.Matk, (int) ret.Matk));
                         goto case 9001003;
                     case 3121008: // 集中精力
-                        statups.Add(Tuple.Create(MapleBuffStat.Watk, (int)ret._watk));
+                        statups.Add(Tuple.Create(MapleBuffStat.Watk, (int) ret.Watk));
                         break;
-                    case 5001005://疾驰
+                    case 5001005: //疾驰
                         statups.Add(Tuple.Create(MapleBuffStat.Dash, x));
                         statups.Add(Tuple.Create(MapleBuffStat.Jump, ret.Y));
                         goto case 1101007;
@@ -359,7 +360,7 @@ namespace NeoMapleStory.Game.Client
                         statups.Add(Tuple.Create(MapleBuffStat.MonsterRiding, 1));
                         break;
                     case 1311006: //dragon roar
-                        ret._hpR = -x / 100.0;
+                        ret.m_hpR = -x/100.0;
                         break;
                     case 1311008: // dragon blood
                         statups.Add(Tuple.Create(MapleBuffStat.Dragonblood, 1));
@@ -400,7 +401,7 @@ namespace NeoMapleStory.Game.Client
                         statups.Add(Tuple.Create(MapleBuffStat.Summon, 1));
                         break;
                     case 2311003: //神圣祈祷
-                    case 21110000://属性暴击
+                    case 21110000: //属性暴击
                     case 9001002: //GM圣化之力
                         statups.Add(Tuple.Create(MapleBuffStat.HolySymbol, x));
                         break;
@@ -414,10 +415,10 @@ namespace NeoMapleStory.Game.Client
                         break;
                     case 1121002:
                     case 1221002:
-                    case 0000012://精灵的祝福
-                    case 21120004://防守策略
-                    case 21120009://(隐藏) 战神之舞- 双重重击
-                    case 21120010://(隐藏) 战神之舞 - 三重重击
+                    case 0000012: //精灵的祝福
+                    case 21120004: //防守策略
+                    case 21120009: //(隐藏) 战神之舞- 双重重击
+                    case 21120010: //(隐藏) 战神之舞 - 三重重击
                     case 1321002: // Stance
                     case 21121003: //战神的意志
                         statups.Add(Tuple.Create(MapleBuffStat.Stance, iprop));
@@ -441,12 +442,12 @@ namespace NeoMapleStory.Game.Client
                     // -----------------------------飓风把! ----------------------------- //
 
                     case 4001002: //混乱
-                        monsterStatus.Add(MonsterStatus.Watk, ret.X);
-                        monsterStatus.Add(MonsterStatus.Wdef, ret.Y);
+                        monsterStatus.Add(Mob.MonsterStatus.Watk, ret.X);
+                        monsterStatus.Add(Mob.MonsterStatus.Wdef, ret.Y);
                         break;
                     case 1201006: // threaten
-                        monsterStatus.Add(MonsterStatus.Watk, ret.X);
-                        monsterStatus.Add(MonsterStatus.Wdef, ret.Y);
+                        monsterStatus.Add(Mob.MonsterStatus.Watk, ret.X);
+                        monsterStatus.Add(Mob.MonsterStatus.Wdef, ret.Y);
                         break;
                     case 1211002: // charged blow
                     case 1111008: // shout
@@ -466,18 +467,18 @@ namespace NeoMapleStory.Game.Client
                     case 5121007: // Barrage
                     case 5201004: // pirate blank shot 
                     case 11111003:
-                        monsterStatus.Add(MonsterStatus.Stun, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Stun, 1);
                         break;
                     case 4121003:
                     case 4221003:
-                        monsterStatus.Add(MonsterStatus.Taunt, ret.X);
-                        monsterStatus.Add(MonsterStatus.Mdef, ret.X);
-                        monsterStatus.Add(MonsterStatus.Wdef, ret.X);
+                        monsterStatus.Add(Mob.MonsterStatus.Taunt, ret.X);
+                        monsterStatus.Add(Mob.MonsterStatus.Mdef, ret.X);
+                        monsterStatus.Add(Mob.MonsterStatus.Wdef, ret.X);
                         break;
                     case 4121004: // Ninja ambush
-                    case 4221004://忍者伏击
-                                 //int damage = 2 * (c.GetPlayer().GetStr() + c.GetPlayer().GetLuk()) * (ret.damage / 100);
-                        monsterStatus.Add(MonsterStatus.NinjaAmbush, 1);
+                    case 4221004: //忍者伏击
+                        //int damage = 2 * (c.GetPlayer().GetStr() + c.GetPlayer().GetLuk()) * (ret.damage / 100);
+                        monsterStatus.Add(Mob.MonsterStatus.NinjaAmbush, 1);
                         break;
                     case 2201004: // 冰冻术
                     case 20001013:
@@ -487,82 +488,82 @@ namespace NeoMapleStory.Game.Client
                     case 3211003: // blizzard
                     case 2211006: // il elemental compo
                     case 2221007: // 落霜冰破
-                    case 21120006://星辰
+                    case 21120006: //星辰
                     case 5211005: // Ice Splitter
                     case 2121006: // Paralyze
-                        monsterStatus.Add(MonsterStatus.Freeze, 1);
-                        ret._duration *= 2; // 冰冻的时间
+                        monsterStatus.Add(Mob.MonsterStatus.Freeze, 1);
+                        ret.Duration *= 2; // 冰冻的时间
                         break;
                     case 2121003: // fire demon
                     case 2221003: // ice demon
-                        monsterStatus.Add(MonsterStatus.Poison, 1);
-                        monsterStatus.Add(MonsterStatus.Freeze, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Poison, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Freeze, 1);
                         break;
                     case 2101003: // fp slow
                     case 2201003: // il slow
-                        monsterStatus.Add(MonsterStatus.Speed, ret.X);
+                        monsterStatus.Add(Mob.MonsterStatus.Speed, ret.X);
                         break;
                     case 2101005: // poison breath
                     case 2111006: // fp elemental compo
-                        monsterStatus.Add(MonsterStatus.Poison, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Poison, 1);
                         break;
                     case 2311005:
-                        monsterStatus.Add(MonsterStatus.Doom, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Doom, 1);
                         break;
                     case 3111005: // golden hawk
                     case 3211005: // golden eagle
                     case 13111004:
                         statups.Add(Tuple.Create(MapleBuffStat.Summon, 1));
-                        monsterStatus.Add(MonsterStatus.Stun, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Stun, 1);
                         break;
                     case 2121005: // elquines
                     case 3221005: // frostprey
                         statups.Add(Tuple.Create(MapleBuffStat.Summon, 1));
-                        monsterStatus.Add(MonsterStatus.Freeze, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Freeze, 1);
                         break;
                     case 2111004: // fp seal
                     case 2211004: // il seal
                     case 12111002:
-                        monsterStatus.Add(MonsterStatus.Seal, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Seal, 1);
                         break;
                     case 4111003: // shadow web
                     case 14111001:
-                        monsterStatus.Add(MonsterStatus.ShadowWeb, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.ShadowWeb, 1);
                         break;
                     case 3121007: // Hamstring
                         statups.Add(Tuple.Create(MapleBuffStat.Hamstring, x));
-                        monsterStatus.Add(MonsterStatus.Speed, x);
+                        monsterStatus.Add(Mob.MonsterStatus.Speed, x);
                         break;
                     case 3221006: // Blind
                         statups.Add(Tuple.Create(MapleBuffStat.Blind, x));
-                        monsterStatus.Add(MonsterStatus.Acc, x);
+                        monsterStatus.Add(Mob.MonsterStatus.Acc, x);
                         break;
                     case 5221009:
-                        monsterStatus.Add(MonsterStatus.Hypnotized, 1);
+                        monsterStatus.Add(Mob.MonsterStatus.Hypnotized, 1);
                         break;
                     default:
                         break;
                 }
             }
 
-            if (ret._isMorph && !ret.IsPirateMorph())
+            if (ret.m_isMorph && !ret.IsPirateMorph())
             {
-                statups.Add(Tuple.Create(MapleBuffStat.Morph, ret._morphId));
+                statups.Add(Tuple.Create(MapleBuffStat.Morph, ret.m_morphId));
             }
 
-            ret._monsterStatus = monsterStatus;
+            ret.MonsterStatus = monsterStatus;
 
             statups.TrimExcess();
-            ret._statups = statups;
+            ret.m_statups = statups;
 
             return ret;
         }
 
-        public void applyPassive(MapleCharacter applyto, IMapleMapObject obj, int attack)
+        public void ApplyPassive(MapleCharacter applyto, IMapleMapObject obj, int attack)
         {
             if (MakeChanceResult())
             {
-                switch (_sourceid)
+                switch (m_sourceid)
                 {
                     // MP eater
                     case 2100000:
@@ -572,17 +573,18 @@ namespace NeoMapleStory.Game.Client
                         {
                             return;
                         }
-                        MapleMonster mob = (MapleMonster)obj;
+                        var mob = (MapleMonster) obj;
                         // x is absorb percentage
                         if (!mob.IsBoss)
                         {
-                            int absorbMp = Math.Min((int)(mob.MaxMp * (X / 100.0)), mob.Mp);
+                            var absorbMp = Math.Min((int) (mob.MaxMp*(X/100.0)), mob.Mp);
                             if (absorbMp > 0)
                             {
                                 mob.Mp -= absorbMp;
                                 applyto.Mp += (short) absorbMp;
-                                applyto.Client.Send(PacketCreator.ShowOwnBuffEffect(_sourceid, 1));
-                                applyto.Map.BroadcastMessage(applyto, PacketCreator.ShowBuffeffect(applyto.Id, _sourceid, 1, 3), false);
+                                applyto.Client.Send(PacketCreator.ShowOwnBuffEffect(m_sourceid, 1));
+                                applyto.Map.BroadcastMessage(applyto,
+                                    PacketCreator.ShowBuffeffect(applyto.Id, m_sourceid, 1, 3), false);
                             }
                         }
                         break;
@@ -590,37 +592,37 @@ namespace NeoMapleStory.Game.Client
             }
         }
 
-        public bool applyTo(MapleCharacter chr)
+        public bool ApplyTo(MapleCharacter chr)
         {
-            return applyTo(chr, chr, true, null);
+            return ApplyTo(chr, chr, true, null);
         }
 
-        public bool applyTo(MapleCharacter chr, Point pos)
+        public bool ApplyTo(MapleCharacter chr, Point pos)
         {
-            return applyTo(chr, chr, true, pos);
+            return ApplyTo(chr, chr, true, pos);
         }
 
-        private bool applyTo(MapleCharacter applyfrom, MapleCharacter applyto, bool primary, Point? pos)
+        private bool ApplyTo(MapleCharacter applyfrom, MapleCharacter applyto, bool primary, Point? pos)
         {
-            int hpchange = CalcHpChange(applyfrom, primary);
-            int mpchange = CalcMpChange(applyfrom, primary);
+            var hpchange = CalcHpChange(applyfrom, primary);
+            var mpchange = CalcMpChange(applyfrom, primary);
 
             if (primary)
             {
-                if (_itemConNo != 0)
+                if (m_itemConNo != 0)
                 {
-                    MapleInventoryType type = MapleItemInformationProvider.Instance.GetInventoryType(_itemCon);
-                    MapleInventoryManipulator.RemoveById(applyto.Client, type, _itemCon, _itemConNo, false, true);
+                    var type = MapleItemInformationProvider.Instance.GetInventoryType(m_itemCon);
+                    MapleInventoryManipulator.RemoveById(applyto.Client, type, m_itemCon, m_itemConNo, false, true);
                 }
             }
-            if (_cureDebuffs.Any())
+            if (m_cureDebuffs.Any())
             {
-                foreach (MapleDisease debuff in _cureDebuffs)
+                foreach (var debuff in m_cureDebuffs)
                 {
                     applyfrom.DispelDebuff(debuff);
                 }
             }
-            List<Tuple<MapleStat, int>> hpmpupdate = new List<Tuple<MapleStat, int>>(2);
+            var hpmpupdate = new List<Tuple<MapleStat, int>>(2);
             if (!primary && IsResurrection())
             {
                 hpchange = applyto.MaxHp;
@@ -636,35 +638,35 @@ namespace NeoMapleStory.Game.Client
             }
             if (hpchange != 0)
             {
-                if (hpchange < 0 && (-hpchange) > applyto.Hp)
+                if (hpchange < 0 && -hpchange > applyto.Hp)
                 {
                     return false;
                 }
-                int newHp = applyto.Hp + hpchange;
+                var newHp = applyto.Hp + hpchange;
                 if (newHp < 1)
                 {
                     newHp = 1;
                 }
-                applyto.Hp = (short)newHp;
+                applyto.Hp = (short) newHp;
                 hpmpupdate.Add(new Tuple<MapleStat, int>(MapleStat.Hp, applyto.Hp));
             }
             if (mpchange != 0)
             {
-                if (mpchange < 0 && (-mpchange) > applyto.Mp)
+                if (mpchange < 0 && -mpchange > applyto.Mp)
                 {
                     return false;
                 }
-                applyto.Mp += (short)mpchange;
+                applyto.Mp += (short) mpchange;
                 hpmpupdate.Add(new Tuple<MapleStat, int>(MapleStat.Mp, applyto.Mp));
             }
 
             applyto.Client.Send(PacketCreator.UpdatePlayerStats(hpmpupdate, true));
 
-            if (_moveTo != -1)
+            if (m_moveTo != -1)
             {
                 MapleMap target = null;
-                bool nearest = false;
-                if (_moveTo == 999999999)
+                var nearest = false;
+                if (m_moveTo == 999999999)
                 {
                     nearest = true;
                     if (applyto.Map.ReturnMapId != 999999999)
@@ -674,9 +676,9 @@ namespace NeoMapleStory.Game.Client
                 }
                 else
                 {
-                    target = applyto.Client.ChannelServer.MapFactory.GetMap(_moveTo);
-                    int targetMapId = target.MapId / 10000000;
-                    int charMapId = applyto.Map.MapId / 10000000;
+                    target = applyto.Client.ChannelServer.MapFactory.GetMap(m_moveTo);
+                    var targetMapId = target.MapId/10000000;
+                    var charMapId = applyto.Map.MapId/10000000;
                     if (targetMapId != 60 && charMapId != 61)
                     {
                         if (targetMapId != 21 && charMapId != 20)
@@ -687,7 +689,8 @@ namespace NeoMapleStory.Game.Client
                                 {
                                     if (targetMapId != charMapId)
                                     {
-                                        Console.WriteLine("人物 {0} 尝试回到一个非法的位置 ({1}->{2})", applyto.Name, applyto.Map.MapId, target.MapId);
+                                        Console.WriteLine("人物 {0} 尝试回到一个非法的位置 ({1}->{2})", applyto.Name,
+                                            applyto.Map.MapId, target.MapId);
                                         applyto.Client.Close();
                                         return false;
                                     }
@@ -703,15 +706,16 @@ namespace NeoMapleStory.Game.Client
             }
             if (IsShadowClaw())
             {
-                MapleInventory use = applyto.Inventorys[MapleInventoryType.Use.Value];
-                MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
-                int projectile = 0;
-                for (int i = 0; i < 255; i++)
-                { // impose order...
+                var use = applyto.Inventorys[MapleInventoryType.Use.Value];
+                var mii = MapleItemInformationProvider.Instance;
+                var projectile = 0;
+                for (var i = 0; i < 255; i++)
+                {
+                    // impose order...
                     IMapleItem item;
                     if (use.Inventory.TryGetValue(1, out item))
                     {
-                        bool isStar = mii.IsThrowingStar(item.ItemId);
+                        var isStar = mii.IsThrowingStar(item.ItemId);
                         if (isStar && item.Quantity >= 200)
                         {
                             projectile = item.ItemId;
@@ -723,34 +727,32 @@ namespace NeoMapleStory.Game.Client
                 {
                     return false;
                 }
-                else
-                {
-                    MapleInventoryManipulator.RemoveById(applyto.Client, MapleInventoryType.Use, projectile, 200, false, true);
-                }
+                MapleInventoryManipulator.RemoveById(applyto.Client, MapleInventoryType.Use, projectile, 200, false,
+                    true);
             }
-            if (_overTime)
+            if (m_overTime)
             {
-                applyBuffEffect(applyfrom, applyto, primary);
+                ApplyBuffEffect(applyfrom, applyto, primary);
             }
-            if (primary && (_overTime || IsHeal()))
+            if (primary && (m_overTime || IsHeal()))
             {
-                applyBuff(applyfrom);
+                ApplyBuff(applyfrom);
             }
             if (primary && IsMonsterBuff())
             {
-                applyMonsterBuff(applyfrom);
+                ApplyMonsterBuff(applyfrom);
             }
 
-            SummonMovementType? summonMovementType = GetSummonMovementType();
+            var summonMovementType = GetSummonMovementType();
             if (summonMovementType.HasValue && pos != null)
             {
-                MapleSummon tosummon = new MapleSummon(applyfrom, _sourceid, pos.Value, summonMovementType.Value);
+                var tosummon = new MapleSummon(applyfrom, m_sourceid, pos.Value, summonMovementType.Value);
                 if (!tosummon.IsPuppet())
                 {
                     applyfrom.AntiCheatTracker.ResetSummonAttack();
                 }
                 applyfrom.Map.SpawnSummon(tosummon);
-                applyfrom.Summons.Add(_sourceid, tosummon);
+                applyfrom.Summons.Add(m_sourceid, tosummon);
                 tosummon.Hp += X;
                 if (IsBeholder())
                 {
@@ -781,7 +783,7 @@ namespace NeoMapleStory.Game.Client
             //}
             if (IsTimeLeap())
             {
-                foreach (PlayerCoolDownValueHolder i in applyto.GetAllCooldowns())
+                foreach (var i in applyto.GetAllCooldowns())
                 {
                     if (i.SkillId != 5121010)
                     {
@@ -800,7 +802,7 @@ namespace NeoMapleStory.Game.Client
                 {
                     applyto.Client.Send(PacketCreator.GiveGmHide(false));
                     applyto.Map.BroadcastMessage(applyto, PacketCreator.SpawnPlayerMapobject(applyto), false);
-                    foreach (MaplePet pet in applyto.Pets)
+                    foreach (var pet in applyto.Pets)
                     {
                         if (pet != null)
                         {
@@ -812,69 +814,76 @@ namespace NeoMapleStory.Game.Client
             return true;
         }
 
-        public bool applyReturnScroll(MapleCharacter applyto)
+        public bool ApplyReturnScroll(MapleCharacter applyto)
         {
-            if (_moveTo != -1)
+            if (m_moveTo != -1)
             {
                 if (applyto.Map.ReturnMapId != applyto.Map.MapId)
                 {
                     MapleMap target;
-                    if (_moveTo == 999999999)
+                    if (m_moveTo == 999999999)
                     {
                         target = applyto.Map.ReturnMap;
                     }
                     else
                     {
-                        target = applyto.Client.ChannelServer.MapFactory.GetMap(_moveTo);
-                        if (target.MapId / 10000000 != 60 && applyto.Id / 10000000 != 61)
+                        target = applyto.Client.ChannelServer.MapFactory.GetMap(m_moveTo);
+                        if (target.MapId/10000000 != 60 && applyto.Id/10000000 != 61)
                         {
-                            if (target.MapId / 10000000 != 21 && applyto.Map.MapId / 10000000 != 20)
+                            if (target.MapId/10000000 != 21 && applyto.Map.MapId/10000000 != 20)
                             {
-                                if (target.MapId / 10000000 != applyto.Map.MapId / 10000000)
+                                if (target.MapId/10000000 != applyto.Map.MapId/10000000)
                                 {
                                     return false;
                                 }
                             }
                         }
                     }
-                    applyto.changeMap(target, target.getPortal(0));
+                    applyto.ChangeMap(target, target.GetPortal(0));
                     return true;
                 }
             }
             return false;
         }
 
-        private void applyBuff(MapleCharacter applyfrom)
+        private void ApplyBuff(MapleCharacter applyfrom)
         {
             if (IsPartyBuff() && (applyfrom.Party != null || IsGmBuff()))
             {
-                Rectangle bounds = calculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
-                List<IMapleMapObject> affecteds = applyfrom.Map.getMapObjectsInRect(bounds,
+                var bounds = CalculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
+                var affecteds = applyfrom.Map.GetMapObjectsInRect(bounds,
                     new List<MapleMapObjectType> {MapleMapObjectType.Player});
 
-                List<MapleCharacter> affectedp = new List<MapleCharacter>(affecteds.Count);
-                foreach (IMapleMapObject affectedmo in affecteds)
+                var affectedp = new List<MapleCharacter>(affecteds.Count);
+                foreach (var affectedmo in affecteds)
                 {
-                    MapleCharacter affected = (MapleCharacter)affectedmo;
+                    var affected = (MapleCharacter) affectedmo;
                     //this is new and weird...
-                    if (affected != null && IsHeal() && affected != applyfrom && affected.Party == applyfrom.Party && affected.IsAlive)
+                    if (affected != null && IsHeal() && affected != applyfrom && affected.Party == applyfrom.Party &&
+                        affected.IsAlive)
                     {
-                        int expadd = (int)((CalcHpChange(applyfrom, true) / 10) * (applyfrom.Client.ChannelServer.ExpRate + (Randomizer.NextDouble() * 10 + 30)) * (Math.Floor(Randomizer.NextDouble() * (applyfrom.getSkillLevel(SkillFactory.GetSkill(2301002))) / 100) * (applyfrom.Level / 30)));
-                        if (affected.Hp < affected.MaxHp - affected.MaxHp / 20)
+                        var expadd =
+                            (int)
+                                (CalcHpChange(applyfrom, true)/10*
+                                 (applyfrom.Client.ChannelServer.ExpRate + (Randomizer.NextDouble()*10 + 30))*
+                                 (Math.Floor(Randomizer.NextDouble()*
+                                             applyfrom.GetSkillLevel(SkillFactory.GetSkill(2301002))/100)*
+                                  (applyfrom.Level/30)));
+                        if (affected.Hp < affected.MaxHp - affected.MaxHp/20)
                         {
-                            applyfrom.gainExp(expadd, true, false, false);
+                            applyfrom.GainExp(expadd, true, false, false);
                         }
                     }
                     if (affected != applyfrom && (IsGmBuff() || applyfrom.Party.Equals(affected?.Party)))
                     {
-                        bool isRessurection = IsResurrection();
+                        var isRessurection = IsResurrection();
                         if ((isRessurection && !affected.IsAlive) || (!isRessurection && affected.IsAlive))
                         {
                             affectedp.Add(affected);
                         }
                         if (IsTimeLeap())
                         {
-                            foreach (PlayerCoolDownValueHolder i in affected.GetAllCooldowns())
+                            foreach (var i in affected.GetAllCooldowns())
                             {
                                 if (i.SkillId != 5121010)
                                 {
@@ -884,80 +893,83 @@ namespace NeoMapleStory.Game.Client
                         }
                     }
                 }
-                foreach (MapleCharacter affected in affectedp)
+                foreach (var affected in affectedp)
                 {
                     // TODO actually heal (and others) shouldn't recalculate everything
                     // for heal this is an actual bug since heal hp is decreased with the number
                     // of affected players
-                    applyTo(applyfrom, affected, false, null);
-                    affected.Client.Send(PacketCreator.ShowOwnBuffEffect(_sourceid, 2));
-                    affected.Map.BroadcastMessage(affected,PacketCreator.ShowBuffeffect(affected.Id, _sourceid, 2, 3), false);
+                    ApplyTo(applyfrom, affected, false, null);
+                    affected.Client.Send(PacketCreator.ShowOwnBuffEffect(m_sourceid, 2));
+                    affected.Map.BroadcastMessage(affected, PacketCreator.ShowBuffeffect(affected.Id, m_sourceid, 2, 3),
+                        false);
                 }
             }
         }
 
-        private void applyMonsterBuff(MapleCharacter applyfrom)
+        private void ApplyMonsterBuff(MapleCharacter applyfrom)
         {
-            Rectangle bounds = calculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
-           var affected = applyfrom.Map.getMapObjectsInRect(bounds, new List<MapleMapObjectType> {MapleMapObjectType.Monster});
-            ISkill skill_ = SkillFactory.GetSkill(_sourceid);
-            int i = 0;
-            foreach (IMapleMapObject mo in affected)
+            var bounds = CalculateBoundingBox(applyfrom.Position, applyfrom.IsFacingLeft);
+            var affected = applyfrom.Map.GetMapObjectsInRect(bounds,
+                new List<MapleMapObjectType> {MapleMapObjectType.Monster});
+            var skill = SkillFactory.GetSkill(m_sourceid);
+            var i = 0;
+            foreach (var mo in affected)
             {
-                MapleMonster monster = (MapleMonster)mo;
+                var monster = (MapleMonster) mo;
                 if (MakeChanceResult())
                 {
-                    monster.applyStatus(applyfrom, new MonsterStatusEffect(_monsterStatus, skill_, false), IsPoison(), _duration);
+                    monster.ApplyStatus(applyfrom, new MonsterStatusEffect(MonsterStatus, skill, false), IsPoison(),
+                        Duration);
                 }
                 i++;
-                if (i >= _mobCount)
+                if (i >= m_mobCount)
                 {
                     break;
                 }
             }
         }
 
-        private Rectangle calculateBoundingBox(Point posFrom, bool facingLeft)
+        private Rectangle CalculateBoundingBox(Point posFrom, bool facingLeft)
         {
             Point mylt;
             Point myrb;
             if (facingLeft)
             {
-                mylt = new Point(_lt.X + posFrom.X, _lt.Y + posFrom.Y);
-                myrb = new Point(_rb.X + posFrom.X, _rb.Y + posFrom.Y);
+                mylt = new Point(m_lt.X + posFrom.X, m_lt.Y + posFrom.Y);
+                myrb = new Point(m_rb.X + posFrom.X, m_rb.Y + posFrom.Y);
             }
             else
             {
-                myrb = new Point(_lt.X * -1 + posFrom.X, _rb.Y + posFrom.Y);
-                mylt = new Point(_rb.X * -1 + posFrom.X, _lt.Y + posFrom.Y);
+                myrb = new Point(m_lt.X*-1 + posFrom.X, m_rb.Y + posFrom.Y);
+                mylt = new Point(m_rb.X*-1 + posFrom.X, m_lt.Y + posFrom.Y);
             }
-            Rectangle bounds = new Rectangle(mylt.X, mylt.Y, myrb.X - mylt.X, myrb.Y - mylt.Y);
+            var bounds = new Rectangle(mylt.X, mylt.Y, myrb.X - mylt.X, myrb.Y - mylt.Y);
             return bounds;
         }
 
-        public void silentApplyBuff(MapleCharacter chr, int starttime)
+        public void SilentApplyBuff(MapleCharacter chr, int starttime)
         {
-            int localDuration = _duration;
+            var localDuration = Duration;
             localDuration = AlchemistModifyVal(chr, localDuration, false);
-            CancelEffectAction cancelAction = new CancelEffectAction(chr, this, starttime);
+            var cancelAction = new CancelEffectAction(chr, this, starttime);
 
-            var schedule = TimerManager.Instance.RunOnceTask(cancelAction.run, starttime + localDuration);
-            chr.registerEffect(this, starttime, schedule);
+            var schedule = TimerManager.Instance.RunOnceTask(cancelAction.Run, starttime + localDuration);
+            chr.RegisterEffect(this, starttime, schedule);
 
-            SummonMovementType? summonMovementType = GetSummonMovementType();
+            var summonMovementType = GetSummonMovementType();
             if (summonMovementType.HasValue)
             {
-                MapleSummon tosummon = new MapleSummon(chr, _sourceid, chr.Position, summonMovementType.Value);
+                var tosummon = new MapleSummon(chr, m_sourceid, chr.Position, summonMovementType.Value);
                 if (!tosummon.IsPuppet())
                 {
                     chr.AntiCheatTracker.ResetSummonAttack();
-                    chr.Summons.Add(_sourceid, tosummon);
+                    chr.Summons.Add(m_sourceid, tosummon);
                     tosummon.Hp += X;
                 }
             }
         }
 
-        private void applyBuffEffect(MapleCharacter applyfrom, MapleCharacter applyto, bool primary)
+        private void ApplyBuffEffect(MapleCharacter applyfrom, MapleCharacter applyto, bool primary)
         {
             //if (!isMonsterRiding())
             //{
@@ -1108,94 +1120,99 @@ namespace NeoMapleStory.Game.Client
 
         private int CalcHpChange(MapleCharacter applyfrom, bool primary)
         {
-            int hpchange = 0;
-            if (_hp != 0)
+            var hpchange = 0;
+            if (m_hp != 0)
             {
-                if (!_skill)
+                if (!m_skill)
                 {
                     if (primary)
                     {
-                        hpchange += AlchemistModifyVal(applyfrom, _hp, true);
+                        hpchange += AlchemistModifyVal(applyfrom, m_hp, true);
                     }
-                    else {
-                        hpchange += _hp;
+                    else
+                    {
+                        hpchange += m_hp;
                     }
                 }
-                else { // assumption: this is heal
-                    hpchange += MakeHealHp(_hp / 100.0, applyfrom.Magic, 3, 5);
+                else
+                {
+                    // assumption: this is heal
+                    hpchange += MakeHealHp(m_hp/100.0, applyfrom.Magic, 3, 5);
                 }
             }
-            if (_hpR != 0)
+            if (m_hpR != 0)
             {
-                hpchange += (int)(applyfrom.Localmaxhp * _hpR);
+                hpchange += (int) (applyfrom.Localmaxhp*m_hpR);
                 //applyfrom.checkBerserk();
             }
             if (primary)
             {
-                if (_hpCon != 0)
+                if (HpCon != 0)
                 {
-                    hpchange -= _hpCon;
+                    hpchange -= HpCon;
                 }
             }
             if (IsChakra())
             {
-                hpchange += MakeHealHp(Y / 100.0, applyfrom.Luk, 2.3, 3.5);
+                hpchange += MakeHealHp(Y/100.0, applyfrom.Luk, 2.3, 3.5);
             }
             if (IsPirateMpRecovery())
             {
-                hpchange -= (int)(Y / 100.0 * applyfrom.Localmaxhp);
+                hpchange -= (int) (Y/100.0*applyfrom.Localmaxhp);
             }
             return hpchange;
         }
 
         private int MakeHealHp(double rate, double stat, double lowerfactor, double upperfactor)
         {
-            int maxHeal = (int)(stat * upperfactor * rate);
-            int minHeal = (int)(stat * lowerfactor * rate);
-            return (int)(Randomizer.NextDouble() * (maxHeal - minHeal + 1) + minHeal);
+            var maxHeal = (int) (stat*upperfactor*rate);
+            var minHeal = (int) (stat*lowerfactor*rate);
+            return (int) (Randomizer.NextDouble()*(maxHeal - minHeal + 1) + minHeal);
         }
 
         private int CalcMpChange(MapleCharacter applyfrom, bool primary)
         {
-            int mpchange = 0;
-            if (_mp != 0)
+            var mpchange = 0;
+            if (m_mp != 0)
             {
                 if (primary)
                 {
-                    mpchange += AlchemistModifyVal(applyfrom, _mp, true);
+                    mpchange += AlchemistModifyVal(applyfrom, m_mp, true);
                 }
-                else {
-                    mpchange += _mp;
+                else
+                {
+                    mpchange += m_mp;
                 }
             }
-            if (_mpR != 0)
+            if (m_mpR != 0)
             {
-                mpchange += (int)(applyfrom.Localmaxmp * _mpR);
+                mpchange += (int) (applyfrom.Localmaxmp*m_mpR);
             }
             if (primary)
             {
-                if (_mpCon != 0)
+                if (MpCon != 0)
                 {
-                    double mod = 1.0;
-                    bool isAFpMage = applyfrom.Job== MapleJob.FpMage;
-                    if (isAFpMage || applyfrom.Job== MapleJob.IlMage)
+                    var mod = 1.0;
+                    var isAFpMage = applyfrom.Job == MapleJob.FpMage;
+                    if (isAFpMage || applyfrom.Job == MapleJob.IlMage)
                     {
                         ISkill amp;
                         if (isAFpMage)
                         {
                             amp = SkillFactory.GetSkill(2110001);
                         }
-                        else {
+                        else
+                        {
                             amp = SkillFactory.GetSkill(2210001);
                         }
-                        int ampLevel = applyfrom.getSkillLevel(amp);
+                        var ampLevel = applyfrom.GetSkillLevel(amp);
                         if (ampLevel > 0)
                         {
-                            MapleStatEffect ampStat = amp.GetEffect(ampLevel);
-                            mod = ampStat.X / 100.0;
+                            var ampStat = amp.GetEffect(ampLevel);
+                            mod = ampStat.X/100.0;
                         }
                     }
-                    mpchange -= (int)(_mpCon * mod);
+                    mpchange -= (int) (MpCon*mod);
                     if (applyfrom.GetBuffedValue(MapleBuffStat.Infinity) != null)
                     {
                         mpchange = 0;
@@ -1204,19 +1221,19 @@ namespace NeoMapleStory.Game.Client
             }
             if (IsPirateMpRecovery())
             {
-                mpchange += (int)(Y * X / 10000.0 * applyfrom.Localmaxhp);
+                mpchange += (int) (Y*X/10000.0*applyfrom.Localmaxhp);
             }
             return mpchange;
         }
 
         private int AlchemistModifyVal(MapleCharacter chr, int val, bool withX)
         {
-            if (!_skill && (chr.Job==MapleJob.Hermit || chr.Job==MapleJob.Nightlord))
+            if (!m_skill && (chr.Job == MapleJob.Hermit || chr.Job == MapleJob.Nightlord))
             {
-                MapleStatEffect alchemistEffect = GetAlchemistEffect(chr);
+                var alchemistEffect = GetAlchemistEffect(chr);
                 if (alchemistEffect != null)
                 {
-                    return (int)(val * ((withX ? alchemistEffect.X : alchemistEffect.Y) / 100.0));
+                    return (int) (val*((withX ? alchemistEffect.X : alchemistEffect.Y)/100.0));
                 }
             }
             return val;
@@ -1224,8 +1241,8 @@ namespace NeoMapleStory.Game.Client
 
         private MapleStatEffect GetAlchemistEffect(MapleCharacter chr)
         {
-            ISkill alchemist = SkillFactory.GetSkill(4110000);
-            int alchemistLevel = chr.getSkillLevel(alchemist);
+            var alchemist = SkillFactory.GetSkill(4110000);
+            var alchemistLevel = chr.GetSkillLevel(alchemist);
             if (alchemistLevel == 0)
             {
                 return null;
@@ -1235,12 +1252,12 @@ namespace NeoMapleStory.Game.Client
 
         public void SetSourceId(int newid)
         {
-            _sourceid = newid;
+            m_sourceid = newid;
         }
 
         private bool IsGmBuff()
         {
-            switch (_sourceid)
+            switch (m_sourceid)
             {
                 case 1005: // echo of hero acts like a gm buff
                 case 9001000:
@@ -1257,11 +1274,11 @@ namespace NeoMapleStory.Game.Client
 
         private bool IsMonsterBuff()
         {
-            if (!_skill)
+            if (!m_skill)
             {
                 return false;
             }
-            switch (_sourceid)
+            switch (m_sourceid)
             {
                 case 1201006: // threaten
                 case 2101003: // fp slow
@@ -1279,27 +1296,27 @@ namespace NeoMapleStory.Game.Client
 
         private bool IsPartyBuff()
         {
-            if ((_lt == null) || (_rb == null))
+            if ((m_lt == null) || (m_rb == null))
             {
                 return false;
             }
 
-            return ((_sourceid < 1211003) || (_sourceid > 1211008)) && (_sourceid != 1221003) && (_sourceid != 1221004);
+            return ((m_sourceid < 1211003) || (m_sourceid > 1211008)) && (m_sourceid != 1221003) && (m_sourceid != 1221004);
         }
 
         public bool IsHeal()
         {
-            return _sourceid == 2301002 || _sourceid == 9001000;
+            return m_sourceid == 2301002 || m_sourceid == 9001000;
         }
 
         public bool IsResurrection()
         {
-            return _sourceid == 9001005 || _sourceid == 2321006;
+            return m_sourceid == 9001005 || m_sourceid == 2321006;
         }
 
         public bool IsTimeLeap()
         {
-            return _sourceid == 5121010;
+            return m_sourceid == 5121010;
         }
 
         public bool IsInfusion()
@@ -1309,149 +1326,158 @@ namespace NeoMapleStory.Game.Client
 
         public bool IsOverTime()
         {
-            return _overTime;
+            return m_overTime;
         }
 
         public List<Tuple<MapleBuffStat, int>> GetStatups()
         {
-            return _statups;
+            return m_statups;
         }
 
         public bool SameSource(MapleStatEffect effect)
         {
-            return _sourceid == effect._sourceid && _skill == effect._skill;
+            return m_sourceid == effect.m_sourceid && m_skill == effect.m_skill;
         }
 
         public bool IsHide()
         {
-            return _skill && _sourceid == 9001004;
+            return m_skill && m_sourceid == 9001004;
         }
 
         public bool IsDragonBlood()
         {
-            return _skill && _sourceid == 1311008;
+            return m_skill && m_sourceid == 1311008;
         }
 
         public bool IsBerserk()
         {
-            return _skill && _sourceid == 1320006;
+            return m_skill && m_sourceid == 1320006;
         }
 
         private bool IsDs()
         {
-            return _skill && _sourceid == 4001003;
+            return m_skill && m_sourceid == 4001003;
         }
 
         private bool IsCombo()
         {
-            return (_skill && _sourceid == 1111002) || (_skill && _sourceid == 11111001);
+            return (m_skill && m_sourceid == 1111002) || (m_skill && m_sourceid == 11111001);
         }
 
         private bool IsEnrage()
         {
-            return _skill && _sourceid == 1121010;
+            return m_skill && m_sourceid == 1121010;
         }
 
         public bool IsBeholder()
         {
-            return _skill && _sourceid == 1321007;
+            return m_skill && m_sourceid == 1321007;
         }
 
         private bool IsShadowPartner()
         {
-            return _skill && _sourceid == 4111002;
+            return m_skill && m_sourceid == 4111002;
         }
 
         private bool IsChakra()
         {
-            return _skill && _sourceid == 4211001;
+            return m_skill && m_sourceid == 4211001;
         }
 
         private bool IsPirateMpRecovery()
         {
-            return _skill && _sourceid == 5101005;
+            return m_skill && m_sourceid == 5101005;
         }
 
         public bool IsMonsterRiding()
         {
-            return _skill && (_sourceid % 20000000 == 1004 || _sourceid == 5221006);
+            return m_skill && (m_sourceid%20000000 == 1004 || m_sourceid == 5221006);
         }
 
         private bool IsBattleShip()
         {
-            return _skill && _sourceid == 5221006;
+            return m_skill && m_sourceid == 5221006;
         }
 
         /* public bool isMagicDoor() {
              return skill && sourceid == 2311002;
          }*/
+
         public bool IsMagicDoor()
         {
-            return _skill && (_sourceid == 2311002); //时空门
+            return m_skill && (m_sourceid == 2311002); //时空门
         }
+
         public bool IsMesoGuard()
         {
-            return _skill && _sourceid == 4211005;
+            return m_skill && m_sourceid == 4211005;
         }
 
         public bool IsCharge()
         {
-            return _skill && _sourceid >= 1211003 && _sourceid <= 1211008;
+            return m_skill && m_sourceid >= 1211003 && m_sourceid <= 1211008;
         }
 
         public bool IsPoison()
         {
-            return _skill && (_sourceid == 2111003 || _sourceid == 2101005 || _sourceid == 2111006);
+            return m_skill && (m_sourceid == 2111003 || m_sourceid == 2101005 || m_sourceid == 2111006);
         }
 
         private bool IsMist()
         {
-            return _skill && (_sourceid == 2111003 || _sourceid == 4221006); // poison mist and smokescreen
+            return m_skill && (m_sourceid == 2111003 || m_sourceid == 4221006); // poison mist and smokescreen
         }
 
         private bool IsSoulArrow()
         {
-            return _skill && (_sourceid == 3101004 || _sourceid == 3201004 || _sourceid == 13101003); // bow and crossbow
+            return m_skill && (m_sourceid == 3101004 || m_sourceid == 3201004 || m_sourceid == 13101003);
+                // bow and crossbow
         }
 
         private bool IsShadowClaw()
         {
-            return _skill && _sourceid == 4121006;
+            return m_skill && m_sourceid == 4121006;
         }
 
         private bool IsDispel()
         {
-            return _skill && (_sourceid == 2311001 || _sourceid == 9001000);
+            return m_skill && (m_sourceid == 2311001 || m_sourceid == 9001000);
         }
 
         private bool IsHeroWill()
         {
-            return _skill && (_sourceid == 1121011 || _sourceid == 1221012 || _sourceid == 1321010 || _sourceid == 2121008 || _sourceid == 2221008 || _sourceid == 2321009 || _sourceid == 3121009 || _sourceid == 3221008 || _sourceid == 4121009 || _sourceid == 4221008 || _sourceid == 5121008 || _sourceid == 5221010);
+            return m_skill &&
+                   (m_sourceid == 1121011 || m_sourceid == 1221012 || m_sourceid == 1321010 || m_sourceid == 2121008 ||
+                    m_sourceid == 2221008 || m_sourceid == 2321009 || m_sourceid == 3121009 || m_sourceid == 3221008 ||
+                    m_sourceid == 4121009 || m_sourceid == 4221008 || m_sourceid == 5121008 || m_sourceid == 5221010);
         }
+
         public bool IsComboMove()
         {
-            return _skill && ((_sourceid == 21100004) || (_sourceid == 21100005) || (_sourceid == 21110003) || (_sourceid == 21110004) || (_sourceid == 21120006) || (_sourceid == 21120007));
+            return m_skill &&
+                   ((m_sourceid == 21100004) || (m_sourceid == 21100005) || (m_sourceid == 21110003) ||
+                    (m_sourceid == 21110004) || (m_sourceid == 21120006) || (m_sourceid == 21120007));
         }
 
 
         private bool IsDash()
         {
-            return _skill && (_sourceid == 5001005);
+            return m_skill && (m_sourceid == 5001005);
         }
 
         public bool IsPirateMorph()
         {
-            return _skill && (_sourceid == 5111005 || _sourceid == 5121003);
+            return m_skill && (m_sourceid == 5111005 || m_sourceid == 5121003);
         }
 
 
         public SummonMovementType? GetSummonMovementType()
         {
-            if (!_skill)
+            if (!m_skill)
             {
                 return null;
             }
-            switch (_sourceid)
+            switch (m_sourceid)
             {
                 case 3211002: // puppet sniper
                 case 3111002: // puppet ranger
@@ -1473,12 +1499,12 @@ namespace NeoMapleStory.Game.Client
                 case 2321003: // 强化圣龙
 
                     break;
-                case 11001004://魂精灵
-                case 12001004://炎精灵
-                case 13001004://风精灵
-                case 14001005://夜精灵
-                case 15001004://雷精灵
-                case 12111004://火魔兽
+                case 11001004: //魂精灵
+                case 12001004: //炎精灵
+                case 13001004: //风精灵
+                case 14001005: //夜精灵
+                case 15001004: //雷精灵
+                case 12111004: //火魔兽
                     return SummonMovementType.Follow;
             }
             return null;
@@ -1486,59 +1512,60 @@ namespace NeoMapleStory.Game.Client
 
         public bool IsSkill()
         {
-            return _skill;
+            return m_skill;
         }
 
         public int GetSourceId()
         {
-            return _sourceid;
+            return m_sourceid;
         }
 
         public double GetIProp()
         {
-            return _prop * 100;
+            return m_prop*100;
         }
 
         public int GetMastery()
         {
-            return _mastery;
+            return m_mastery;
         }
+
         public int GetRange()
         {
-            return _range;
+            return m_range;
         }
 
         public int GetFixedDamage()
         {
-            return _fixDamage;
+            return m_fixDamage;
         }
 
         public string GetBuffString()
         {
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             sb.Append("WATK: ");
-            sb.Append(_watk);
+            sb.Append(Watk);
             sb.Append(", ");
             sb.Append("WDEF: ");
-            sb.Append(_wdef);
+            sb.Append(Wdef);
             sb.Append(", ");
             sb.Append("MATK: ");
-            sb.Append(_matk);
+            sb.Append(Matk);
             sb.Append(", ");
             sb.Append("MDEF: ");
-            sb.Append(_mdef);
+            sb.Append(Mdef);
             sb.Append(", ");
             sb.Append("ACC: ");
-            sb.Append(_acc);
+            sb.Append(Acc);
             sb.Append(", ");
             sb.Append("AVOID: ");
-            sb.Append(_avoid);
+            sb.Append(Avoid);
             sb.Append(", ");
             sb.Append("SPEED: ");
-            sb.Append(_speed);
+            sb.Append(Speed);
             sb.Append(", ");
             sb.Append("JUMP: ");
-            sb.Append(_jump);
+            sb.Append(Jump);
             sb.Append(".");
 
             return sb.ToString();
@@ -1548,39 +1575,38 @@ namespace NeoMapleStory.Game.Client
          * 
          * @return true if the effect should happen based on it's probablity, false otherwise
          */
+
         public bool MakeChanceResult()
         {
-            return _prop == 1.0 || Randomizer.NextDouble() < _prop;
+            return Math.Abs(m_prop - 1.0) < 0.000001 || Randomizer.NextDouble() < m_prop;
         }
 
         public class CancelEffectAction
         {
-
-            private MapleStatEffect effect;
-            private WeakReference<MapleCharacter> target;
-            private long startTime;
+            private readonly MapleStatEffect m_effect;
+            private readonly long m_startTime;
+            private readonly WeakReference<MapleCharacter> m_target;
 
             public CancelEffectAction(MapleCharacter target, MapleStatEffect effect, long startTime)
             {
-                this.effect = effect;
-                this.target = new WeakReference<MapleCharacter>(target);
-                this.startTime = startTime;
+                this.m_effect = effect;
+                this.m_target = new WeakReference<MapleCharacter>(target);
+                this.m_startTime = startTime;
             }
 
-            public void run()
+            public void Run()
             {
                 MapleCharacter realTarget;
-                if (target.TryGetTarget(out realTarget))
+                if (m_target.TryGetTarget(out realTarget))
                 {
                     //if (realTarget.inCS() || realTarget.inMTS())
                     //{
                     //    realTarget.AddToCancelBuffPackets(effect, startTime);
                     //    return;
                     //}
-                    realTarget.CancelEffect(effect, false, startTime);
+                    realTarget.CancelEffect(m_effect, false, m_startTime);
                 }
             }
         }
     }
 }
-

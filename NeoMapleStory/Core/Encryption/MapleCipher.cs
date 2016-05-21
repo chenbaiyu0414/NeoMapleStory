@@ -4,13 +4,21 @@ namespace NeoMapleStory.Core.Encryption
 {
     public sealed class MapleCipher
     {
-        public static readonly byte[] SKey = new byte[]
+        public enum CipherType : byte
+        {
+            Encrypt,
+            Decrypt
+        }
+
+        public const int IvLength = 4;
+
+        public static readonly byte[] SKey =
         {
             0x13, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0xB4, 0x00, 0x00, 0x00,
             0x1B, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x33, 0x00, 0x00, 0x00, 0x52, 0x00, 0x00, 0x00
         };
 
-        private static readonly byte[] SShiftKey = new byte[]
+        private static readonly byte[] SShiftKey =
         {
             0xEC, 0x3F, 0x77, 0xA4, 0x45, 0xD0, 0x71, 0xBF, 0xB7, 0x98, 0x20, 0xFC, 0x4B, 0xE9, 0xB3, 0xE1,
             0x5C, 0x22, 0xF7, 0x0C, 0x44, 0x1B, 0x81, 0xBD, 0x63, 0x8D, 0xD4, 0xC3, 0xF2, 0x10, 0x19, 0xE0,
@@ -30,57 +38,49 @@ namespace NeoMapleStory.Core.Encryption
             0x84, 0x7F, 0x61, 0x1E, 0xCF, 0xC5, 0xD1, 0x56, 0x3D, 0xCA, 0xF4, 0x05, 0xC6, 0xE5, 0x08, 0x49
         };
 
-        private readonly short _mMajorVersion;
+        private readonly AesCipher m_mAesCipher;
+
+        private readonly short m_mMajorVersion;
+        private readonly Action<byte[]> m_mTransformer;
         public readonly byte[] MIv;
-        private readonly AesCipher _mAesCipher;
-        private readonly Action<byte[]> _mTransformer;
-
-        public const int IvLength = 4;
-
-        public enum CipherType : byte
-        {
-            Encrypt,
-            Decrypt
-        }
 
         public MapleCipher(short majorVersion, byte[] iv, CipherType transformDirection)
         {
-            Console.WriteLine(majorVersion);
-            _mMajorVersion = (short)(((majorVersion >> 8) & 0xFF) | ((majorVersion << 8) & 0xFF00));
+            m_mMajorVersion = (short) (((majorVersion >> 8) & 0xFF) | ((majorVersion << 8) & 0xFF00));
 
             MIv = new byte[IvLength];
             Buffer.BlockCopy(iv, 0, MIv, 0, IvLength);
 
-            _mAesCipher = new AesCipher(SKey);
+            m_mAesCipher = new AesCipher(SKey);
 
-            _mTransformer =
-                transformDirection == CipherType.Encrypt ? new Action<byte[]>(EncryptTransform) : new Action<byte[]>(DecryptTransform);
+            m_mTransformer =
+                transformDirection == CipherType.Encrypt ? EncryptTransform : new Action<byte[]>(DecryptTransform);
         }
 
         public void Transform(byte[] data)
         {
-            _mTransformer(data);
+            m_mTransformer(data);
 
-            byte[] newIv = { 0xF2, 0x53, 0x50, 0xC6 };
+            byte[] newIv = {0xF2, 0x53, 0x50, 0xC6};
 
-            for (int i = 0; i < IvLength; i++)
+            for (var i = 0; i < IvLength; i++)
             {
-                byte input = MIv[i];
-                byte tableInput = SShiftKey[input];
+                var input = MIv[i];
+                var tableInput = SShiftKey[input];
 
-                newIv[0] += (byte)(SShiftKey[newIv[1]] - input);
-                newIv[1] -= (byte)(newIv[2] ^ tableInput);
-                newIv[2] ^= (byte)(SShiftKey[newIv[3]] + input);
-                newIv[3] -= (byte)(newIv[0] - tableInput);
+                newIv[0] += (byte) (SShiftKey[newIv[1]] - input);
+                newIv[1] -= (byte) (newIv[2] ^ tableInput);
+                newIv[2] ^= (byte) (SShiftKey[newIv[3]] + input);
+                newIv[3] -= (byte) (newIv[0] - tableInput);
 
-                uint val = BitConverter.ToUInt32(newIv, 0);
-                uint val2 = val >> 0x1D;
+                var val = BitConverter.ToUInt32(newIv, 0);
+                var val2 = val >> 0x1D;
                 val <<= 0x03;
                 val2 |= val;
-                newIv[0] = (byte)(val2 & 0xFF);
-                newIv[1] = (byte)((val2 >> 8) & 0xFF);
-                newIv[2] = (byte)((val2 >> 16) & 0xFF);
-                newIv[3] = (byte)((val2 >> 24) & 0xFF);
+                newIv[0] = (byte) (val2 & 0xFF);
+                newIv[1] = (byte) ((val2 >> 8) & 0xFF);
+                newIv[2] = (byte) ((val2 >> 16) & 0xFF);
+                newIv[3] = (byte) ((val2 >> 24) & 0xFF);
             }
 
             Buffer.BlockCopy(newIv, 0, MIv, 0, IvLength);
@@ -88,18 +88,18 @@ namespace NeoMapleStory.Core.Encryption
 
         private void EncryptTransform(byte[] data)
         {
-            int size = data.Length;
+            var size = data.Length;
 
             int j;
             byte a, c;
-            for (int i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
                 a = 0;
                 for (j = size; j > 0; j--)
                 {
                     c = data[size - j];
                     c = RollLeft(c, 3);
-                    c = (byte)(c + j);
+                    c = (byte) (c + j);
                     c ^= a;
                     a = c;
                     c = RollRight(a, j);
@@ -112,7 +112,7 @@ namespace NeoMapleStory.Core.Encryption
                 {
                     c = data[j - 1];
                     c = RollLeft(c, 4);
-                    c = (byte)(c + j);
+                    c = (byte) (c + j);
                     c ^= a;
                     a = c;
                     c ^= 0x13;
@@ -121,17 +121,18 @@ namespace NeoMapleStory.Core.Encryption
                 }
             }
 
-            _mAesCipher.Transform(data, MIv);
+            m_mAesCipher.Transform(data, MIv);
         }
+
         private void DecryptTransform(byte[] data)
         {
-            int size = data.Length;
+            var size = data.Length;
 
-            _mAesCipher.Transform(data, MIv);
+            m_mAesCipher.Transform(data, MIv);
 
             int j;
             byte a, b, c;
-            for (int i = 0; i < 3; i++)
+            for (var i = 0; i < 3; i++)
             {
                 a = 0;
                 b = 0;
@@ -142,7 +143,7 @@ namespace NeoMapleStory.Core.Encryption
                     c ^= 0x13;
                     a = c;
                     c ^= b;
-                    c = (byte)(c - j);
+                    c = (byte) (c - j);
                     c = RollRight(c, 4);
                     b = a;
                     data[j - 1] = c;
@@ -157,7 +158,7 @@ namespace NeoMapleStory.Core.Encryption
                     c = RollLeft(c, j);
                     a = c;
                     c ^= b;
-                    c = (byte)(c - j);
+                    c = (byte) (c - j);
                     c = RollRight(c, 3);
                     b = a;
                     data[size - j] = c;
@@ -167,20 +168,21 @@ namespace NeoMapleStory.Core.Encryption
 
         public byte[] GetPacketHeader(int length)
         {
-            int iiv = MIv[3] & 0xFF;
+            var iiv = MIv[3] & 0xFF;
             iiv |= (MIv[2] << 8) & 0xFF00;
 
-            iiv ^= _mMajorVersion;
-            int mlength = ((length << 8) & 0xFF00) | RightMove(length, 8);
-            int xoredIv = iiv ^ mlength;
+            iiv ^= m_mMajorVersion;
+            var mlength = ((length << 8) & 0xFF00) | RightMove(length, 8);
+            var xoredIv = iiv ^ mlength;
 
-            byte[] ret = new byte[4];
-            ret[0] = (byte)(RightMove(iiv , 8) & 0xFF);
-            ret[1] = (byte)(iiv & 0xFF);
-            ret[2] = (byte)(RightMove(xoredIv, 8) & 0xFF);
-            ret[3] = (byte)(xoredIv & 0xFF);
+            var ret = new byte[4];
+            ret[0] = (byte) (RightMove(iiv, 8) & 0xFF);
+            ret[1] = (byte) (iiv & 0xFF);
+            ret[2] = (byte) (RightMove(xoredIv, 8) & 0xFF);
+            ret[3] = (byte) (xoredIv & 0xFF);
             return ret;
         }
+
         public static int GetPacketLength(byte[] packetHeader)
         {
             return (packetHeader[0] + (packetHeader[1] << 8)) ^ (packetHeader[2] + (packetHeader[3] << 8));
@@ -188,31 +190,32 @@ namespace NeoMapleStory.Core.Encryption
 
         public bool CheckPacket(byte[] packet)
         {
-            return (((packet[0] ^ MIv[2]) & 0xFF) == ((_mMajorVersion >> 8) & 0xFF)) && (((packet[1] ^ MIv[3]) & 0xFF) == (_mMajorVersion & 0xFF));
+            return (((packet[0] ^ MIv[2]) & 0xFF) == ((m_mMajorVersion >> 8) & 0xFF)) &&
+                   (((packet[1] ^ MIv[3]) & 0xFF) == (m_mMajorVersion & 0xFF));
         }
 
         private static byte RollLeft(byte value, int shift)
         {
-            uint num = (uint)(value << (shift % 8));
-            return (byte)((num & 0xff) | (num >> 8));
+            var num = (uint) (value << (shift%8));
+            return (byte) ((num & 0xff) | (num >> 8));
         }
+
         private static byte RollRight(byte value, int shift)
         {
-            uint num = (uint)((value << 8) >> (shift % 8));
-            return (byte)((num & 0xff) | (num >> 8));
+            var num = (uint) ((value << 8) >> (shift%8));
+            return (byte) ((num & 0xff) | (num >> 8));
         }
+
         private static int RightMove(int value, int pos)
         {
-
-            if (pos != 0)  //移动 0 位时直接返回原值
+            if (pos != 0) //移动 0 位时直接返回原值
             {
-                int mask = 0x7fffffff;
+                var mask = 0x7fffffff;
                 value >>= 1;
                 value &= mask;
                 value >>= pos - 1;
             }
             return value;
         }
-
     }
 }

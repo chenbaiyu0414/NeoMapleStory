@@ -1,39 +1,39 @@
-﻿using NeoMapleStory.Server;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
+using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Script.NPC
 {
-
-    public class NPCConversationManager : AbstractPlayerInteraction
+    public class NpcConversationManager : AbstractPlayerInteraction
     {
-        public  int NpcId { get; private set; }
-        private string getText;
-        private bool isCash = false;
-        private List<MaplePartyCharacter> otherParty;
+        private string m_getText;
+        private bool m_isCash = false;
+        private List<MaplePartyCharacter> m_otherParty;
 
-        public NPCConversationManager(MapleClient c, int npc)
+        public NpcConversationManager(MapleClient c, int npc)
             : base(c)
         {
             NpcId = npc;
         }
 
-        public NPCConversationManager(MapleClient c, int npc, MapleCharacter chr)
+        public NpcConversationManager(MapleClient c, int npc, MapleCharacter chr)
             : base(c)
         {
             NpcId = npc;
         }
 
 
-        public NPCConversationManager(MapleClient c, int npc, List<MaplePartyCharacter> otherParty, int b)
+        public NpcConversationManager(MapleClient c, int npc, List<MaplePartyCharacter> otherParty, int b)
             : base(c)
         {
             //CPQ
             NpcId = npc;
-            this.otherParty = otherParty;
+            this.m_otherParty = otherParty;
         }
+
+        public int NpcId { get; }
 
         public void GainNexonPoint(int nxcash) => Player.GainNexonPoint(nxcash);
 
@@ -73,7 +73,6 @@ namespace NeoMapleStory.Game.Script.NPC
         //    {
         //    }
         //}
-
 
 
         //public MapleCharacter getSquadMember(MapleSquadType type, int index)
@@ -125,63 +124,72 @@ namespace NeoMapleStory.Game.Script.NPC
 
         public void Close()
         {
-            NPCScriptManager.Instance.Close(this);
+            NpcScriptManager.Instance.Close(this);
         }
 
 
-        public void SendNext(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Next, NpcId, text, (byte)speaker));
+        public void SendNext(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Next, NpcId, text, (byte) speaker));
 
 
-        public void SendPrev(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Prve, NpcId, text, (byte)speaker));
+        public void SendPrev(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Prve, NpcId, text, (byte) speaker));
 
 
-        public void SendNextPrev(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.NextPrve, NpcId, text, (byte)speaker));
+        public void SendNextPrev(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.NextPrve, NpcId, text, (byte) speaker));
 
 
-        public void SendOk(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Ok, NpcId, text, (byte)speaker));
+        public void SendOk(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Ok, NpcId, text, (byte) speaker));
 
 
-        public void SendYesNo(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.YesNo, NpcId, text, (byte)speaker));
+        public void SendYesNo(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.YesNo, NpcId, text, (byte) speaker));
 
 
-        public void SendAcceptDecline(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.AcceptDecline, NpcId, text, (byte)speaker));
+        public void SendAcceptDecline(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.AcceptDecline, NpcId, text, (byte) speaker));
 
 
-        public void SendSimple(string text, int speaker = 0) => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Simple, NpcId, text, (byte)speaker));
+        public void SendChoice(string text, int speaker = 0)
+            => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Simple, NpcId, text, (byte) speaker));
 
 
-        public void SendStyle(string text, int[] styles, int card) => Client.Send(PacketCreator.NpcTalkStyle(NpcId, text, styles, card));
+        public void SendStyle(string text, int[] styles, int card)
+            => Client.Send(PacketCreator.NpcTalkStyle(NpcId, text, styles, card));
 
 
-        public void SendGetNumber(string text, int def, int min, int max) => Client.Send(PacketCreator.NpcTalkNum(NpcId, text, def, min, max));
+        public void SendGetNumber(string text, int def, int min, int max)
+            => Client.Send(PacketCreator.NpcTalkNum(NpcId, text, def, min, max));
 
 
         public void SendGetText(string text) => Client.Send(PacketCreator.NpcTalkText(NpcId, text));
+        //            MapleShopFactory.getInstance().getShop(id).sendShop(getClient());
+        //        {
+
+        //        public void openShop(int id)
+        //        }
+        //            return this.isCash;
+        //        {
+
+        //        public boolean isCash()
+        //        }
+        //            this.isCash = bool;
+        //        {
+
+        //        public void setCash(boolean bool)
+        //        }
+        //            return this.getText;
+        //        {
+
+        //        public String getText()
+        //        }
+        //            this.getText = text;
+        //        {
 
 
         //        public void setGetText(String text)
-        //        {
-        //            this.getText = text;
-        //        }
-
-        //        public String getText()
-        //        {
-        //            return this.getText;
-        //        }
-
-        //        public void setCash(boolean bool)
-        //        {
-        //            this.isCash = bool;
-        //        }
-
-        //        public boolean isCash()
-        //        {
-        //            return this.isCash;
-        //        }
-
-        //        public void openShop(int id)
-        //        {
-        //            MapleShopFactory.getInstance().getShop(id).sendShop(getClient());
         //        }
 
         //        public void openNpc(int id)

@@ -25,6 +25,7 @@ namespace NeoMapleStory.Game.Client
         Meso = 0x100000,
         Pet = 0x200000
     }
+
     public static class MapleStatExtension
     {
         public static MapleStat GetByValue(int value)

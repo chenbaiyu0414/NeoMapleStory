@@ -1,15 +1,15 @@
-﻿using NeoMapleStory.Core;
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Text;
+using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.Job;
-using NeoMapleStory.Settings;
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Text;
-using NeoMapleStory.Core.Database;
 using NeoMapleStory.Server;
+using NeoMapleStory.Settings;
 
 namespace NeoMapleStory.Packet
 {
@@ -17,7 +17,7 @@ namespace NeoMapleStory.Packet
     {
         public static OutPacket GenderNeeded(string username)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.ChooseGender))
+            using (var packet = new OutPacket(SendOpcodes.ChooseGender))
             {
                 packet.WriteMapleString(username);
                 return packet;
@@ -26,7 +26,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket GenderChanged(string username, string accountId)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.GenderSet))
+            using (var packet = new OutPacket(SendOpcodes.GenderSet))
             {
                 packet.WriteByte(0x00);
                 packet.WriteMapleString(username);
@@ -37,7 +37,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket LicenseRequest()
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.LoginStatus))
+            using (var packet = new OutPacket(SendOpcodes.LoginStatus))
             {
                 packet.WriteByte(0x16);
                 return packet;
@@ -46,7 +46,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket LicenseResult()
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.LicenseResult))
+            using (var packet = new OutPacket(SendOpcodes.LicenseResult))
             {
                 packet.WriteByte(0x01);
                 return packet;
@@ -55,14 +55,15 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket AuthSuccess(string username, int accountId, bool gender)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.LoginStatus))
+            using (var packet = new OutPacket(SendOpcodes.LoginStatus))
             {
                 packet.WriteByte(0x00);
                 packet.WriteInt(accountId);
                 packet.WriteBool(gender);
                 packet.WriteShort(0);
                 packet.WriteMapleString(username);
-                packet.WriteBytes(new byte[] { 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0xE2, 0xED, 0xA3, 0x7A, 0xFA, 0xC9, 0x01 });
+                packet.WriteBytes(new byte[]
+                {0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0xE2, 0xED, 0xA3, 0x7A, 0xFA, 0xC9, 0x01});
                 packet.WriteInt(0);
                 packet.WriteLong(0);
                 packet.WriteMapleString(accountId.ToString());
@@ -71,31 +72,34 @@ namespace NeoMapleStory.Packet
                 return packet;
             }
         }
+
         public static OutPacket AuthAccountFailed(int reasonCode)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.LoginStatus))
+            using (var packet = new OutPacket(SendOpcodes.LoginStatus))
             {
                 packet.WriteInt(reasonCode);
                 packet.WriteShort(0);
                 return packet;
             }
         }
+
         public static OutPacket ReLogResponse()
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.RelogResponse))
+            using (var packet = new OutPacket(SendOpcodes.RelogResponse))
             {
                 packet.WriteInt(0x01);
                 return packet;
             }
         }
+
         public static OutPacket ServerList(int[] channelUserLogged)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.Serverlist))
+            using (var packet = new OutPacket(SendOpcodes.Serverlist))
             {
-                packet.WriteByte(0);//serverid
+                packet.WriteByte(0); //serverid
                 packet.WriteMapleString(ServerSettings.ServerName);
                 packet.WriteByte(0x03); //0: 正常 1: 火爆 2: 热 3: 新开
-                packet.WriteMapleString(ServerSettings.ServerName);//eventmsg
+                packet.WriteMapleString(ServerSettings.ServerName); //eventmsg
                 packet.WriteByte(0x64);
                 packet.WriteByte(0x00);
                 packet.WriteByte(0x64);
@@ -104,13 +108,13 @@ namespace NeoMapleStory.Packet
                 packet.WriteByte(ServerSettings.ChannelCount);
                 packet.WriteInt(500);
 
-                for (int i = 0; i < ServerSettings.ChannelCount; i++)
+                for (var i = 0; i < ServerSettings.ChannelCount; i++)
                 {
-                    int load = channelUserLogged[i];
-                    packet.WriteMapleString(ServerSettings.ServerName + "-" + (i + 1).ToString());
+                    var load = channelUserLogged[i];
+                    packet.WriteMapleString(ServerSettings.ServerName + "-" + (i + 1));
                     packet.WriteInt(load);
-                    packet.WriteByte(0x00);//serverid
-                    packet.WriteShort((short)i);
+                    packet.WriteByte(0x00); //serverid
+                    packet.WriteShort((short) i);
                 }
                 packet.WriteShort(0);
 
@@ -120,7 +124,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket ServerListEnd()
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.Serverlist))
+            using (var packet = new OutPacket(SendOpcodes.Serverlist))
             {
                 packet.WriteByte(0xFF);
                 return packet;
@@ -129,7 +133,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket ServerStatus(byte status)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.Serverstatus))
+            using (var packet = new OutPacket(SendOpcodes.Serverstatus))
             {
                 packet.WriteByte(status);
                 return packet;
@@ -138,12 +142,12 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket GetCharList(MapleClient mc)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.Charlist))
+            using (var packet = new OutPacket(SendOpcodes.Charlist))
             {
                 packet.WriteByte(0x00);
                 packet.WriteInt(0);
                 var chars = DatabaseHelper.LoadCharacters(mc);
-                packet.WriteByte((byte)chars.Count);
+                packet.WriteByte((byte) chars.Count);
                 foreach (var chr in chars)
                 {
                     AddCharEntry(packet, chr);
@@ -156,7 +160,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket CharNameResponse(string name, bool nameUsed)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.CharNameResponse))
+            using (var packet = new OutPacket(SendOpcodes.CharNameResponse))
             {
                 packet.WriteMapleString(name);
                 packet.WriteBool(nameUsed);
@@ -166,7 +170,7 @@ namespace NeoMapleStory.Packet
 
         public static OutPacket AddNewCharEntry(MapleCharacter chr, bool worked)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.AddNewCharEntry))
+            using (var packet = new OutPacket(SendOpcodes.AddNewCharEntry))
             {
                 packet.WriteBool(!worked);
                 AddCharEntry(packet, chr);
@@ -191,7 +195,7 @@ namespace NeoMapleStory.Packet
             p.WriteString(chr.Name);
             // 填充名字字符
             // p.WriteZero(13 - Encoding.Default.GetByteCount(chr.CharacterName));
-            for (int x = Encoding.Default.GetByteCount(chr.Name); x < 13; x++)
+            for (var x = Encoding.Default.GetByteCount(chr.Name); x < 13; x++)
             {
                 // fill to maximum name length
                 p.WriteByte(0);
@@ -225,7 +229,7 @@ namespace NeoMapleStory.Packet
         }
 
 
-       public static void AddCharLook(OutPacket p, MapleCharacter chr, bool mega)
+        public static void AddCharLook(OutPacket p, MapleCharacter chr, bool mega)
         {
             p.WriteBool(chr.Gender);
             p.WriteByte(chr.Skin.ColorId); // skin color
@@ -241,7 +245,7 @@ namespace NeoMapleStory.Packet
             {
                 foreach (var item in equip.Inventory.Values)
                 {
-                    byte pos = item.Position;
+                    var pos = item.Position;
                     if (pos < 100 && !myEquip.ContainsKey(pos))
                     {
                         myEquip.Add(pos, item.ItemId);
@@ -282,15 +286,15 @@ namespace NeoMapleStory.Packet
             p.WriteLong(0);
         }
 
-        public static OutPacket GetServerIp(IPAddress address,short port,int clientId)
+        public static OutPacket GetServerIp(IPAddress address, short port, int clientId)
         {
-            using (OutPacket packet = new OutPacket(SendOpcodes.ServerIp))
+            using (var packet = new OutPacket(SendOpcodes.ServerIp))
             {
                 packet.WriteShort(0);
                 packet.WriteBytes(address.GetAddressBytes());
                 packet.WriteShort(port);
                 packet.WriteInt(clientId);
-                packet.WriteBytes(new byte[]{ 0x01, 0x00, 0x00, 0x00, 0x00 });
+                packet.WriteBytes(new byte[] {0x01, 0x00, 0x00, 0x00, 0x00});
                 return packet;
             }
         }

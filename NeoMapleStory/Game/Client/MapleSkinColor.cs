@@ -2,6 +2,15 @@
 {
     public class MapleSkinColor
     {
+        public MapleSkinColor()
+        {
+        }
+
+        public MapleSkinColor(byte colorId)
+        {
+            ColorId = colorId;
+        }
+
         public static MapleSkinColor Normal { get; } = new MapleSkinColor(0);
         public static MapleSkinColor Dark { get; } = new MapleSkinColor(1);
         public static MapleSkinColor Black { get; } = new MapleSkinColor(2);
@@ -17,32 +26,34 @@
 
         public byte ColorId { get; private set; }
 
-        public MapleSkinColor()
-        {
-
-        }
-
-        public MapleSkinColor(byte colorId)
-        {
-            ColorId = colorId;
-        }
-
         public static MapleSkinColor GetByColorId(int colorId)
         {
             switch (colorId)
             {
-                case 0: return Normal;
-                case 1: return Dark;
-                case 2: return Black;
-                case 3: return Pale;
-                case 4: return Blue;
-                case 5: return Pink;
-                case 6: return Yellow;
-                case 7: return Gray;
-                case 8: return Yellowbrown;
-                case 9: return White;
-                case 10: return Green;
-                case 11: return Aran;
+                case 0:
+                    return Normal;
+                case 1:
+                    return Dark;
+                case 2:
+                    return Black;
+                case 3:
+                    return Pale;
+                case 4:
+                    return Blue;
+                case 5:
+                    return Pink;
+                case 6:
+                    return Yellow;
+                case 7:
+                    return Gray;
+                case 8:
+                    return Yellowbrown;
+                case 9:
+                    return White;
+                case 10:
+                    return Green;
+                case 11:
+                    return Aran;
             }
             return Normal;
         }

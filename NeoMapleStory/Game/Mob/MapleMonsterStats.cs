@@ -1,11 +1,17 @@
-﻿using NeoMapleStory.Game.Life;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using NeoMapleStory.Game.Life;
 
 namespace NeoMapleStory.Game.Mob
 {
-     public class MapleMonsterStats
+    public class MapleMonsterStats
     {
+        private readonly Dictionary<string, int> m_mAnimationTimes = new Dictionary<string, int>();
+
+        private readonly Dictionary<Element, ElementalEffectiveness> m_mResistance =
+            new Dictionary<Element, ElementalEffectiveness>();
+
+        private readonly List<Tuple<byte, byte>> m_mSkills = new List<Tuple<byte, byte>>();
         public int Exp { get; set; }
         public int Hp { get; set; }
         public int Mp { get; set; }
@@ -23,21 +29,17 @@ namespace NeoMapleStory.Game.Mob
         public List<int> Revives { get; set; } = new List<int>();
         public byte TagColor { get; set; }
         public byte TagBgColor { get; set; }
-        public bool IsMobile => _mAnimationTimes.ContainsKey("move") || _mAnimationTimes.ContainsKey("fly");
-
-        private readonly List<Tuple<byte, byte>> _mSkills = new List<Tuple<byte, byte>>();
-        private readonly Dictionary<string, int> _mAnimationTimes = new Dictionary<string, int>();
-        private readonly Dictionary<Element, ElementalEffectiveness> _mResistance = new Dictionary<Element, ElementalEffectiveness>();
+        public bool IsMobile => m_mAnimationTimes.ContainsKey("move") || m_mAnimationTimes.ContainsKey("fly");
 
         public void SetAnimationTime(string name, int delay)
         {
-            _mAnimationTimes.Add(name, delay);
+            m_mAnimationTimes.Add(name, delay);
         }
 
         public int GetAnimationTime(string name)
         {
             int ret;
-            if (!_mAnimationTimes.TryGetValue(name, out ret))
+            if (!m_mAnimationTimes.TryGetValue(name, out ret))
             {
                 return 500;
             }
@@ -46,32 +48,32 @@ namespace NeoMapleStory.Game.Mob
 
         public void SetEffectiveness(Element e, ElementalEffectiveness ee)
         {
-            _mResistance.Add(e, ee);
+            m_mResistance.Add(e, ee);
         }
 
         public void RemoveEffectiveness(Element e)
         {
-            _mResistance.Remove(e);
+            m_mResistance.Remove(e);
         }
 
         public ElementalEffectiveness GetEffectiveness(Element e)
         {
             ElementalEffectiveness elementalEffectiveness;
 
-            if (_mResistance.TryGetValue(e, out elementalEffectiveness))
+            if (m_mResistance.TryGetValue(e, out elementalEffectiveness))
                 return ElementalEffectiveness.Normal;
             return elementalEffectiveness;
         }
 
-        public void SetSkills(List<Tuple<byte, byte>> skills) => _mSkills.AddRange(skills);
+        public void SetSkills(List<Tuple<byte, byte>> skills) => m_mSkills.AddRange(skills);
 
-        public List<Tuple<byte, byte>> GetSkills()=> _mSkills;
+        public List<Tuple<byte, byte>> GetSkills() => m_mSkills;
 
-        public int GetSkillsCount()=> _mSkills.Count;
+        public int GetSkillsCount() => m_mSkills.Count;
 
         public bool HasSkill(int skillId, int level)
         {
-            foreach (var skill in _mSkills)
+            foreach (var skill in m_mSkills)
             {
                 if (skill.Item1 == skillId && skill.Item2 == level)
                 {

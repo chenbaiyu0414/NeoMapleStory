@@ -3,28 +3,30 @@ using NeoMapleStory.Core;
 
 namespace NeoMapleStory.Game.Client.AntiCheat
 {
-     public class CheatingOffenseEntry
+    public class CheatingOffenseEntry
     {
-        public CheatingOffense Offense { get; private set; }
+        private readonly long m_mFirstOffense;
+
+        public CheatingOffenseEntry(CheatingOffense offense, MapleCharacter chrfor)
+        {
+            Offense = offense;
+            ToCharacter = chrfor;
+            m_mFirstOffense = DateTime.Now.GetTimeMilliseconds();
+        }
+
+        public CheatingOffense Offense { get; }
         public int Count { get; private set; }
-        public MapleCharacter ToCharacter { get; private set; }
+        public MapleCharacter ToCharacter { get; }
         public long LastOffense { get; private set; }
 
         public string Param { get; set; }
         public int DatabaseId { get; set; } = -1;
 
-        private readonly long _mFirstOffense;
-
-        public CheatingOffenseEntry(CheatingOffense offense, MapleCharacter chrfor)
-        {
-            this.Offense = offense;
-            this.ToCharacter = chrfor;
-            _mFirstOffense = DateTime.Now.GetTimeMilliseconds();
-        }
+        public int Points => Count*Offense.Points;
 
         public void IncrementCount()
         {
-            this.Count++;
+            Count++;
             LastOffense = DateTime.Now.GetTimeMilliseconds();
         }
 
@@ -37,14 +39,12 @@ namespace NeoMapleStory.Game.Client.AntiCheat
             return false;
         }
 
-        public int Points => Count * Offense.Points;
-
         public override int GetHashCode()
         {
-            int result = 1;
-            result = 31 * result + (ToCharacter == null ? 0 : ToCharacter.Id);
-            result = 31 * result + (Offense == null ? 0 : Offense.GetHashCode());
-            result = 31 * result + _mFirstOffense.GetHashCode();
+            var result = 1;
+            result = 31*result + (ToCharacter == null ? 0 : ToCharacter.Id);
+            result = 31*result + (Offense == null ? 0 : Offense.GetHashCode());
+            result = 31*result + m_mFirstOffense.GetHashCode();
             return result;
         }
 
@@ -62,7 +62,7 @@ namespace NeoMapleStory.Game.Client.AntiCheat
             {
                 return false;
             }
-            CheatingOffenseEntry other = (CheatingOffenseEntry)obj;
+            var other = (CheatingOffenseEntry) obj;
             if (ToCharacter == null)
             {
                 if (other.ToCharacter != null)
@@ -85,7 +85,7 @@ namespace NeoMapleStory.Game.Client.AntiCheat
             {
                 return false;
             }
-            if (other._mFirstOffense != _mFirstOffense)
+            if (other.m_mFirstOffense != m_mFirstOffense)
             {
                 return false;
             }

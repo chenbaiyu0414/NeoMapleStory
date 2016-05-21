@@ -1,20 +1,20 @@
-﻿using NeoMapleStory.Game.Data;
-using System.Drawing;
+﻿using System.Drawing;
+using NeoMapleStory.Game.Data;
 
 namespace NeoMapleStory.Game.Map
 {
     public class PortalFactory
     {
-        private byte _mNextDoorPortal;
+        private byte m_mNextDoorPortal;
 
         public PortalFactory()
         {
-            _mNextDoorPortal = 0x80;
+            m_mNextDoorPortal = 0x80;
         }
 
         public IMaplePortal MakePortal(PortalType type, IMapleData portal)
         {
-            MapleGenericPortal ret = new MapleGenericPortal(type);
+            var ret = new MapleGenericPortal(type);
             LoadPortal(ret, portal);
             return ret;
         }
@@ -24,10 +24,10 @@ namespace NeoMapleStory.Game.Map
             myPortal.PortalName = MapleDataTool.GetString(portal.GetChildByPath("pn"));
             myPortal.TargetName = MapleDataTool.GetString(portal.GetChildByPath("tn"));
             myPortal.TargetMapId = MapleDataTool.GetInt(portal.GetChildByPath("tm"));
-            int x = MapleDataTool.GetInt(portal.GetChildByPath("x"));
-            int y = MapleDataTool.GetInt(portal.GetChildByPath("y"));
+            var x = MapleDataTool.GetInt(portal.GetChildByPath("x"));
+            var y = MapleDataTool.GetInt(portal.GetChildByPath("y"));
             myPortal.Position = new Point(x, y);
-            string script = MapleDataTool.GetString("script", portal, null);
+            var script = MapleDataTool.GetString("script", portal, null);
             if (script != null && script.Equals(""))
             {
                 script = null;
@@ -35,10 +35,11 @@ namespace NeoMapleStory.Game.Map
             myPortal.ScriptName = script;
             if (myPortal.Type == PortalType.DoorPortal)
             {
-                myPortal.PortalId = _mNextDoorPortal;
-                _mNextDoorPortal++;
+                myPortal.PortalId = m_mNextDoorPortal;
+                m_mNextDoorPortal++;
             }
-            else {
+            else
+            {
                 myPortal.PortalId = byte.Parse(portal.Name);
             }
         }

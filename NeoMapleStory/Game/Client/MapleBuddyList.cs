@@ -1,55 +1,43 @@
-﻿using NeoMapleStory.Packet;
-using NeoMapleStory.Server;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using NeoMapleStory.Packet;
+using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Client
 {
     public class MapleBuddyList
     {
-        public enum BuddyOperation
-        {
-            Added, Deleted
-        }
-
         public enum BuddyAddResult
         {
-            BuddylistFull, AlreadyOnList, Ok
+            BuddylistFull,
+            AlreadyOnList,
+            Ok
         }
 
-        private readonly Dictionary<int, MapleBuddyListEntry> _buddies = new Dictionary<int, MapleBuddyListEntry>();
-        public int Capacity { get; set; }
-        private readonly List<CharacterNameAndId> _pendingRequests = new List<CharacterNameAndId>();
+        public enum BuddyOperation
+        {
+            Added,
+            Deleted
+        }
+
+        private readonly Dictionary<int, MapleBuddyListEntry> m_buddies = new Dictionary<int, MapleBuddyListEntry>();
+        private readonly List<CharacterNameAndId> m_pendingRequests = new List<CharacterNameAndId>();
 
         public MapleBuddyList(int capacity)
         {
             Capacity = capacity;
         }
 
-        public bool Contains(int characterId)
-        {
-            return _buddies.ContainsKey(characterId);
-        }
+        public int Capacity { get; set; }
 
-        public bool ContainsVisible(int characterId)
-        {
-            MapleBuddyListEntry ble;
-
-            if (!_buddies.TryGetValue(characterId, out ble))
-            {
-                return false;
-            }
-            return ble.Visible;
-        }
-
-        public MapleBuddyListEntry this[int characterId] => _buddies[characterId];
+        public MapleBuddyListEntry this[int characterId] => m_buddies[characterId];
 
         public MapleBuddyListEntry this[string characterName]
         {
             get
             {
-                string lowerCaseName = characterName.ToLower();
-                foreach (var ble in _buddies.Values)
+                var lowerCaseName = characterName.ToLower();
+                foreach (var ble in m_buddies.Values)
                 {
                     if (ble.CharacterName.ToLower() == lowerCaseName)
                     {
@@ -60,19 +48,35 @@ namespace NeoMapleStory.Game.Client
             }
         }
 
-        public void Add(MapleBuddyListEntry entry) => _buddies.Add(entry.CharacterId, entry);
+        public bool Contains(int characterId)
+        {
+            return m_buddies.ContainsKey(characterId);
+        }
+
+        public bool ContainsVisible(int characterId)
+        {
+            MapleBuddyListEntry ble;
+
+            if (!m_buddies.TryGetValue(characterId, out ble))
+            {
+                return false;
+            }
+            return ble.Visible;
+        }
+
+        public void Add(MapleBuddyListEntry entry) => m_buddies.Add(entry.CharacterId, entry);
 
 
-        public void Remove(int characterId) => _buddies.Remove(characterId);
+        public void Remove(int characterId) => m_buddies.Remove(characterId);
 
 
-        public List<MapleBuddyListEntry> GetBuddies() => _buddies.Values.ToList();
+        public List<MapleBuddyListEntry> GetBuddies() => m_buddies.Values.ToList();
 
 
-        public bool IsFull() => _buddies.Count >= Capacity;
+        public bool IsFull() => m_buddies.Count >= Capacity;
 
 
-        public List<int> GetBuddyIdList() => _buddies.Keys.ToList();
+        public List<int> GetBuddyIdList() => m_buddies.Keys.ToList();
 
 
         public void LoadFromDb(int characterId)
@@ -107,14 +111,14 @@ namespace NeoMapleStory.Game.Client
 
         public CharacterNameAndId PollPendingRequest()
         {
-            var element = _pendingRequests.LastOrDefault();
-            _pendingRequests.Remove(element);
+            var element = m_pendingRequests.LastOrDefault();
+            m_pendingRequests.Remove(element);
             return element;
         }
 
         public bool HasPendingRequestFrom(string name)
         {
-            foreach (CharacterNameAndId cnai in _pendingRequests)
+            foreach (var cnai in m_pendingRequests)
             {
                 if (cnai.CharacterName == name)
                 {
@@ -127,25 +131,26 @@ namespace NeoMapleStory.Game.Client
         public void AddBuddyRequest(MapleClient c, int cidFrom, string nameFrom, int channelFrom)
         {
             Add(new MapleBuddyListEntry(nameFrom, cidFrom, channelFrom, false));
-            if (!_pendingRequests.Any())
+            if (!m_pendingRequests.Any())
             {
                 c.Send(PacketCreator.RequestBuddylistAdd(cidFrom, nameFrom));
             }
-            else {
-                _pendingRequests.Add(new CharacterNameAndId(cidFrom, nameFrom));
+            else
+            {
+                m_pendingRequests.Add(new CharacterNameAndId(cidFrom, nameFrom));
             }
         }
     }
-     public class CharacterNameAndId
+
+    public class CharacterNameAndId
     {
-
-        public int CharacterId { get; private set; }
-        public string CharacterName { get; private set; }
-
         public CharacterNameAndId(int id, string name)
         {
             CharacterId = id;
             CharacterName = name;
         }
+
+        public int CharacterId { get; private set; }
+        public string CharacterName { get; }
     }
 }
