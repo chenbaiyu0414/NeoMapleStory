@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using NeoMapleStory.Game.Client;
+using NeoMapleStory.Game.Job;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
@@ -198,10 +199,14 @@ namespace NeoMapleStory.Game.Script.NPC
         //            NPCScriptManager.getInstance().start(getClient(), id);
         //        }
 
-        //        public void changeJob(MapleJob job)
-        //        {
-        //            getPlayer().changeJob(job);
-        //        }
+        public void ChangeJob(MapleJob job)
+        {
+            Player.ChangeJob(job);
+        }
+        public void ChangeJob(short jobId)
+        {
+            ChangeJob(new MapleJob(jobId));
+        }
 
         //        public MapleJob getJob()
         //        {

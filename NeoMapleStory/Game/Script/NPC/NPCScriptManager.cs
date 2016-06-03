@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define debug
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CSScriptLibrary;
@@ -13,12 +14,17 @@ namespace NeoMapleStory.Game.Script.NPC
 
         private readonly Dictionary<MapleClient, object> m_scripts = new Dictionary<MapleClient, object>();
 
+        private readonly Dictionary<MapleClient, int> m_status = new Dictionary<MapleClient, int>();
+
         public static NpcScriptManager Instance { get; } = new NpcScriptManager();
 
         public void Start(MapleClient c, int npcId)
         {
-            if (m_cms.ContainsKey(c))
-                return;
+            lock (m_cms)
+            {
+                if (m_cms.ContainsKey(c))
+                    return;
+            }
 
             var cm = new NpcConversationManager(c, npcId);
 
@@ -32,7 +38,13 @@ namespace NeoMapleStory.Game.Script.NPC
                     }
 
                     m_cms.Add(c, cm);
+                    m_status.Add(c, 0);
 
+#if debug
+                    CSScript.KeepCompilingHistory = false;
+#else
+                    CSScript.KeepCompilingHistory = true;
+#endif
                     dynamic script = CSScript.Load($"Script//NPC//{npcId}.cs").CreateObject("*");
 
                     if (m_scripts.ContainsKey(c))
@@ -53,20 +65,46 @@ namespace NeoMapleStory.Game.Script.NPC
 
         public void Choice(MapleClient c, byte isCountinue, byte hasInput, int selection)
         {
-            try
+            lock (m_cms)
             {
-                lock (m_cms)
+                var cm = m_cms[c];
+                var status = m_status[c];
+
+                try
                 {
                     dynamic ns;
                     if (m_scripts.TryGetValue(c, out ns))
                     {
-                        ns.Choice(isCountinue, hasInput, selection);
+                        if (isCountinue == 0xFF)
+                        {
+                            cm.Close();
+                        }
+                        else
+                        {
+                            if (status >= 0 && isCountinue == 0)
+                            {
+                                cm.Close();
+                                return;
+                            }
+                            if (isCountinue == 1)
+                            {
+                                status++;
+                            }
+                            else
+                            {
+                                status--;
+                            }
+
+                            m_status[c] = status;
+                            ns.Choice(status, hasInput, selection);
+                        }
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
+                catch (Exception e)
+                {
+                    cm.Close();
+                    Console.WriteLine(e);
+                }
             }
         }
 
@@ -77,15 +115,19 @@ namespace NeoMapleStory.Game.Script.NPC
                 var c = cm.Client;
                 m_cms.Remove(c);
                 m_scripts.Remove(c);
+                m_status.Remove(c);
             }
         }
 
         public void Close(MapleClient c)
         {
-            NpcConversationManager npccm;
-            if (m_cms.TryGetValue(c, out npccm))
+            lock (m_cms)
             {
-                Close(npccm);
+                NpcConversationManager npccm;
+                if (m_cms.TryGetValue(c, out npccm))
+                {
+                    Close(npccm);
+                }
             }
         }
 
@@ -94,4 +136,34 @@ namespace NeoMapleStory.Game.Script.NPC
             return m_cms.FirstOrDefault(x => x.Key == c).Value;
         }
     }
+    //public class Script
+    //{
+    //    private NPCConversationManager cm;
+    //    public void Start(NPCConversationManager cm)
+    //    {
+    //        this.cm = cm;
+    //        Choice(0, 0);
+    //    }
+    //    public void Choice(int status, int selection)
+    //    {
+    //        switch (status)
+    //        {
+    //            case 0:
+    //                cm.SendSimple("你看看#L0#选择1#l#L1#啦啦#l");
+    //                break;
+    //            case 1:
+    //                switch(selection)
+    //                {
+    //                    case 0:
+    //                        cm.SendOk("Good");
+    //                        break;
+    //                    case 1:
+    //                        cm.SendOk("Nice");
+    //                        break;
+    //                }
+    //                cm.Close();
+    //                break;
+    //        }
+    //    }
+    //}
 }

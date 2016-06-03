@@ -1033,8 +1033,8 @@ namespace NeoMapleStory.Game.Inventory
 
         public MapleStatEffect GetItemEffect(int itemId)
         {
-            var ret = ItemEffects[itemId];
-            if (ret == null)
+            MapleStatEffect ret;
+            if (!ItemEffects.TryGetValue(itemId, out ret))
             {
                 var item = GetItemData(itemId);
                 if (item == null)

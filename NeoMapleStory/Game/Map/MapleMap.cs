@@ -65,7 +65,7 @@ namespace NeoMapleStory.Game.Map
 
         private bool? m_boat;
 
-        private bool m_cannotInvincible = false;
+        public bool CannotInvincible { get; set; } = false;
         private bool m_canVipRock = true;
 
 

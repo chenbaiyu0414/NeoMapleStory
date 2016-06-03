@@ -1103,6 +1103,234 @@ namespace NeoMapleStory.Packet
             }
         }
 
+        public static OutPacket ShowMagnet(int mobid, byte success)
+        {
+            // Monster Magnet
+            using (var p = new OutPacket(SendOpcodes.ShowMagnet))
+            {
+                p.WriteInt(mobid);
+                p.WriteByte(success);
+
+                return p;
+            }
+        }
+
+        public static OutPacket GetEnergy(int level)
+        {
+            using (var p = new OutPacket(SendOpcodes.Energy))
+            {
+                p.WriteMapleString("energy");
+                p.WriteMapleString(level.ToString());
+
+                return p;
+            }
+        }
+
+        public static OutPacket ShowMonsterRiding(int cid, List<Tuple<MapleBuffStat, int>> statups, int itemId, int skillId)
+        {
+            //C9 00 1D CE 4A 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 B0 05 1D 00 EC 03 00 00 00 00 00 00 00 00 00
+            using (var p = new OutPacket(SendOpcodes.GiveForeignBuff))
+            {
+                p.WriteInt(cid);
+                p.WriteByte(0);
+                long mask = GetLongMask(statups);
+                p.WriteLong(mask);
+                p.WriteLong(0);
+                p.WriteByte(0);
+                p.WriteInt(itemId);
+                p.WriteInt(skillId);
+                p.WriteInt(0);
+                p.WriteShort(0);
+                p.WriteByte(0);
+
+                return p;
+            }
+        }
+
+        public static OutPacket GiveDash(List<Tuple<MapleBuffStat, int>> statups, int duration)
+        {
+            using (var p = new OutPacket(SendOpcodes.GiveBuff))
+            {
+                p.WriteByte(0);
+                p.WriteLong((int)MapleBuffStat.Dash);
+                p.WriteLong(0);
+                p.WriteByte(0);
+                foreach (var stat in statups)
+                {
+                    p.WriteInt(stat.Item2);
+                    p.WriteInt(5001005);
+                    p.WriteInt(0);
+                    p.WriteShort((short)duration);
+                    p.WriteByte(0);
+                }
+                p.WriteByte(0);
+                p.WriteShort(0);
+                p.WriteByte(2);
+
+                return p;
+            }
+        }
+
+        public static OutPacket GiveBuff(MapleCharacter c, int buffid, int bufflength, List<Tuple<MapleBuffStat, int>> statups)
+        {
+            using (var p = new OutPacket(SendOpcodes.GiveBuff))
+            {
+                if (bufflength % 20000000 == 1004 || bufflength == 5221006)
+                {
+                    long mask = GetLongMask(statups);
+                    p.WriteByte(0);
+                    p.WriteLong(mask);
+                    p.WriteLong(0);
+                    foreach (var statup in statups)
+                    {
+                        if (statup.Item2 >= 1000 && statup.Item2 != 1002)
+                        {
+                            p.WriteShort((short)(statup.Item2 + (c.Gender ? 0 : 1 )* 100));
+                        }
+                        else
+                        {
+                            p.WriteByte(0);
+                        }
+                        p.WriteInt(buffid);
+                        p.WriteInt(bufflength);
+                    }
+                    p.WriteInt(0);
+                    p.WriteShort(0);
+                    p.WriteByte(0);
+                    p.WriteByte(2);
+                }
+                else
+                {
+                    long mask = GetLongMask(statups);
+                    p.WriteLong(0);
+                    p.WriteLong(mask);
+                    foreach (var statup in statups)
+                    {
+                        if (statup.Item2 >= 1000 && statup.Item2 != 1002)
+                        {
+                            p.WriteShort((short)(statup.Item2 + (c.Gender ? 0 : 1) * 100));
+                        }
+                        else
+                        {
+                            p.WriteShort((short)statup.Item2);
+                        }
+                        p.WriteInt(buffid);
+                        p.WriteInt(bufflength);
+                    }
+                    if (bufflength % 20000000 == 1004 || bufflength == 5221006)
+                    {
+                        p.WriteInt(0);
+                    }
+                    else
+                    {
+                        p.WriteShort(0); // ??? wk charges have 600 here o.o
+                    }
+                    p.WriteByte(0); // combo 600, too
+                    p.WriteByte(0); // new in v0.56
+                    p.WriteByte(0);
+                }
+                return p;
+            }
+        }
+
+        public static OutPacket GiveInfusion(short bufflength, short speed)
+        {
+            using (var p = new OutPacket(SendOpcodes.GiveBuff))
+            {
+                p.WriteLong(0);
+                p.WriteLong((int)MapleBuffStat.Morph);
+                p.WriteShort(speed);
+                p.WriteInt(5121009);
+                p.WriteLong(0);
+                p.WriteShort(bufflength);
+                p.WriteShort(0);
+
+                return p;
+            }
+        }
+
+        public static OutPacket GiveForeignBuff(MapleCharacter c, List<Tuple<MapleBuffStat, int>> statups, MapleStatEffect effect)
+        {
+
+            // [C5 00] [12 01 2B 00] [00 00 00 00 00 00 00 00] [00 00 00 00 80 00 00 00] [0A 00] [00 00] [00] //077
+            // [C5 00] [1F 01 2B 00] [00 00 00 00 00 00 00 00] [00 00 00 00 80 00 00 00] [0A 00] [00 00] [00]
+            // [C9 00] [1D CE 4A 00] [00 00 00 00 00 00 00 00] [02 00 00 00 80 00 00 00] [28 E8] [03 00] [00 00] [00]
+            using (var p = new OutPacket(SendOpcodes.GiveForeignBuff))
+            {
+                p.WriteInt(c.Id);
+                long mask = GetLongMask(statups);
+                p.WriteLong(0);
+                p.WriteLong(mask);
+                foreach (var statup in statups)
+                {
+                    if (effect.isMorph() && statup.Item2<= 255)
+                    {
+                        p.WriteByte((byte)statup.Item2);
+                    }
+                    else
+                    {
+                        if (effect.IsPirateMorph())
+                        {
+                            p.WriteShort((short)(statup.Item2 + (c.Gender?0:1) * 100));
+                        }
+                        else
+                        {
+                            p.WriteShort((short)statup.Item2);
+                        }
+                    }
+                }
+                p.WriteShort(0); // same as give_buff
+                if (effect.isMorph() && !effect.IsPirateMorph())
+                {
+                    p.WriteShort(0);
+                }
+                p.WriteByte(0);
+                p.WriteByte(0);//?
+
+                return p;
+            }
+        }
+
+        public static OutPacket ShowDashEffecttoOthers(int cid, List<Tuple<MapleBuffStat, int>> statups, short duration)
+        {
+            using (var p = new OutPacket(SendOpcodes.GiveForeignBuff))
+            {
+                p.WriteInt(cid);
+                p.WriteLong(0);
+                p.WriteLong((int)MapleBuffStat.Dash);
+                p.WriteShort(0);
+                foreach (var stat in statups)
+                {
+                    p.WriteInt(stat.Item2);
+                    p.WriteInt(5001005);
+                    p.WriteBytes(new byte[] { 0x1A, 0x7C, 0x8D, 0x35 });
+                    p.WriteShort(duration);
+                }
+                p.WriteShort(0);
+
+                return p;
+            }
+        }
+
+        public static OutPacket GiveForeignInfusion(int cid, int speed, int duration)
+        {
+
+            using (var p = new OutPacket(SendOpcodes.GiveForeignBuff))
+            {
+                p.WriteInt(cid);
+                p.WriteLong(0);
+                p.WriteLong((int)MapleBuffStat.Morph);
+                p.WriteShort(0);
+                p.WriteInt(speed);
+                p.WriteInt(5121009);
+                p.WriteLong(0);
+                p.WriteInt(duration);
+                p.WriteShort(0);
+
+                return p;
+            }
+        }
+
         #region 任务
 
         public static OutPacket StartQuest(MapleCharacter c, short quest)

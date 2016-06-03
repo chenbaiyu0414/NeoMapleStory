@@ -143,14 +143,12 @@ namespace NeoMapleStory.Game.Life
         public static void DecodeElementalString(MapleMonsterStats stats, string elemAttr)
         {
             for (var i = 0; i < elemAttr.Length; i += 2)
-                stats.SetEffectiveness(Element.GetByChar(elemAttr[i]),
-                    ElementalEffectiveness.GetByNumber(elemAttr[i + 1]));
+                stats.SetEffectiveness(Element.GetByChar(elemAttr[i]), ElementalEffectiveness.GetByNumber(int.Parse(elemAttr[i + 1].ToString())));
         }
 
         public static MapleNpc GetNpc(int nid)
         {
-            return new MapleNpc(nid,
-                new MapleNpcStats(MapleDataTool.GetString(nid + "/name", MNpcStringData, "MISSINGNO")));
+            return new MapleNpc(nid, new MapleNpcStats(MapleDataTool.GetString(nid + "/name", MNpcStringData, "MISSINGNO")));
         }
     }
 }

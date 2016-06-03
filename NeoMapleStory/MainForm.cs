@@ -78,10 +78,7 @@ namespace NeoMapleStory
 
                 con.Open();
 
-                if (cmd.ExecuteNonQuery() > 0)
-                    MessageBox.Show("成功");
-                else
-                    MessageBox.Show("失败");
+                MessageBox.Show(cmd.ExecuteNonQuery() > 0 ? "成功" : "失败");
             }
         }
 
@@ -111,7 +108,7 @@ namespace NeoMapleStory
                   chart_CPU.Series[0].Points.DataBindY(m_cpuQueue);
                   chart_CPU.DataBind();
 
-              })), 1000);
+              })), 100);
 
             TimerManager.Instance.RepeatTask(() => chart_Memory.BeginInvoke(new Action(() =>
             {
@@ -128,7 +125,7 @@ namespace NeoMapleStory
                 chart_Memory.Series[0].Points.DataBindY(m_memoryQueue);
                 chart_Memory.DataBind();
 
-            })), 1000);
+            })), 100);
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)

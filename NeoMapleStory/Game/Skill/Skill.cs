@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Job;
@@ -21,8 +22,13 @@ namespace NeoMapleStory.Game.Skill
         public bool HasCharge { get; private set; }
 
 
-        public MapleStatEffect GetEffect(int level) => m_effects[level - 1];
-
+        public MapleStatEffect GetEffect(int level)
+        {
+            MapleStatEffect ret = null;
+            if (m_effects.Count > level - 1)
+                ret = m_effects[level - 1];
+            return ret;
+        }
         public int MaxLevel => m_effects.Count;
 
         public bool CanBeLearned(MapleJob job)

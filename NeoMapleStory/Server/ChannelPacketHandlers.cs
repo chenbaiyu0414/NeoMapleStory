@@ -8,6 +8,7 @@ using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Client.AntiCheat;
+using NeoMapleStory.Game.Client.Message;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.Job;
 using NeoMapleStory.Game.Life;
@@ -58,7 +59,7 @@ namespace NeoMapleStory.Server
                 //    channelServer.reconnectWorld();
                 //    allowLogin = false;
                 //}
-                if (state != MapleClient.LoginState.ServerTransition || allowLogin==false)
+                if (state != MapleClient.LoginState.ServerTransition || allowLogin == false)
                 {
                     c.Player = null;
                     c.Close();
@@ -357,7 +358,7 @@ namespace NeoMapleStory.Server
         {
             using (var packet = new OutPacket(SendOpcodes.NpcAction))
             {
-                var length = (int) p.AvailableCount;
+                var length = (int)p.AvailableCount;
                 if (length == 6)
                 {
                     packet.WriteInt(p.ReadInt());
@@ -424,7 +425,7 @@ namespace NeoMapleStory.Server
 
 
                 var ip = IPAddress.Parse(c.ChannelServer.Config.Ip);
-                var port = (short) c.ChannelServer.Config.Port;
+                var port = (short)c.ChannelServer.Config.Port;
 
                 c.Player.SaveToDb(true);
                 //c.getPlayer.setInCS(false);
@@ -572,7 +573,7 @@ namespace NeoMapleStory.Server
                 return;
             }
 
-            var npc = (MapleNpc) player.Map.Mapobjects[oid];
+            var npc = (MapleNpc)player.Map.Mapobjects[oid];
 
             //if (npc.Id == 9010009)
             //{
@@ -705,7 +706,7 @@ namespace NeoMapleStory.Server
                 return;
             }
 
-            var monster = (MapleMonster) mmo;
+            var monster = (MapleMonster)mmo;
             var noPacket = monster.IsMoveLock;
 
             List<ILifeMovementFragment> res = null;
@@ -720,7 +721,7 @@ namespace NeoMapleStory.Server
 
             if (skillByte == 1 && monster.Stats.GetSkillsCount() > 0)
             {
-                var random = (int) (Randomizer.NextDouble()*monster.Stats.GetSkillsCount());
+                var random = (int)(Randomizer.NextDouble() * monster.Stats.GetSkillsCount());
                 var skillToUse = monster.Stats.GetSkills()[random];
                 toUse = MobSkillFactory.GetMobSkill(skillToUse.Item1, skillToUse.Item2);
                 if (!monster.CanUseSkill(toUse))
@@ -988,7 +989,7 @@ namespace NeoMapleStory.Server
                     c.Send(PacketCreator.EnableActions());
                     return;
                 }
-                attacker = (MapleMonster) player.Map.Mapobjects[oid];
+                attacker = (MapleMonster)player.Map.Mapobjects[oid];
                 direction = p.ReadByte();
             }
             try
@@ -1023,21 +1024,21 @@ namespace NeoMapleStory.Server
 
             if (damage == 0xFF)
             {
-                var job = player.Job.JobId/10 - 40;
-                fake = 4020002 + job*100000;
+                var job = player.Job.JobId / 10 - 40;
+                fake = 4020002 + job * 100000;
                 if (damagefrom == -1 && damagefrom != -2 &&
                     player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.ContainsKey(10))
                 {
-                    int[] guardianSkillId = {1120005, 1220006};
+                    int[] guardianSkillId = { 1120005, 1220006 };
                     foreach (var guardian in guardianSkillId)
                     {
                         var guardianSkill = SkillFactory.GetSkill(guardian);
                         if (player.GetSkillLevel(guardianSkill) > 0 && attacker != null)
                         {
                             var monsterStatusEffect =
-                                new MonsterStatusEffect(new Dictionary<MonsterStatus, int> {{MonsterStatus.Stun, 1}},
+                                new MonsterStatusEffect(new Dictionary<MonsterStatus, int> { { MonsterStatus.Stun, 1 } },
                                     guardianSkill, false);
-                            attacker.ApplyStatus(player, monsterStatusEffect, false, 2*1000);
+                            attacker.ApplyStatus(player, monsterStatusEffect, false, 2 * 1000);
                         }
                     }
                 }
@@ -1086,8 +1087,8 @@ namespace NeoMapleStory.Server
                         attacker = temp as MapleMonster;
                         if (attacker != null)
                         {
-                            var bouncedamage = (int) (damage*(pguard/100));
-                            bouncedamage = Math.Min(bouncedamage, attacker.MaxHp/10);
+                            var bouncedamage = (int)(damage * (pguard / 100));
+                            bouncedamage = Math.Min(bouncedamage, attacker.MaxHp / 10);
                             player.Map.DamageMonster(player, attacker, bouncedamage);
                             damage -= bouncedamage;
                             player.Map.BroadcastMessage(player, PacketCreator.DamageMonster(oid, bouncedamage), false,
@@ -1105,10 +1106,10 @@ namespace NeoMapleStory.Server
                         var manaReflectSkill = SkillFactory.GetSkill(skillId);
                         if (manaReflectSkill.GetEffect(player.GetSkillLevel(manaReflectSkill)).MakeChanceResult())
                         {
-                            var bouncedamage = (int) (damage*(manaReflection/100.0));
-                            if (bouncedamage > attacker.MaxHp*0.2)
+                            var bouncedamage = (int)(damage * (manaReflection / 100.0));
+                            if (bouncedamage > attacker.MaxHp * 0.2)
                             {
-                                bouncedamage = (int) (attacker.MaxHp*0.2);
+                                bouncedamage = (int)(attacker.MaxHp * 0.2);
                             }
                             player.Map.DamageMonster(player, attacker, bouncedamage);
                             player.Map.BroadcastMessage(player, PacketCreator.DamageMonster(oid, bouncedamage), false,
@@ -1123,14 +1124,14 @@ namespace NeoMapleStory.Server
                 {
                     try
                     {
-                        int[] achillesSkillId = {1120004, 1220005, 1320005};
+                        int[] achillesSkillId = { 1120004, 1220005, 1320005 };
                         foreach (var achilles in achillesSkillId)
                         {
                             var achillesSkill = SkillFactory.GetSkill(achilles);
                             if (player.GetSkillLevel(achillesSkill) > 0)
                             {
-                                var multiplier = achillesSkill.GetEffect(player.GetSkillLevel(achillesSkill)).X/1000.0;
-                                var newdamage = (int) (multiplier*damage);
+                                var multiplier = achillesSkill.GetEffect(player.GetSkillLevel(achillesSkill)).X / 1000.0;
+                                var newdamage = (int)(multiplier * damage);
                                 damage = newdamage;
                                 break;
                             }
@@ -1143,11 +1144,11 @@ namespace NeoMapleStory.Server
                 }
                 if (player.GetBuffedValue(MapleBuffStat.MagicGuard) != null && mpattack == 0)
                 {
-                    var mploss = (short) (damage*(player.GetBuffedValue(MapleBuffStat.MagicGuard)/100.0));
-                    var hploss = (short) (damage - mploss);
+                    var mploss = (short)(damage * (player.GetBuffedValue(MapleBuffStat.MagicGuard) / 100.0));
+                    var hploss = (short)(damage - mploss);
                     if (mploss > player.Mp)
                     {
-                        hploss += (short) (mploss - player.Mp);
+                        hploss += (short)(mploss - player.Mp);
                         mploss = player.Mp;
                     }
 
@@ -1164,8 +1165,8 @@ namespace NeoMapleStory.Server
                 }
                 else if (player.GetBuffedValue(MapleBuffStat.Mesoguard) != null)
                 {
-                    damage = damage%2 == 0 ? damage/2 : damage/2 + 1;
-                    var mesoloss = (int) (damage*(player.GetBuffedValue(MapleBuffStat.Mesoguard)/100.0));
+                    damage = damage % 2 == 0 ? damage / 2 : damage / 2 + 1;
+                    var mesoloss = (int)(damage * (player.GetBuffedValue(MapleBuffStat.Mesoguard) / 100.0));
                     if (player.Money.Value < mesoloss)
                     {
                         player.GainMeso(-player.Money.Value, false);
@@ -1176,8 +1177,8 @@ namespace NeoMapleStory.Server
                         player.GainMeso(-mesoloss, false);
                     }
 
-                    player.Hp -= (short) damage;
-                    player.Mp -= (short) mpattack;
+                    player.Hp -= (short)damage;
+                    player.Mp -= (short)mpattack;
                     var stats = new List<Tuple<MapleStat, int>>
                     {
                         new Tuple<MapleStat, int>(MapleStat.Hp, player.Hp),
@@ -1188,8 +1189,8 @@ namespace NeoMapleStory.Server
                 }
                 else
                 {
-                    player.Hp -= (short) damage;
-                    player.Mp -= (short) mpattack;
+                    player.Hp -= (short)damage;
+                    player.Mp -= (short)mpattack;
                     var stats = new List<Tuple<MapleStat, int>>
                     {
                         new Tuple<MapleStat, int>(MapleStat.Hp, player.Hp),
@@ -1207,7 +1208,7 @@ namespace NeoMapleStory.Server
                 else
                 {
                     player.Map.BroadcastMessage(player,
-                        PacketCreator.DamagePlayer((byte) damagefrom, monsteridfrom, player.Id, damage, fake, direction,
+                        PacketCreator.DamagePlayer((byte)damagefrom, monsteridfrom, player.Id, damage, fake, direction,
                             isPgmr, pgmr, isPg, oid, posX, posY), false);
                 }
                 //player.checkBerserk();
@@ -1273,7 +1274,7 @@ namespace NeoMapleStory.Server
                                     partynum++;
                                 }
                             }
-                            var mesosgain = mesosamm/partynum;
+                            var mesosgain = mesosamm / partynum;
                             foreach (var partymem in c.Player.Party.GetMembers())
                             {
                                 if (partymem.IsOnline && partymem.MapId == c.Player.Map.MapId)
@@ -1458,7 +1459,7 @@ namespace NeoMapleStory.Server
                         }
                         maxHp = Math.Min(30000, maxHp);
                         var hpSkillAdd = 0;
-                        c.Player.MaxHp += (short) (1 + hpSkillAdd);
+                        c.Player.MaxHp += (short)(1 + hpSkillAdd);
                         statupdate.Add(new Tuple<MapleStat, int>(MapleStat.Maxhp, c.Player.MaxHp));
                         break;
                     case 32768: // MP
@@ -1502,7 +1503,7 @@ namespace NeoMapleStory.Server
                         }
                         maxMp = Math.Min(30000, maxMp);
                         var mpSkillAdd = 0;
-                        c.Player.MaxMp += (short) (1 + mpSkillAdd);
+                        c.Player.MaxMp += (short)(1 + mpSkillAdd);
                         statupdate.Add(new Tuple<MapleStat, int>(MapleStat.Maxmp, c.Player.MaxMp));
                         break;
                     default:
@@ -1517,7 +1518,7 @@ namespace NeoMapleStory.Server
 
         private static int Rand(int lbound, int ubound)
         {
-            return (int) (Randomizer.NextDouble()*(ubound - lbound + 1) + lbound);
+            return (int)(Randomizer.NextDouble() * (ubound - lbound + 1) + lbound);
         }
 
         public static void DISTRIBUTE_AUTO_AP(MapleClient c, InPacket p)
@@ -1529,7 +1530,7 @@ namespace NeoMapleStory.Server
                 while (p.AvailableCount > 0)
                 {
                     var update = p.ReadInt();
-                    var add = (short) p.ReadInt();
+                    var add = (short)p.ReadInt();
                     if (c.Player.RemainingAp < add)
                     {
                         return;
@@ -1672,14 +1673,14 @@ namespace NeoMapleStory.Server
             ApplyAttack(attack, player, maxdamage, effect.AttackCount);
             if (player.Mp - beforeMp < effect.MpCon && c.Player.GetBuffedValue(MapleBuffStat.Infinity) == null)
             {
-                var remainingMp = (short) (beforeMp - effect.MpCon);
+                var remainingMp = (short)(beforeMp - effect.MpCon);
                 c.Player.Mp = remainingMp;
                 c.Player.UpdateSingleStat(MapleStat.Mp, remainingMp);
             }
             // MP Eater
             for (var i = 1; i <= 3; i++)
             {
-                var eaterSkill = SkillFactory.GetSkill(2000000 + i*100000);
+                var eaterSkill = SkillFactory.GetSkill(2000000 + i * 100000);
                 var eaterLevel = player.GetSkillLevel(eaterSkill);
                 if (eaterLevel > 0)
                 {
@@ -1727,7 +1728,7 @@ namespace NeoMapleStory.Server
                 }
                 var theoreticalRecovery =
                     (float)
-                        Math.Floor((float) c.Player.GetSkillLevel(SkillFactory.GetSkill(2000000))/10*c.Player.Level + 3);
+                        Math.Floor((float)c.Player.GetSkillLevel(SkillFactory.GetSkill(2000000)) / 10 * c.Player.Level + 3);
                 if (healMp > theoreticalRecovery)
                 {
                     if (healMp > 300)
@@ -1743,6 +1744,157 @@ namespace NeoMapleStory.Server
                 {
                     c.Player.AntiCheatTracker.ResetMpRegen();
                 }
+            }
+        }
+        public static void USE_ITEM(MapleClient c, InPacket p)
+        {
+            if (!c.Player.IsAlive)
+            {
+                c.Send(PacketCreator.EnableActions());
+                return;
+            }
+            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+            p.ReadInt();
+            byte slot = (byte)p.ReadShort();
+            int itemId = p.ReadInt();
+            IMapleItem toUse;
+            if (c.Player.Inventorys[MapleInventoryType.Use.Value].Inventory.TryGetValue(slot, out toUse) && toUse.Quantity > 0
+                && toUse.ItemId == itemId)
+            {
+                if (itemId == 2022178 || itemId == 2022433 || itemId == 2050004)
+                {
+                    c.Player.DispelDebuffs();
+                    RemoveItem(c, slot);
+                    return;
+                }
+                if (itemId == 2050003)
+                {
+                    c.Player.DispelDebuffsi();
+                    RemoveItem(c, slot);
+                    return;
+                }
+                if (itemId >= 2030000 && itemId < 2030021)
+                {
+                    if (ii.GetItemEffect(toUse.ItemId).ApplyTo(c.Player))
+                    {
+                        RemoveItem(c, slot);
+                    }
+                    c.Send(PacketCreator.EnableActions());
+                    return;
+                }
+                RemoveItem(c, slot);
+                ii.GetItemEffect(toUse.ItemId).ApplyTo(c.Player);
+                c.Player.CheckBerserk();
+            }
+        }
+        private static void RemoveItem(MapleClient c, byte slot)
+        {
+            MapleInventoryManipulator.RemoveFromSlot(c, MapleInventoryType.Use, slot, 1, false);
+            c.Send(PacketCreator.EnableActions());
+        }
+
+        public static void SPECIAL_MOVE(MapleClient c, InPacket p)
+        {
+            p.Skip(4);
+            int skillid = p.ReadInt();
+            /*↓圣灵之剑↓*/
+            if ((skillid == 4001003 || skillid == 14001003 || skillid == 4221006 || skillid == 1221003 || skillid == 5101007) &&
+                !c.Player.IsGm && c.Player.Map.CannotInvincible)
+            {
+                c.Send(PacketCreator.EnableActions());
+                return;
+            }
+            Point pos = Point.Empty;
+            int _skillLevel = p.ReadByte();
+            ISkill skill = SkillFactory.GetSkill(skillid);
+            int skillLevel = c.Player.GetSkillLevel(skill);
+            MapleStatEffect effect = skill.GetEffect(skillLevel);
+            c.Player.ResetAfkTimer();
+            int beforeMp = c.Player.Mp;
+            if (skillid % 10000000 == 1010 || skillid % 10000000 == 1011)
+            {
+                skillLevel = 1;
+                c.Player.DojoEnergy = 0;
+                c.Send(PacketCreator.GetEnergy(0));
+            }
+            if (effect.Cooldown > 0)
+            {
+                if (c.Player.SkillisCooling(skillid))
+                    return;
+
+                if (skillid != 5221006)
+                {
+                    c.Send(PacketCreator.SkillCooldown(skillid, effect.Cooldown));
+                    var timer = TimerManager.Instance.RunOnceTask(() => new CancelCooldownAction(c.Player, skillid).Run(), effect.Cooldown * 1000);
+                    c.Player.AddCooldown(skillid, DateTime.Now.GetTimeMilliseconds(), effect.Cooldown * 1000, timer);
+                }
+            }
+            //monster magnet
+            try
+            {
+                if (skillid == 1121001 || skillid == 1221001 || skillid == 1321001)
+                {
+                    int num = p.ReadInt();
+                    for (int i = 0; i < num; i++)
+                    {
+                        var mobId = p.ReadInt();
+                        var success = p.ReadByte();
+                        c.Player.Map.BroadcastMessage(c.Player, PacketCreator.ShowMagnet(mobId, success), false);
+                        MapleMonster monster = c.Player.Map.GetMonsterByOid(mobId);
+                        monster?.SwitchController(c.Player, monster.ControllerHasAggro);
+                    }
+                    byte direction = p.ReadByte();
+                    c.Player.Map.BroadcastMessage(c.Player,
+                        PacketCreator.ShowBuffeffect(c.Player.Id, skillid, 1, direction), false);
+                    c.Send(PacketCreator.EnableActions());
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Failed to handle monster magnet..", e);
+            }
+            if (skillid % 20000000 == 1004)
+            {
+                p.ReadShort();
+            }
+            if (p.AvailableCount == 5)
+            {
+                pos = new Point(p.ReadShort(), p.ReadShort());
+                Console.WriteLine("新位置,X-Y");
+            }
+            if (skillLevel == 0 || skillLevel != _skillLevel)
+            {
+                c.Disconnect();
+            }
+            else
+            {
+                if (c.Player.IsAlive)
+                {
+                    if (skillid == 9001004 && c.Player.IsGm)
+                    {
+                        c.Player.IsHidden = !c.Player.IsHidden;
+                    }
+                    if ((skill.SkillId != 2311002) || c.Player.CanDoor)
+                    {
+                        skill.GetEffect(skillLevel).ApplyTo(c.Player, pos);
+                        if ((skill.SkillId != 2301002) && (effect.MpCon != 0) && (c.Player.Mp - beforeMp < skill.GetEffect(skillLevel).MpCon))
+                        {
+                            int remainingMp = beforeMp - skill.GetEffect(skillLevel).MpCon;
+                            c.Player.Mp = (short)remainingMp;
+                            c.Player.UpdateSingleStat(MapleStat.Mp, remainingMp);
+                        }
+                    }
+                    else
+                    {
+                        new ServernoticeMapleClientMessageCallback(5, c).DropMessage("请等候5秒再使用时空门!");
+                        c.Send(PacketCreator.EnableActions());
+                    }
+                }
+                else
+                {
+                    c.Send(PacketCreator.EnableActions());
+                }
+                c.Send(PacketCreator.EnableActions());
             }
         }
     }

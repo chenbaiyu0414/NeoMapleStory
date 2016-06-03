@@ -22,15 +22,9 @@ namespace NeoMapleStory.Game.Script.NPC
         public MapleClient Client { get; }
         public MapleCharacter Player { get; }
 
-        public string ServerName
-        {
-            get { return ServerSettings.ServerName; }
-        }
+        public string ServerName => ServerSettings.ServerName;
 
-        public string AdvertisementText
-        {
-            get { return ServerSettings.ServerAdvertisement; }
-        }
+        public string AdvertisementText => ServerSettings.ServerAdvertisement;
 
         public void ClearAranPolearm() => Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveItem(11);
 

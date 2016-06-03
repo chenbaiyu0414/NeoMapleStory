@@ -73,6 +73,8 @@ namespace NeoMapleStory.Server
             Processor.AppendHandler(RecvOpcodes.DistributeAutoAp, ChannelPacketHandlers.DISTRIBUTE_AUTO_AP);
             Processor.AppendHandler(RecvOpcodes.DistributeSp, ChannelPacketHandlers.DISTRIBUTE_SP);
             Processor.AppendHandler(RecvOpcodes.HealOverTime, ChannelPacketHandlers.HEAL_OVERTIME);
+            Processor.AppendHandler(RecvOpcodes.UseItem, ChannelPacketHandlers.USE_ITEM);
+            Processor.AppendHandler(RecvOpcodes.SpecialMove, ChannelPacketHandlers.SPECIAL_MOVE);
         }
 
         public override bool Start()
