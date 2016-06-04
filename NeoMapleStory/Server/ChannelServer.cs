@@ -35,6 +35,7 @@ namespace NeoMapleStory.Server
         public MapleMapFactory MapFactory { get; }
         public int UserLogged => ClientCount;
         public bool AllowMoreThanOne { get; set; }
+        public bool AllowEnterCashShop { get; set; } = true;
 
         protected override void OnNewClientConnected(MapleClient client)
         {
@@ -75,6 +76,7 @@ namespace NeoMapleStory.Server
             Processor.AppendHandler(RecvOpcodes.HealOverTime, ChannelPacketHandlers.HEAL_OVERTIME);
             Processor.AppendHandler(RecvOpcodes.UseItem, ChannelPacketHandlers.USE_ITEM);
             Processor.AppendHandler(RecvOpcodes.SpecialMove, ChannelPacketHandlers.SPECIAL_MOVE);
+            Processor.AppendHandler(RecvOpcodes.EnterCashShop, ChannelPacketHandlers.ENTER_CASHSHOP);
         }
 
         public override bool Start()

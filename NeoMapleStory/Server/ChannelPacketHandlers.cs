@@ -418,22 +418,22 @@ namespace NeoMapleStory.Server
         {
             if (p.AvailableCount == 0)
             {
-                //if (c.Character.Party != null)
-                //{
-                //    c.Character.setParty(c.getPlayer.getParty());
-                //}
+                if (c.Player.Party != null)
+                {
+                    c.Character.setParty(c.getPlayer.getParty());
+                }
 
 
                 var ip = IPAddress.Parse(c.ChannelServer.Config.Ip);
-                var port = (short)c.ChannelServer.Config.Port;
+                var port = (short)c.ChannelServer.
 
                 c.Player.SaveToDb(true);
-                //c.getPlayer.setInCS(false);
+                c.Player.InCashShop=false;
                 //c.getPlayer.setInMTS(false);
-                //c.getPlayer.cancelSavedBuffs();
+                //c.Player.CancelSavedBuffs();
 
                 c.ChannelServer.Characters.Remove(c.Player);
-                //c.updateLoginState(MapleClient.LOGIN_SERVER_TRANSITION);
+                c.State = MapleClient.LoginState.ServerTransition;
 
                 c.Send(PacketCreator.GetChannelChange(ip, port));
                 c.Close();
@@ -1019,7 +1019,7 @@ namespace NeoMapleStory.Server
             }
             catch (Exception e)
             {
-                throw e;
+                Console.WriteLine(e);
             }
 
             if (damage == 0xFF)
@@ -1139,7 +1139,7 @@ namespace NeoMapleStory.Server
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Failed to handle achilles..", e);
+                        Console.WriteLine(e);
                     }
                 }
                 if (player.GetBuffedValue(MapleBuffStat.MagicGuard) != null && mpattack == 0)
@@ -1851,7 +1851,7 @@ namespace NeoMapleStory.Server
             }
             catch (Exception e)
             {
-                Console.WriteLine("Failed to handle monster magnet..", e);
+                Console.WriteLine(e);
             }
             if (skillid % 20000000 == 1004)
             {
@@ -1894,6 +1894,38 @@ namespace NeoMapleStory.Server
                 {
                     c.Send(PacketCreator.EnableActions());
                 }
+                c.Send(PacketCreator.EnableActions());
+            }
+        }
+        public static void ENTER_CASHSHOP(MapleClient c, InPacket p)
+        {
+            if (c.ChannelServer.AllowEnterCashShop)
+            {
+                if (c.Player.GetBuffedValue(MapleBuffStat.Summon) != null)
+                {
+                    c.Player.CancelEffectFromBuffStat(MapleBuffStat.Summon);
+                }
+                //try
+                //{
+                //    WorldChannelInterface wci = ChannelServer.getInstance(c.getChannel()).getWorldInterface();
+                //    wci.addBuffsToStorage(c.getPlayer().getId(), c.getPlayer().getAllBuffs());
+                //}
+                //catch (Exception e)
+                //{
+                //    c.getChannelServer().reconnectWorld();
+                //}
+                c.Player.Map.RemovePlayer(c.Player);
+                c.Send(PacketCreator.WarpToCashShop(c));
+                c.Player.InCashShop = true;
+                c.Send(PacketCreator.sendWishList(c.Player.Id));
+                c.Send(PacketCreator.showNXMapleTokens(c.Player));
+                c.Send(PacketCreator.GetCashShopInventory(c.Player));
+                c.Send(PacketCreator.GetCashShopGifts(c.Player));
+                c.Player.SaveToDb(true);
+            }
+            else
+            {
+                c.Send(PacketCreator.SendBlockedMessage(3));
                 c.Send(PacketCreator.EnableActions());
             }
         }

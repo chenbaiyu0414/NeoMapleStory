@@ -519,7 +519,7 @@ namespace NeoMapleStory.Game.Mob
                 }
                 catch (Exception e)
                 {
-                    throw e;
+                    Console.WriteLine(e);
                 }
                 VenomMultiplier = 0;
                 //status.cancelPoisonSchedule();

@@ -1,16 +1,19 @@
 ﻿using System.Collections.Generic;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Job;
+using NeoMapleStory.Game.Shop;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
+using NeoMapleStory.Game.Script.NPC;
+using NeoMapleStory.Game.Skill;
 
 namespace NeoMapleStory.Game.Script.NPC
 {
     public class NpcConversationManager : AbstractPlayerInteraction
     {
-        private string m_getText;
-        private bool m_isCash = false;
+        public string ReturnText { get; set; }
+        public bool IsCash { get; set; } = false;
         private List<MaplePartyCharacter> m_otherParty;
 
         public NpcConversationManager(MapleClient c, int npc)
@@ -123,11 +126,7 @@ namespace NeoMapleStory.Game.Script.NPC
         //    getPlayer().getMap().addPlayer(getPlayer());
         //}
 
-        public void Close()
-        {
-            NpcScriptManager.Instance.Close(this);
-        }
-
+        public void Close()=>NpcScriptManager.Instance.Close(this);
 
         public void SendNext(string text, int speaker = 0)
             => Client.Send(PacketCreator.NpcTalk(PacketCreator.NpcTalkType.Next, NpcId, text, (byte) speaker));
@@ -166,52 +165,20 @@ namespace NeoMapleStory.Game.Script.NPC
 
 
         public void SendGetText(string text) => Client.Send(PacketCreator.NpcTalkText(NpcId, text));
-        //            MapleShopFactory.getInstance().getShop(id).sendShop(getClient());
-        //        {
 
-        //        public void openShop(int id)
-        //        }
-        //            return this.isCash;
-        //        {
+        public void OpenShop(int id)=> MapleShopFactory.Instance.GetShop(id).SendShop(Client);
 
-        //        public boolean isCash()
-        //        }
-        //            this.isCash = bool;
-        //        {
-
-        //        public void setCash(boolean bool)
-        //        }
-        //            return this.getText;
-        //        {
-
-        //        public String getText()
-        //        }
-        //            this.getText = text;
-        //        {
-
-
-        //        public void setGetText(String text)
-        //        }
-
-        //        public void openNpc(int id)
-        //        {
-        //            dispose();
-        //            NPCScriptManager.getInstance().start(getClient(), id);
-        //        }
-
-        public void ChangeJob(MapleJob job)
+        public void OpenNpc(int id)
         {
-            Player.ChangeJob(job);
-        }
-        public void ChangeJob(short jobId)
-        {
-            ChangeJob(new MapleJob(jobId));
+            Close();
+            NpcScriptManager.Instance.Start(Client, id);
         }
 
-        //        public MapleJob getJob()
-        //        {
-        //            return getPlayer().getJob();
-        //        }
+        public void ChangeJob(MapleJob job)=> Player.ChangeJob(job);
+
+        public void ChangeJob(short jobId)=> ChangeJob(new MapleJob(jobId));
+
+        public MapleJob GetJob() => Player.Job;
 
         //        public void startQuest(int id)
         //        {
@@ -238,26 +205,11 @@ namespace NeoMapleStory.Game.Script.NPC
         //            MapleQuest.getInstance(id).forfeit(getPlayer());
         //        }
 
-        //        /**
-        //         * use getPlayer().getMeso() instead
-        //         *
-        //         * @return
-        //         */
-        //        @Deprecated
-        //    public int getMeso()
-        //        {
-        //            return getPlayer().getMeso();
-        //        }
+        public int GetMeso() => Player.Money.Value;
 
-        //        public void gainMeso(int gain)
-        //        {
-        //            getPlayer().gainMeso(gain, true, false, true);
-        //        }
+        public void GiveMeso(int value) => Player.GainMeso(value, true, false, true);
 
-        //        public void gainExp(int gain)
-        //        {
-        //            getPlayer().gainExp(gain, true, true);
-        //        }
+        public void GiveExp(int value) => Player.GainExp(value, true, true);
 
         //        public int getNpc()
         //        {
@@ -270,16 +222,7 @@ namespace NeoMapleStory.Game.Script.NPC
         //            return getPlayer();
         //        }
 
-        //        /**
-        //         * use getPlayer().getLevel() instead
-        //         *
-        //         * @return
-        //         */
-        //        @Deprecated
-        //    public int getLevel()
-        //        {
-        //            return getPlayer().getLevel();
-        //        }
+        public byte GetLevel() => Player.Level;
 
         //        public void unequipEverything()
         //        {
@@ -296,35 +239,15 @@ namespace NeoMapleStory.Game.Script.NPC
         //            }
         //        }
 
-        //        public void teachSkill(int id, int level, int masterlevel)
-        //        {
-        //            getPlayer().changeSkillLevel(SkillFactory.getSkill(id), level, masterlevel);
-        //        }
+        public void TeachSkill(int id, int level, int masterlevel) => Player.ChangeSkillLevel(SkillFactory.GetSkill(id), level, masterlevel);
 
-        //        public void clearSkills()
-        //        {
-        //            Map<ISkill, MapleCharacter.SkillEntry> skills = getPlayer().getSkills();
-        //            for (Entry<ISkill, MapleCharacter.SkillEntry> skill : skills.entrySet())
-        //            {
-        //                getPlayer().changeSkillLevel(skill.getKey(), 0, 0);
-        //            }
-        //        }
-
-        //        /**
-        //         * Use getPlayer() instead (for consistency with MapleClient)
-        //         *
-        //         * @return
-        //         */
-        //        @Deprecated
-        //    public MapleCharacter getChar()
-        //        {
-        //            return getPlayer();
-        //        }
-
-        //        public MapleClient getC()
-        //        {
-        //            return getClient();
-        //        }
+        public void ClearSkills()
+        {
+            foreach (var skill in Player.Skills)
+            {
+                Player.ChangeSkillLevel(skill.Key, 0, 0);
+            }
+        }
 
         //        public EventManager getEventManager(String event) {
         //            return getClient().getChannelServer().getEventSM().getEventManager(event);

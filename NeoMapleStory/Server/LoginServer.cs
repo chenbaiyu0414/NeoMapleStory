@@ -35,10 +35,7 @@ namespace NeoMapleStory.Server
         {
             Console.WriteLine($"正在启动 {Processor.Label} 监听端口: {Config.Port}");
             var result = base.Start();
-            if (result)
-                Console.WriteLine($"{Processor.Label} 启动成功");
-            else
-                Console.WriteLine($"{Processor.Label} 启动失败");
+            Console.WriteLine(result ? $"{Processor.Label} 启动成功" : $"{Processor.Label} 启动失败");
             return result;
         }
 

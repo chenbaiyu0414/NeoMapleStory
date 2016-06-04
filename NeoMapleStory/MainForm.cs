@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
+using System.Threading;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 using MySql.Data.MySqlClient;
@@ -13,35 +14,12 @@ namespace NeoMapleStory
 {
     public partial class MainForm : Form
     {
-        private bool m_mIsRunning;
-        private readonly PerformanceCounter m_memoryCounter = new PerformanceCounter("Process", "Working Set - Private", Process.GetCurrentProcess().ProcessName);
-        private readonly PerformanceCounter m_cpuCounter = new PerformanceCounter("Process", "% Processor Time", Process.GetCurrentProcess().ProcessName);
-        private readonly Queue m_cpuQueue = new Queue(60);
-        private readonly Queue m_memoryQueue = new Queue(60);
+        private bool m_isRunning;
+        private DateTime m_runningTime;
 
         public MainForm()
         {
             InitializeComponent();
-        }
-
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            if (!m_mIsRunning)
-            {
-                if (MasterServer.Instance.Start())
-                {
-                    m_mIsRunning = true;
-                    button1.Text = "停止";
-                }
-            }
-            else
-            {
-                MasterServer.Instance.Stop();
-                m_mIsRunning = false;
-                button1.Text = "启动";
-                button1.Enabled = false;
-            }
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -82,55 +60,15 @@ namespace NeoMapleStory
             }
         }
 
-        TimeSpan prevCpuTime = TimeSpan.Zero;
+
         private void MainForm_Load(object sender, EventArgs e)
         {
             Console.SetOut(new TextBoxWriter(textBox1));
-
-            chart_CPU.DataSource = m_cpuQueue;
-            chart_Memory.DataSource = m_cpuQueue;
-
-            TimerManager.Instance.Start();
-
-            TimerManager.Instance.RepeatTask(() => chart_CPU.BeginInvoke(new Action(() =>
-              {
-                  //当前时间
-                  var curTime = Process.GetCurrentProcess().TotalProcessorTime;
-                  //间隔时间内的CPU运行时间除以逻辑CPU数量
-                  var value = (curTime - prevCpuTime).TotalMilliseconds / 1000 / Environment.ProcessorCount * 100;
-                  prevCpuTime = curTime;
-
-                  if (m_cpuQueue.Count == 60)
-                      m_cpuQueue.Dequeue();
-                  if (m_cpuQueue.Count < 60)
-                      m_cpuQueue.Enqueue(value);
-
-                  chart_CPU.Series[0].Points.DataBindY(m_cpuQueue);
-                  chart_CPU.DataBind();
-
-              })), 100);
-
-            TimerManager.Instance.RepeatTask(() => chart_Memory.BeginInvoke(new Action(() =>
-            {
-                //double cpu = Math.Round(m_cpuCounter.NextValue(), 2, MidpointRounding.AwayFromZero);
-                double memory = Math.Round(Process.GetCurrentProcess().WorkingSet64/1024D/1024 , 2, MidpointRounding.AwayFromZero);
-
-                if (m_memoryQueue.Count == 60)
-                    m_memoryQueue.Dequeue();
-                if (m_memoryQueue.Count < 60)
-                    m_memoryQueue.Enqueue(memory);
-
-
-
-                chart_Memory.Series[0].Points.DataBindY(m_memoryQueue);
-                chart_Memory.DataBind();
-
-            })), 100);
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (m_mIsRunning)
+            if (m_isRunning)
             {
                 MessageBox.Show("服务端运行中，请停止后再关闭!", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 e.Cancel = true;
@@ -138,13 +76,43 @@ namespace NeoMapleStory
             else
             {
                 var result = MessageBox.Show("确定要关闭吗？", "提示", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes;
-              
-                if (result && TimerManager.Instance.IsStarted)
-                    TimerManager.Instance.Stop();
-
                 e.Cancel = !result;
             }
         }
 
+
+        private void toolStripButton_StartServer_Click(object sender, EventArgs e)
+        {
+
+            if (!m_isRunning)
+            {
+                Thread startThread = new Thread(() => { MasterServer.Instance.Start(); });
+                startThread.Start();
+                if (startThread.ThreadState == System.Threading.ThreadState.Running)
+                {
+                    m_isRunning = true;
+                    toolStripButton_StartServer.Text = "关闭服务端";
+                }
+            }
+            else
+            {
+                Thread stopThread = new Thread(() => { MasterServer.Instance.Stop(); });
+                stopThread.Start();
+                m_isRunning = false;
+                toolStripButton_StartServer.Text = "启动服务端";
+                toolStripButton_StartServer.Enabled = false;
+            }
+        }
+
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            toolStripStatusLabel_ServerTime.Text = $"服务器时间：{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}";
+            if (m_isRunning)
+            {
+                m_runningTime = m_runningTime.AddSeconds(1);
+                toolStripStatusLabel_ServerRunningTime.Text = $"服务端已运行时间：{m_runningTime.ToString("HH:mm:ss")}";
+            }
+        }
     }
 }

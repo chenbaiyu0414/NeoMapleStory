@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using MySql.Data.MySqlClient;
 using NeoMapleStory.Core;
 using NeoMapleStory.Core.IO;
@@ -80,6 +81,8 @@ namespace NeoMapleStory.Game.Client
         public int NexonPoint { get; set; }
         public int MaplePoint { get; set; }
         public bool IsGm { get; set; }
+
+        public bool InCashShop = false;
 
         public int Id { get; set; }
         public string Name { get; set; }
@@ -226,6 +229,9 @@ namespace NeoMapleStory.Game.Client
         public int DojoEnergy { get; set; } = 0;
 
         public int Energybar { get; set; } = 0;
+
+        private MapleCashShopInventory m_cashshopInventory;
+        public MapleCashShopInventory CashShopInventory => m_cashshopInventory ?? (m_cashshopInventory = new MapleCashShopInventory(this));
 
         public EventInstanceManager EventInstanceManager { get; set; }
 
@@ -1044,15 +1050,17 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                 }
                 reader.Close();
 
-                cmd.CommandText =
-                    "SELECT * FROM InventoryItems LEFT JOIN InventoryEquipments ON InventoryItems.Id=InventoryEquipments.InventoryItemId WHERE CId=@CId";
-                cmd.Parameters.Add(new MySqlParameter("@CId", charid));
-
                 if (!channelserver)
                 {
-                    cmd.CommandText += " AND Type=@Type";
+                    cmd.CommandText=("SELECT * FROM InventoryItems LEFT JOIN InventoryEquipments ON InventoryItems.Id = InventoryEquipments.InventoryItemId WHERE CId= @CId AND Type=@Type");
                     cmd.Parameters.Add(new MySqlParameter("@Type", MapleInventoryType.Equipped.Value));
                 }
+                else
+                {
+                    cmd.CommandText= "SELECT * FROM InventoryItems LEFT JOIN InventoryEquipments ON InventoryItems.Id = InventoryEquipments.InventoryItemId WHERE CId = @CId";
+                }
+
+                cmd.Parameters.Add(new MySqlParameter("@CId", charid));
 
                 reader = cmd.ExecuteReader();
 
@@ -2530,6 +2538,14 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             foreach (var mbsvh in allBuffs)
             {
                 CancelEffect(mbsvh.Effect, false, mbsvh.StartTime);
+            }
+        }
+        public void CancelEffectFromBuffStat(MapleBuffStat stat)
+        {
+            MapleBuffStatValueHolder value;
+            if (m_effects.TryGetValue(stat,out value))
+            {
+                CancelEffect(value.Effect, false, -1);
             }
         }
 

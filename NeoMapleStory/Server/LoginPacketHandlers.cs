@@ -47,6 +47,7 @@ namespace NeoMapleStory.Server
                     c.Send(LoginPacket.GenderNeeded(username));
                     break;
                 case DatabaseHelper.LoginResultCode.Success:
+                    c.AccountName = username;
                     var userLogged = new List<int>(ServerSettings.ChannelCount);
                     MasterServer.Instance.ChannelServers.ForEach(x => userLogged.Add(x.UserLogged));
                     c.Send(LoginPacket.AuthSuccess(username, c.AccountId, c.Gender));

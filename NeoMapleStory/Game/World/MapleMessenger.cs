@@ -5,10 +5,10 @@ namespace NeoMapleStory.Game.World
 {
     public class MapleMessenger
     {
+        
         private readonly List<MapleMessengerCharacter> m_mMembers = new List<MapleMessengerCharacter>();
         private bool m_mPos0;
         private bool m_mPos1;
-        private bool m_mPos2;
 
         public MapleMessenger(int id, MapleMessengerCharacter chrfor)
         {
@@ -38,10 +38,6 @@ namespace NeoMapleStory.Game.World
             else if (position == 1)
             {
                 m_mPos1 = false;
-            }
-            else if (position == 2)
-            {
-                m_mPos2 = false;
             }
             m_mMembers.Remove(member);
         }
@@ -75,7 +71,6 @@ namespace NeoMapleStory.Game.World
             {
                 if (m_mPos1)
                 {
-                    m_mPos2 = true;
                     position = 2;
                 }
                 else
@@ -95,28 +90,32 @@ namespace NeoMapleStory.Game.World
         public int GetPositionByName(string name)
             => m_mMembers.FirstOrDefault(x => x.CharacterName == name)?.Position ?? 4;
 
-        public override int GetHashCode() => 31 + Id;
+        public static bool operator ==(MapleMessenger left, MapleMessenger right)
+        {
+            return left?.Id == right?.Id;
+        }
+
+        public static bool operator !=(MapleMessenger left, MapleMessenger right)
+        {
+            return !(left == right);
+        }
+
+        protected bool Equals(MapleMessenger other)
+        {
+            return Id == other.Id;
+        }
 
         public override bool Equals(object obj)
         {
-            if (this == obj)
-            {
-                return true;
-            }
-            if (obj == null)
-            {
-                return false;
-            }
-            if (this != obj)
-            {
-                return false;
-            }
-            var other = (MapleMessenger) obj;
-            if (Id != other.Id)
-            {
-                return false;
-            }
-            return true;
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((MapleMessenger)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return Id;
         }
     }
 }

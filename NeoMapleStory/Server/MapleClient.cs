@@ -48,6 +48,7 @@ namespace NeoMapleStory.Server
         public int AccountId { get; set; }
         public bool Gender { get; set; }
         public bool IsGm { get; set; }
+        public string AccountName { get; set; }
 
         //aa
         public byte WorldId { get; set; }
@@ -58,6 +59,8 @@ namespace NeoMapleStory.Server
 
         public DateTime LastPongTime { get; set; }
         public int LastActionId { get; set; }
+
+
 
         public LoginState State
         {

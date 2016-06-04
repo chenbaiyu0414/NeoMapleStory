@@ -22,7 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <UseVSHostingProcess>true</UseVSHostingProcess>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -173,6 +173,8 @@
     <Compile Include="Game\Inventory\IEquip.cs" />
     <Compile Include="Game\Inventory\IMapleItem.cs" />
     <Compile Include="Game\Inventory\Item.cs" />
+    <Compile Include="Game\Inventory\MapleCashShopInventory.cs" />
+    <Compile Include="Game\Inventory\MapleCashShopInventoryItem.cs" />
     <Compile Include="Game\Inventory\MapleInventory.cs" />
     <Compile Include="Game\Inventory\MapleInventoryManipulator.cs" />
     <Compile Include="Game\Inventory\MapleInventoryType.cs" />

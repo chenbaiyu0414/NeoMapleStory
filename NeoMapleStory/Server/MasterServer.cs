@@ -7,7 +7,7 @@ using SuperSocket.SocketBase.Config;
 
 namespace NeoMapleStory.Server
 {
-    public sealed class MasterServer
+    public sealed class MasterServer:IDisposable
     {
         public MasterServer()
         {
@@ -16,7 +16,7 @@ namespace NeoMapleStory.Server
                 var loginConfig = new ServerConfig
                 {
                     Port = ServerSettings.ServerPort,
-                    Ip = "Any",
+                    Ip = "127.0.0.1",
                     MaxConnectionNumber = ServerSettings.BacklogLimit,
                     Name = "登录服务器",
                     IdleSessionTimeOut = 30
@@ -27,7 +27,7 @@ namespace NeoMapleStory.Server
                 for (var i = 0; i < ServerSettings.ChannelCount; i++)
                 {
                     var channel = new ChannelServer(i);
-                    channel.Setup("Any", ServerSettings.ChannelPort + i);
+                    channel.Setup("127.0.0.1", ServerSettings.ChannelPort + i);
                     ChannelServers.Add(channel);
                 }
 
@@ -47,6 +47,11 @@ namespace NeoMapleStory.Server
         public List<ChannelServer> ChannelServers { get; } = new List<ChannelServer>(ServerSettings.ChannelCount);
         public LoginServer LoginServer { get; }
 
+        public void Dispose()
+        {
+            LoginServer.Dispose();
+        }
+
         public bool Start()
         {
             var result = LoginServer.Start();
@@ -60,5 +65,7 @@ namespace NeoMapleStory.Server
             ChannelServers.ForEach(x => x.Stop());
             TimerManager.Instance.Stop();
         }
+
+        
     }
 }
