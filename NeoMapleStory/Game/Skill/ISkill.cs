@@ -8,7 +8,7 @@ namespace NeoMapleStory.Game.Skill
     {
         int SkillId { get; }
 
-        int MaxLevel { get; }
+        byte MaxLevel { get; }
 
         int AnimationTime { get; }
 

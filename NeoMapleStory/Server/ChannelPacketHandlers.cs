@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Net;
 using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database.Models;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client;
@@ -29,9 +30,9 @@ namespace NeoMapleStory.Server
         {
             var charId = p.ReadInt();
 
-            var player = MapleCharacter.LoadCharFromDb(charId, c, true);
+            var player =new MapleCharacter(charId, c, true);
             c.Player = player;
-            c.AccountId = player.AccountId;
+            c.Account = player.Account;
 
             var state = c.State;
             var allowLogin = true;
@@ -59,13 +60,12 @@ namespace NeoMapleStory.Server
                 //    channelServer.reconnectWorld();
                 //    allowLogin = false;
                 //}
-                if (state != MapleClient.LoginState.ServerTransition || allowLogin == false)
+                if (state !=  LoginStateType.ServerTransition || allowLogin == false)
                 {
-                    c.Player = null;
                     c.Close();
                     return;
                 }
-                c.State = MapleClient.LoginState.LoggedIn;
+                c.State =  LoginStateType.LoggedIn;
             }
 
             channelServer.Characters.Add(player);
@@ -111,37 +111,31 @@ namespace NeoMapleStory.Server
 
             c.Send(ChannelPacket.GetCharInfo(player));
 
-            //if (player.GMLevel > 0)
-            //{
-            //    int[] skills = { 9001004, 9001001 };
-            //    foreach (int i in skills)
-            //    {
-            //        SkillFactory.GetSkill(i).GetEffect(SkillFactory.GetSkill(i).MaxLevel).applyTo(player);
-            //    }
-            //}
+            if (player.IsGm)
+            {
+                int[] skills = { 9001004, 9001001 };
+                foreach (int i in skills)
+                {
+                    SkillFactory.GetSkill(i).GetEffect(SkillFactory.GetSkill(i).MaxLevel).ApplyTo(player);
+                }
+            }
 
 
             if (player.GmLevel == 0)
             {
-                Console.WriteLine($"玩家 [ {player.Name} ],Lv {player.Level} 进入了游戏服务器.");
+                Console.WriteLine($"玩家 [ {player.Name} ],Lv {player.Level} 进入了游戏服务器");
                 c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, $"您进入了{c.ChannelId + 1} 线"));
             }
             else
             {
-                Console.WriteLine($"管理员 [ {player.Name} ] 进入游戏服务器.");
+                Console.WriteLine($"管理员 [ {player.Name} ] 进入游戏服务器");
                 c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, $"您进入了{c.ChannelId + 1} 线"));
                 player.DropMessage($"[欢迎] 尊敬的管理员 {player.Name} ,当前在线人数为: {c.AppServer.SessionCount}");
             }
 
-            //if (player.Hp < 50)
-            //{
-            //    //这里判断暂时这样写吧！
-            //    c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, "[游戏公告] 生命低于 50 !请留意HP!"));
-            //}
-
             var prefix = "";
             IMapleItem equip = null;
-            player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(17, out equip);
+            player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(0xEF, out equip);
 
             if (equip != null && equip.ItemId == 1122017)
             {
@@ -242,8 +236,7 @@ namespace NeoMapleStory.Server
 
             if (player.Job == MapleJob.GhostKnight && player.Level <= 9)
             {
-                c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText,
-                    "[注意] 请在10级转职之前，加好基本技能点，转职请找NPC！"));
+                c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.PinkText, "[注意] 请在10级转职之前，加好基本技能点，转职请找NPC！"));
             }
 
             //player.sendKeymap();
@@ -334,11 +327,11 @@ namespace NeoMapleStory.Server
 
         public static void PLAYER_UPDATE(MapleClient c, InPacket p)
         {
-            c.Player.SaveToDb(true);
+            c.Player.Save();
             if ((c.Player.Map.MapId == 677000013) || (c.Player.Map.MapId == 677000013))
             {
                 c.Player.StartMapEffect("尝试一下惨败的味道吧……哈哈哈哈哈", 5120000);
-                c.Player.SaveToDb(true);
+                c.Player.Save();
             }
         }
 
@@ -385,7 +378,7 @@ namespace NeoMapleStory.Server
             {
                 if (p.AvailableCount != 18)
                 {
-                    Console.WriteLine("slea.available != 18 (movement parsing error)");
+                    Console.WriteLine("p.available != 18 (movement parsing error)");
                     return;
                 }
                 var player = c.Player;
@@ -418,25 +411,17 @@ namespace NeoMapleStory.Server
         {
             if (p.AvailableCount == 0)
             {
-                if (c.Player.Party != null)
-                {
-                    c.Character.setParty(c.getPlayer.getParty());
-                }
-
-
                 var ip = IPAddress.Parse(c.ChannelServer.Config.Ip);
-                var port = (short)c.ChannelServer.
+                var port = (short)c.ChannelServer.Config.Port;
 
-                c.Player.SaveToDb(true);
-                c.Player.InCashShop=false;
-                //c.getPlayer.setInMTS(false);
-                //c.Player.CancelSavedBuffs();
+                c.Player.Save();
+                c.Player.InCashShop = false;
+                c.Player.CancelSavedBuffs();
 
                 c.ChannelServer.Characters.Remove(c.Player);
-                c.State = MapleClient.LoginState.ServerTransition;
+                c.State =  LoginStateType.ServerTransition;
 
                 c.Send(PacketCreator.GetChannelChange(ip, port));
-                c.Close();
             }
             else
             {
@@ -799,8 +784,8 @@ namespace NeoMapleStory.Server
 
             if (res != null)
             {
-                //if (slea.available() != 9) {
-                //log.warn("slea.available != 9 (movement parsing error)");
+                //if (p.available() != 9) {
+                //log.warn("p.available != 9 (movement parsing error)");
                 //return;
                 //}
                 var packet = PacketCreator.MoveMonster(skillByte, skill, skill1, skill2, skill3, objectid, startPos, res);
@@ -1149,7 +1134,7 @@ namespace NeoMapleStory.Server
                     if (mploss > player.Mp)
                     {
                         hploss += (short)(mploss - player.Mp);
-                        mploss = player.Mp;
+                        mploss = (short)player.Mp;
                     }
 
 
@@ -1167,9 +1152,9 @@ namespace NeoMapleStory.Server
                 {
                     damage = damage % 2 == 0 ? damage / 2 : damage / 2 + 1;
                     var mesoloss = (int)(damage * (player.GetBuffedValue(MapleBuffStat.Mesoguard) / 100.0));
-                    if (player.Money.Value < mesoloss)
+                    if (player.Meso.Value < mesoloss)
                     {
-                        player.GainMeso(-player.Money.Value, false);
+                        player.GainMeso(-player.Meso.Value, false);
                         player.CancelBuffStats(MapleBuffStat.Mesoguard);
                     }
                     else
@@ -1295,11 +1280,11 @@ namespace NeoMapleStory.Server
                         c.Player.AntiCheatTracker.PickupComplete();
                         c.Player.Map.RemoveMapObject(ob);
                     }
-                    //else if (useItem(c, mapitem.getItem().getItemId()))
+                    //else if (useItem(c, mapitem.getItem().ItemId))
                     //{
-                    //    if (mapitem.getItem().getItemId() / 10000 == 238)
+                    //    if (mapitem.getItem().ItemId / 10000 == 238)
                     //    {
-                    //        c.Character.getMonsterBook().addCard(c, mapitem.getItem().getItemId());
+                    //        c.Character.getMonsterBook().addCard(c, mapitem.getItem().ItemId);
                     //    }
                     //    mapitem.setPickedUp(true);
                     //    c.Character.getMap().broadcastMessage(PacketCreator.removeItemFromMap(mapitem.getObjectId(), 2, c.Character.getId()), mapitem.getPosition());
@@ -1309,12 +1294,12 @@ namespace NeoMapleStory.Server
                     {
                         if (mapitem.Item.ItemId >= 5000000 && mapitem.Item.ItemId <= 5000100)
                         {
-                            //int petId = MaplePet.createPet(mapitem.getItem().getItemId());
+                            //int petId = MaplePet.createPet(mapitem.getItem().ItemId);
                             //if (petId == -1)
                             //{
                             //    return;
                             //}
-                            //MapleInventoryManipulator.addById(c, mapitem.getItem().getItemId(), mapitem.getItem().getQuantity(), "Cash Item was purchased.", null, petId);
+                            //MapleInventoryManipulator.addById(c, mapitem.getItem().ItemId, mapitem.getItem().getQuantity(), "Cash Item was purchased.", null, petId);
                             //c.Character.getMap().broadcastMessage(
                             //        PacketCreator.removeItemFromMap(mapitem.getObjectId(), 2, c.Character.getId()),
                             //        mapitem.getPosition());
@@ -1626,7 +1611,7 @@ namespace NeoMapleStory.Server
                     player.RemainingSp -= 1;
                 }
                 player.UpdateSingleStat(MapleStat.Availablesp, player.RemainingSp);
-                player.ChangeSkillLevel(skill, curLevel + 1, player.GetMasterLevel(skill));
+                player.ChangeSkillLevel(skill,(byte) (curLevel + 1),player.GetMasterLevel(skill));
             }
             else if (!skill.CanBeLearned(player.Job))
             {
@@ -1908,7 +1893,7 @@ namespace NeoMapleStory.Server
                 //try
                 //{
                 //    WorldChannelInterface wci = ChannelServer.getInstance(c.getChannel()).getWorldInterface();
-                //    wci.addBuffsToStorage(c.getPlayer().getId(), c.getPlayer().getAllBuffs());
+                //    wci.addBuffsToStorage(c.Player.getId(), c.Player.getAllBuffs());
                 //}
                 //catch (Exception e)
                 //{
@@ -1917,17 +1902,593 @@ namespace NeoMapleStory.Server
                 c.Player.Map.RemovePlayer(c.Player);
                 c.Send(PacketCreator.WarpToCashShop(c));
                 c.Player.InCashShop = true;
-                c.Send(PacketCreator.sendWishList(c.Player.Id));
-                c.Send(PacketCreator.showNXMapleTokens(c.Player));
+                c.Send(PacketCreator.SendWishList(c.Player.Id));
+                c.Send(PacketCreator.ShowNXMapleTokens(c.Player));
                 c.Send(PacketCreator.GetCashShopInventory(c.Player));
                 c.Send(PacketCreator.GetCashShopGifts(c.Player));
-                c.Player.SaveToDb(true);
+                c.Player.Save();
+                Console.WriteLine($"{c.Player.Name}进入商城服务器");
             }
             else
             {
                 c.Send(PacketCreator.SendBlockedMessage(3));
                 c.Send(PacketCreator.EnableActions());
             }
+        }
+        public static void ENTER_MTS(MapleClient c, InPacket p)
+        {
+            NpcScriptManager.Instance.Start(c, 9000018);
+            c.Send(PacketCreator.EnableActions());
+        }
+        public static void CASHSHOP(MapleClient c, InPacket p)
+        {
+            int action = p.ReadByte();
+            int accountId = c.Account.Id;
+            if (action == 3)
+            {
+                //购买物品
+                byte currencyType = p.ReadByte();
+                int snCS = p.ReadInt();
+                CashItem item = CashItemFactory.GetItem(snCS);
+                if (c.Player.GetCashShopPoints(currencyType) >= item.Price)
+                {
+                    c.Player.ChangeCashShopPoints(currencyType, -item.Price);
+                }
+                else
+                {
+                    c.Send(PacketCreator.EnableActions());
+                    AutobanManager.Instance.Autoban(c, "试图购买现金物品，但是没有足够的点券。");
+                    return;
+                }
+                if (item.Price == 0)
+                {
+                    //检测物品的价格为0就返回不处理，你可以自定义添加其它的了。
+                    return;
+                }
+
+                //这里屏掉了经验卡和小黑板  大家可以自由发挥~
+                if (item.ItemId == 5370000 || item.ItemId == 5370001 || item.ItemId >= 4100000 && item.ItemId <= 4100006 || item.ItemId == 1112800 || item.ItemId >= 1112001 && item.ItemId <= 1112012)
+                {
+                    c.Player.Client.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.Popup, "系统错误，请稍后再试"));
+
+                    return;
+                }
+                if (item.ItemId >= 5000000 && item.ItemId <= 5000100)
+                {
+                    int petId = MaplePet.Create(item.ItemId, c.Player);
+                    if (petId == -1)
+                    {
+                        return;
+                    }
+                    var citem = new MapleCashShopInventoryItem(petId, item.ItemId, snCS, item.Count, false);
+                    long period = 90;
+                    citem.Expire = DateTime.Now.AddSeconds(period * 24 * 60 * 60);
+                    c.Player.CashShopInventory.AddItem(citem);
+                    c.Send(PacketCreator.EnableCashShopOrMTS());
+                    c.Send(PacketCreator.ShowBoughtCashShopItem(c, citem));
+                }
+                else
+                {
+                    var citem = new MapleCashShopInventoryItem(MapleCharacter.GetNextUniqueId(), item.ItemId, snCS, item.Count, false);
+                    long period = item.Period;
+                    DateTime? expirationDate = DateTime.Now.AddSeconds(period * 24 * 60 * 60);
+                    if (period == 0)
+                    {
+                        expirationDate = null;
+                    }
+                    if (item.ItemId == 5211047 || item.ItemId == 5360014)
+                    {
+                        expirationDate = DateTime.Now.AddSeconds(3 * 60 * 60);
+                    }
+                    citem.Expire = expirationDate;
+                    c.Player.CashShopInventory.AddItem(citem);
+                    c.Send(PacketCreator.ShowBoughtCashShopItem(c, citem));
+                }
+                c.Player.Save();
+                c.Send(PacketCreator.ShowNXMapleTokens(c.Player));
+                c.Send(PacketCreator.EnableActions());
+            }
+            else if (action == 4)
+            {
+                ////赠送礼物
+                //int snCS = p.ReadInt();
+                //byte type = p.ReadByte();
+                //string recipient = p.ReadMapleString();
+                //string message = p.ReadMapleString();
+                //CashItem item = CashItemFactory.GetItem(snCS);
+                //if (c.Player.GetCashShopPoints(type) >= item.Price)
+                //{
+                //    if (MapleCharacter.getAccountIdByName(recipient) != -1)
+                //    {
+                //        if (MapleCharacter.getAccountIdByName(recipient) == c.Player.AccountId)
+                //        {
+                //            c.Send(PacketCreator.ShowCannotToMe());
+                //        }
+                //        else
+                //        {
+                //            c.Player.ChangeCashShopPoints(type, -item.Price);
+                //            var gift = new MapleCashShopInventoryItem(0, item.ItemId, snCS, item.Count, true);
+                //            gift.Sender = c.Player.Name;
+                //            gift.Message = message;
+                //            gift.Expire = DateTime.Now.AddSeconds(item.Period * 24 * 60 * 60);
+                //            try
+                //            {
+                //                Connection con = DatabaseConnection.getConnection();
+                //                PreparedStatement ps = con.prepareStatement("INSERT INTO csgifts (accountid, itemid, sn, quantity, sender, message, expiredate) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                //                ps.setInt(1, MapleCharacter.getAccountIdByName(recipient));
+                //                ps.setInt(2, item.ItemId);
+                //                ps.setInt(3, snCS);
+                //                ps.setInt(4, item.getCount());
+                //                ps.setString(5, c.Player.getName());
+                //                ps.setString(6, message);
+                //                Timestamp ExpirationDate = new Timestamp(System.currentTimeMillis());
+                //                if ((item.ItemId >= 5000000 && item.ItemId <= 5000100) || item.ItemId == 1112906 || item.ItemId == 1112905)
+                //                {
+                //                    ExpirationDate = new Timestamp(((System.currentTimeMillis() / 1000) + (90 * 24 * 60 * 60)) * 1000);
+                //                }
+                //                else if (item.ItemId == 5211047 || item.ItemId == 5360014)
+                //                {
+                //                    ExpirationDate = new Timestamp(((System.currentTimeMillis() / 1000) + (3 * 60 * 60)) * 1000);
+                //                }
+                //                else if (item.getPeriod() != 0)
+                //                {
+                //                    ExpirationDate = new Timestamp(((System.currentTimeMillis() / 1000) + (item.getPeriod() * 24 * 60 * 60)) * 1000);
+                //                }
+                //                else
+                //                {
+                //                    ExpirationDate = null;
+                //                }
+                //                ps.setTimestamp(7, ExpirationDate);
+                //                ps.executeUpdate();
+                //                ps.close();
+                //            }
+                //            catch (Exception e)
+                //            {
+                //                Console.WriteLine(e.Message);
+                //            }
+                //            c.Send(PacketCreator.getGiftFinish(c.Player.getName(), item.ItemId, (short)item.getCount()));
+                //        }
+                //    }
+                //    else
+                //    {
+                //        c.getSession().write(MaplePacketCreator.showCheckName());
+                //    }
+                //}
+                //else
+                //{
+                //    c.getSession().write(MaplePacketCreator.enableActions());
+                //    AutobanManager.getInstance().autoban(c, "试图购买现金物品，但是没有足够的点券。");
+                //    return;
+                //}
+                //c.Player.saveToDB(true);
+                //c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //c.getSession().write(MaplePacketCreator.enableActions());
+            }
+            else if (action == 5)
+            {
+                //try
+                //{
+                //    Connection con = DatabaseConnection.getConnection();
+                //    PreparedStatement ps = con.prepareStatement("DELETE FROM wishlist WHERE charid = ?");
+                //    ps.setInt(1, c.Player.getId());
+                //    ps.executeUpdate();
+                //    ps.close();
+
+                //    int i = 10;
+                //    while (i > 0)
+                //    {
+                //        int sn = p.ReadInt();
+                //        if (sn != 0)
+                //        {
+                //            ps = con.prepareStatement("INSERT INTO wishlist(charid, sn) VALUES(?, ?) ");
+                //            ps.setInt(1, c.Player.getId());
+                //            ps.setInt(2, sn);
+                //            ps.executeUpdate();
+                //            ps.close();
+                //        }
+                //        i--;
+                //    }
+                //}
+                //catch (SQLException se)
+                //{
+                //    log.error("Wishlist SQL Error", se);
+                //}
+                //c.getSession().write(MaplePacketCreator.updateWishList(c.Player.getId()));
+            }
+            else if (action == 6)
+            {
+                ////扩充仓库
+                //int useNX = p.ReadByte();
+                //byte add = p.ReadByte();
+                //if (add == 0)
+                //{
+                //    byte type = p.ReadByte();
+                //    MapleInventoryType invtype = MapleInventoryType.getByType(type);
+                //    byte slots = c.Player.getInventory(invtype).getSlots();
+                //    if (c.Player.getCSPoints(useNX) < 600)
+                //    {
+                //        c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //        c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //        c.getSession().write(MaplePacketCreator.enableActions());
+                //        return;
+                //    }
+                //    if (slots <= 92)
+                //    {
+                //        c.Player.modifyCSPoints(useNX, -600);
+                //        c.Player.getInventory(invtype).setSlotLimit((byte)(slots + 4));
+                //        c.getSession().write(MaplePacketCreator.serverNotice(1, "扩充成功."));
+                //    }
+                //    else
+                //    {
+                //        c.getSession().write(MaplePacketCreator.serverNotice(1, "您无法继续进行扩充."));
+                //    }
+                //}
+                //else if (add == 1)
+                //{
+                //    int sn = p.ReadInt();
+                //    byte type = 1;
+                //    switch (sn)
+                //    {
+                //        case 50200018:
+                //            type = 1;
+                //            break;
+                //        case 50200019:
+                //            type = 2;
+                //            break;
+                //        case 50200020:
+                //            type = 3;
+                //            break;
+                //        case 50200021:
+                //            type = 4;
+                //            break;
+                //        case 50200043:
+                //            type = 5;
+                //            break;
+                //    }
+                //    MapleInventoryType invtype = MapleInventoryType.getByType(type);
+                //    byte slots = c.Player.getInventory(invtype).getSlots();
+                //    if (c.Player.getCSPoints(useNX) < 1100)
+                //    {
+                //        c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //        c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //        c.getSession().write(MaplePacketCreator.enableActions());
+                //        return;
+                //    }
+                //    if (slots <= 86)
+                //    {
+                //        c.Player.modifyCSPoints(useNX, -1100);
+                //        c.Player.getInventory(invtype).setSlotLimit((byte)(slots + 8));
+                //        c.getSession().write(MaplePacketCreator.serverNotice(1, "扩充成功."));
+                //    }
+                //    else
+                //    {
+                //        c.getSession().write(MaplePacketCreator.serverNotice(1, "您无法继续进行扩充."));
+                //    }
+                //}
+                //c.Player.saveToDB(true);
+                //c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //c.getSession().write(MaplePacketCreator.enableActions());
+            }
+            else if (action == 0x0D)
+            {
+                //商城=>包裹
+                int uniqueid = p.ReadInt(); //csid.. not like we need it anyways
+                p.ReadInt();//0
+                p.ReadByte();//0
+                byte type = p.ReadByte();
+                byte unknown = p.ReadByte();
+                IMapleItem item = c.Player.CashShopInventory.GetItem(uniqueid).ToItem();
+                if (item != null)
+                {
+                    byte slot = c.Player.Inventorys[MapleItemInformationProvider.Instance.GetInventoryType(item.ItemId).Value].GetNextFreeSlot();
+                    if (slot == 0xFF)
+                    {
+                        c.Send(PacketCreator.ServerNotice(PacketCreator.ServerMessageType.Popup, "您的包裹已满"));
+                    }
+                    else
+                    {
+                        c.Player.Inventorys[MapleItemInformationProvider.Instance.GetInventoryType(item.ItemId).Value].AddItem(item);
+                        c.Player.CashShopInventory.RemoveItem(uniqueid);
+                        c.Send(PacketCreator.transferFromCSToInv(item, slot));
+                    }
+                }
+                c.Player.Save();
+                c.Send(PacketCreator.EnableCashShopOrMTS());
+                c.Send(PacketCreator.ShowNXMapleTokens(c.Player));
+                c.Send(PacketCreator.EnableActions());
+            }
+            else if (action == 0x0E)
+            {
+                //包裹=>商城
+                int uniqueid = p.ReadInt();
+                p.ReadInt();//0
+                p.ReadByte(); //1?
+
+                IMapleItem item = null;
+                foreach (MapleInventory inventory in c.Player.Inventorys)
+                {
+                    item = inventory.FindByUniqueId(uniqueid);
+                    if (item != null)
+                    {
+
+                        MapleCashShopInventoryItem citem = new MapleCashShopInventoryItem(item.UniqueId, item.ItemId, CashItemFactory.GetSnFromId(item.ItemId), item.Quantity, false);
+                        citem.Expire=item.Expiration;
+                        c.Player.CashShopInventory.AddItem(citem);
+
+                        inventory.RemoveItem(item.Position, item.Quantity, false);
+                        c.Send(PacketCreator.TransferFromInvToCs(c.Player, citem));
+                        break;
+                    }
+                }
+                c.Player.Save();
+                c.Send(PacketCreator.EnableCashShopOrMTS());
+                c.Send(PacketCreator.ShowNXMapleTokens(c.Player));
+                c.Send(PacketCreator.EnableActions());
+            }
+            else if (action == 0x21)
+            {
+                ////购买任务物品
+                //int snCS = p.ReadInt();
+                //CashItem item = CashItemFactory.GetItem(snCS);
+                //if (c.Player.getMeso() >= item.getPrice())
+                //{
+                //    c.Player.gainMeso(-item.getPrice(), false);
+                //    MapleInventoryManipulator.addById(c, item.ItemId, (short)item.getCount(), "购买了任务物品");
+                //    MapleInventory etcInventory = c.Player.getInventory(MapleInventoryType.ETC);
+                //    byte slot = etcInventory.findById(item.ItemId).getPosition();
+                //    c.getSession().write(MaplePacketCreator.showBoughtCSQuestItem(slot, item.ItemId));
+                //}
+                //else
+                //{
+                //    c.getSession().write(MaplePacketCreator.enableActions());
+                //    return;
+                //}
+                //c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //c.getSession().write(MaplePacketCreator.enableActions());
+                //return;
+            }
+            else if (action == 0x1F)
+            {
+                ////购买礼包
+                //int type = p.ReadByte();
+                //int snCS = p.ReadInt();
+                //CashItem cashPackage = CashItemFactory.GetItem(snCS);
+                //if (c.Player.getCSPoints(type) >= cashPackage.getPrice())
+                //{
+                //    c.Player.modifyCSPoints(type, -cashPackage.getPrice());
+                //}
+                //else
+                //{
+                //    c.getSession().write(MaplePacketCreator.enableActions());
+                //    return;
+                //}
+                //for (CashItem item : CashItemFactory.getPackageItems(cashPackage.ItemId))
+                //{
+                //    if (item.ItemId >= 5000000 && item.ItemId <= 5000100)
+                //    {
+                //        int petId = MaplePet.createPet(item.ItemId, c.Player);
+                //        if (petId == -1)
+                //        {
+                //            return;
+                //        }
+                //        MapleCSInventoryItem citem = new MapleCSInventoryItem(petId, item.ItemId, snCS, (short)item.getCount(), false);
+                //        long period = 90;
+                //        Timestamp ExpirationDate = new Timestamp(System.currentTimeMillis() + (period * 24 * 60 * 60 * 1000));
+                //        citem.setExpire(ExpirationDate);
+                //        c.Player.getCSInventory().addItem(citem);
+                //        c.getSession().write(MaplePacketCreator.showBoughtCSItem(c, citem));
+                //    }
+                //    else
+                //    {
+                //        MapleCSInventoryItem citem = new MapleCSInventoryItem(MapleCharacter.getNextUniqueId(), item.ItemId, snCS, (short)item.getCount(), false);
+                //        long period = item.getPeriod();
+                //        Timestamp ExpirationDate = new Timestamp(System.currentTimeMillis());
+                //        ExpirationDate = new Timestamp(((System.currentTimeMillis() / 1000) + (period * 24 * 60 * 60)) * 1000);
+                //        if (period == 0)
+                //        {
+                //            ExpirationDate = null;
+                //        }
+                //        if (item.ItemId == 5211047 || item.ItemId == 5360014)
+                //        {
+                //            ExpirationDate = new Timestamp(((System.currentTimeMillis() / 1000) + (3 * 60 * 60)) * 1000);
+                //        }
+                //        if (item.ItemId == 1112906 && item.ItemId == 1112905)
+                //        {
+                //            ExpirationDate = new Timestamp(((System.currentTimeMillis() / 1000) + (period * 24 * 60 * 60)) * 1000);
+                //        }
+                //        citem.setExpire(ExpirationDate);
+                //        c.Player.getCSInventory().addItem(citem);
+                //        c.getSession().write(MaplePacketCreator.showBoughtCSItem(c, citem));
+                //    }
+                //    c.Player.getCSInventory().saveToDB();
+                //}
+                //c.Player.saveToDB(true);
+                //c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //c.getSession().write(MaplePacketCreator.enableActions());
+            }
+            else if (action == 0x1D)
+            {
+                ////购买结婚戒指相关
+                //int snCS = p.ReadInt();
+                //String recipient = p.ReadMapleAsciiString();
+                //String message = p.ReadMapleAsciiString();
+                //CashItem item = CashItemFactory.GetItem(snCS);
+                //if (c.Player.getCSPoints(0) >= item.getPrice())
+                //{
+                //    if (MapleCharacter.getAccountIdByName(recipient) != -1)
+                //    {
+                //        c.Player.modifyCSPoints(0, -item.getPrice());
+                //        MapleCSInventoryItem gift = new MapleCSInventoryItem(0, item.ItemId, snCS, (short)item.getCount(), true);
+                //        MapleCSInventoryItem citem = new MapleCSInventoryItem(MapleCharacter.getNextUniqueId(), item.ItemId, snCS, (short)item.getCount(), false);
+                //        gift.setSender(c.Player.getName());
+                //        gift.setMessage(message);
+                //        gift.setExpire(new Timestamp(((System.currentTimeMillis() / 1000) + (item.getPeriod() * 24 * 60 * 60)) * 1000));
+                //        try
+                //        {
+                //            Connection con = DatabaseConnection.getConnection();
+                //            PreparedStatement ps = con.prepareStatement("INSERT INTO csgifts (accountid, itemid, sn, quantity, sender, message, expiredate) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                //            ps.setInt(1, MapleCharacter.getAccountIdByName(recipient));
+                //            ps.setInt(2, item.ItemId);
+                //            ps.setInt(3, snCS);
+                //            ps.setInt(4, item.getCount());
+                //            ps.setString(5, c.Player.getName());
+                //            ps.setString(6, message);
+                //            ps.setTimestamp(7, null);
+                //            ps.executeUpdate();
+                //            ps.close();
+                //        }
+                //        catch (SQLException se)
+                //        {
+                //            log.error("Error saving gift to database", se);
+                //        }
+                //        c.Player.getCSInventory().addItem(citem);
+                //        c.getSession().write(MaplePacketCreator.showBoughtCSItem(c, citem));
+                //        MapleRing.createRing(MapleCharacter.getNextUniqueId(), MapleCharacter.getNextUniqueId() + 1, c.Player.getId(), MapleCharacter.getIdByName(recipient), c.Player.getName(), recipient);
+                //    }
+                //    else
+                //    {
+                //        c.getSession().write(MaplePacketCreator.serverNotice(1, "未登陆的角色"));
+                //    }
+                //}
+                //else
+                //{
+                //    c.getSession().write(MaplePacketCreator.enableActions());
+                //    return;
+                //}
+                //c.Player.getCSInventory().saveToDB();
+                //c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //c.getSession().write(MaplePacketCreator.enableActions());
+            }
+            else if (action == 0x24)
+            {
+                ////购买挚友戒指相关
+                //int snCS = p.ReadInt();
+                //String recipient = p.ReadMapleAsciiString();
+                //String message = p.ReadMapleAsciiString();
+                //CashItem item = CashItemFactory.GetItem(snCS);
+                //if (c.Player.getCSPoints(0) >= item.getPrice())
+                //{
+                //    if (MapleCharacter.getAccountIdByName(recipient) != -1)
+                //    {
+                //        c.Player.modifyCSPoints(0, -item.getPrice());
+                //        MapleCSInventoryItem gift = new MapleCSInventoryItem(0, item.ItemId, snCS, (short)item.getCount(), true);
+                //        MapleCSInventoryItem citem = new MapleCSInventoryItem(MapleCharacter.getNextUniqueId(), item.ItemId, snCS, (short)item.getCount(), false);
+                //        gift.setSender(c.Player.getName());
+                //        gift.setMessage(message);
+                //        gift.setExpire(new Timestamp(((System.currentTimeMillis() / 1000) + (item.getPeriod() * 24 * 60 * 60)) * 1000));
+                //        try
+                //        {
+                //            Connection con = DatabaseConnection.getConnection();
+                //            PreparedStatement ps = con.prepareStatement("INSERT INTO csgifts (accountid, itemid, sn, quantity, sender, message, expiredate) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                //            ps.setInt(1, MapleCharacter.getAccountIdByName(recipient));
+                //            ps.setInt(2, item.ItemId);
+                //            ps.setInt(3, snCS);
+                //            ps.setInt(4, item.getCount());
+                //            ps.setString(5, c.Player.getName());
+                //            ps.setString(6, message);
+                //            ps.setTimestamp(7, null);
+                //            ps.executeUpdate();
+                //            ps.close();
+                //        }
+                //        catch (SQLException se)
+                //        {
+                //            log.error("Error saving gift to database", se);
+                //        }
+                //        c.Player.getCSInventory().addItem(citem);
+                //        c.getSession().write(MaplePacketCreator.showBoughtCSItem(c, citem));
+                //        MapleRing.createRing(MapleCharacter.getNextUniqueId(), MapleCharacter.getNextUniqueId() + 1, c.Player.getId(), MapleCharacter.getIdByName(recipient), c.Player.getName(), recipient);
+                //    }
+                //    else
+                //    {
+                //        c.getSession().write(MaplePacketCreator.serverNotice(1, "未登陆的角色"));
+                //    }
+                //}
+                //else
+                //{
+                //    c.getSession().write(MaplePacketCreator.enableActions());
+                //    return;
+                //}
+                //c.Player.getCSInventory().saveToDB();
+                //c.getSession().write(MaplePacketCreator.enableCSorMTS());
+                //c.getSession().write(MaplePacketCreator.showNXMapleTokens(c.Player));
+                //c.getSession().write(MaplePacketCreator.enableActions());
+            }
+            c.Player.CashShopInventory.Save();
+            c.Send(PacketCreator.EnableCashShopOrMTS());
+            c.Send(PacketCreator.ShowNXMapleTokens(c.Player));
+            c.Send(PacketCreator.EnableActions());
+        }
+        public static void ITEM_MOVE(MapleClient c, InPacket p)
+        {
+            int actionId = p.ReadInt();
+            if (actionId <= c.LastActionId)
+            {
+                c.Send(PacketCreator.EnableActions());
+                return;
+            }
+            c.LastActionId = actionId;
+            MapleInventoryType type = MapleInventoryType.GetByType(p.ReadByte());
+            MapleInventory inventory = c.Player.Inventorys[type.Value];
+            short src = p.ReadShort();
+            short dst = p.ReadShort();
+
+            byte srcSlot = (byte)src;
+            byte dstSlot = (byte)dst;
+
+            short quantity = p.ReadShort();
+            if (srcSlot > 127 && dstSlot < 128)
+            {
+                MapleInventoryManipulator.UnEquip(c,src, dst);
+            }
+            else if (dstSlot > 127)
+            {
+                //log.error("你当前使用的道具是:"+src+"模式为:"+dst+"还不知道11111"+c);
+                if (inventory.Inventory[srcSlot].ItemId == 1122017)
+                    c.Player.DropMessage(PacketCreator.ServerMessageType.PinkText, "由于装备了[精灵吊坠],打猎时额外获得10%的经验值奖励!");
+
+                if (inventory.Inventory[srcSlot].ItemId == 1122018)
+                    c.Player.DropMessage(PacketCreator.ServerMessageType.PinkText, "由于装备了[温暖的围脖],打猎时额外获得100%的经验值外加奖励!");
+
+                MapleInventoryManipulator.Equip(c, src, dst);
+            }
+            else if (inventory.Inventory.ContainsKey(srcSlot) && inventory.Inventory[srcSlot].ItemId == 5110000)
+            {
+                c.Send(PacketCreator.EnableActions());
+            }
+            else if (dstSlot == 0)
+            {
+                if (quantity < 0)
+                {
+                    c.Player.DropMessage(PacketCreator.ServerMessageType.Popup, "Either you're Tryst, or you're a hacker. So GT*O here.\r\n(P.S. If you're Tryst, I ask you to **** OFF. Either way, you're a hacker.)");
+                    //try
+                    //{
+                    //    c.getChannelServer().getWorldInterface().broadcastGMMessage(c.getPlayer().getName(), MaplePacketCreator.serverNotice(0, "Duper alert: " + c.getPlayer().getName() + " is dropping negative amount of items.").getBytes());
+                    //}
+                    //catch (Throwable u)
+                    //{
+                    //}
+                    return;
+                }
+                if (!c.Player.Inventorys[type.Value].Inventory.ContainsKey(srcSlot))
+                {
+                    c.Send(PacketCreator.EnableActions());
+                    return;
+                }
+                MapleInventoryManipulator.Drop(c, type, srcSlot, quantity);
+            }
+            else
+            {
+                MapleInventoryManipulator.Move(c, type, src, dstSlot);
+            }
+        }
+        public static void TOUCHING_CASHSHOP(MapleClient c, InPacket p)
+        {
+            c.Send(PacketCreator.ShowNXMapleTokens(c.Player));
         }
     }
 }

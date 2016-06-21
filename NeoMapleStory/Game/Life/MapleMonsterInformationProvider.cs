@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
-using MySql.Data.MySqlClient;
 using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database;
 using NeoMapleStory.Game.Mob;
+using System.Linq;
 
 namespace NeoMapleStory.Game.Life
 {
@@ -52,24 +53,18 @@ namespace NeoMapleStory.Game.Life
                 return ret;
             }
 
-            var cmd =
-                new MySqlCommand(
-                    "SELECT ItemId, Chance, MonsterId, QuestId FROM MonsterDrops WHERE Monsterid = @MonsterID");
-            cmd.Parameters.Add(new MySqlParameter("@MonsterID", monsterid));
+            
             MapleMonster theMonster = null;
 
-            using (var con = DbConnectionManager.Instance.GetConnection())
+            using (var db = new NeoMapleStoryDatabase())
             {
-                cmd.Connection = con;
-                con.Open();
+                var dropQuery = db.MonsterDrops.Where(x => x.MonsterId == monsterid).Select(x => x);
 
-                var reader = cmd.ExecuteReader();
-
-                while (reader.Read())
+                foreach (var dropInfo in dropQuery)
                 {
-                    var rowmonsterid = (int) reader["MonsterId"];
-                    var chance = (int) reader["Chance"];
-                    var questid = (int) reader["Questid"];
+                    var rowmonsterid = dropInfo.MonsterId;
+                    var chance = dropInfo.Chance;
+                    var questid = dropInfo.QuestId;
                     if (rowmonsterid != monsterid && rowmonsterid != 0)
                     {
                         if (theMonster == null)
@@ -78,7 +73,7 @@ namespace NeoMapleStory.Game.Life
                         }
                         chance += theMonster.Stats.Level*rowmonsterid;
                     }
-                    ret.Add(new DropEntry((int) reader["ItemId"], chance, questid));
+                    ret.Add(new DropEntry(dropInfo.ItemId, chance, questid));
                 }
             }
 

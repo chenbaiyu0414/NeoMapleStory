@@ -84,7 +84,7 @@ namespace NeoMapleStory.Game.Quest
             {
                 case MapleQuestActionType.Meso:
                     var mesars = MapleDataTool.GetInt(Data);
-                    if (c.Money.Value + mesars < 0)
+                    if (c.Meso.Value + mesars < 0)
                     {
                         return false;
                     }
@@ -241,8 +241,8 @@ namespace NeoMapleStory.Game.Quest
                     foreach (var sEntry in Data)
                     {
                         var skillid = MapleDataTool.GetInt(sEntry.GetChildByPath("id"));
-                        var skillLevel = MapleDataTool.GetInt(sEntry.GetChildByPath("skillLevel"));
-                        var masterLevel = MapleDataTool.GetInt(sEntry.GetChildByPath("masterLevel"));
+                        var skillLevel = (byte)MapleDataTool.GetInt(sEntry.GetChildByPath("skillLevel"));
+                        var masterLevel = (byte)MapleDataTool.GetInt(sEntry.GetChildByPath("masterLevel"));
                         var skillObject = SkillFactory.GetSkill(skillid);
                         var shouldLearn = false;
                         var applicableJobs = sEntry.GetChildByPath("job");

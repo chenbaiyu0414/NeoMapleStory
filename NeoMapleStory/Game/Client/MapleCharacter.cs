@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using MySql.Data.MySqlClient;
 using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Buff;
 using NeoMapleStory.Game.Client.AntiCheat;
@@ -22,6 +21,8 @@ using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
 using Quartz;
+using NeoMapleStory.Core.Database.Models;
+using System.Data.Entity;
 
 namespace NeoMapleStory.Game.Client
 {
@@ -29,6 +30,7 @@ namespace NeoMapleStory.Game.Client
     {
         public const double MaxViewRangeSq = 850 * 850;
 
+        private  CharacterModel m_characterInfo = new CharacterModel();
 
         private readonly Action<MapleCharacter, int> m_cancelCooldownAction = (target, skillId) =>
         {
@@ -53,72 +55,107 @@ namespace NeoMapleStory.Game.Client
         private readonly SkillMacro[] m_skillMacros = new SkillMacro[5];
         public readonly List<MapleDisease> Diseases = new List<MapleDisease>();
 
-
-        //public CharacterModel CharacterInfo { get; set; }
+        public Dictionary<long, MapleStatEffect> BuffsToCancel { get; private set; } = new Dictionary<long, MapleStatEffect>();
 
 
         private int m_apqScore;
         private string m_chalkboardtext;
         private int m_cp;
 
-        private short m_hp;
-        private short m_mp;
-
-        public MapleCharacter()
-        {
-            Stance = 0;
-            Inventorys = new MapleInventory[MapleInventoryType.TypeList.Length];
-            foreach (var type in MapleInventoryType.TypeList)
-            {
-                Inventorys[type.Value] = new MapleInventory(type, 100);
-            }
-            Position = Point.Empty;
-            AntiCheatTracker = new CheatTracker(this);
-        }
-
-        //Character Info Begin
-        public int AccountId { get; set; }
-        public int NexonPoint { get; set; }
-        public int MaplePoint { get; set; }
-        public bool IsGm { get; set; }
-
         public bool InCashShop = false;
 
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public bool IsMarried { get; set; }
-        public byte GmLevel { get; set; }
-        public byte WorldId { get; set; }
-        public int Face { get; set; }
-        public int Hair { get; set; }
-        public short RemainingAp { get; set; }
-        public short RemainingSp { get; set; }
-        public short Fame { get; set; }
+        //Character Info Begin
+        public AccountModel Account => m_characterInfo.Account;
+        public int NexonPoint
+        {
+            get { return Account.NexonPoint; }
+            set { Account.NexonPoint = value; }
+        }
+        public int MaplePoint
+        {
+            get { return Account.MaplePoint; }
+            set { Account.MaplePoint = value; }
+        }
+        public int ShoppoingPoint
+        {
+            get { return Account.ShoppingPoint; }
+            set { Account.ShoppingPoint = value; }
+        }
+        public bool IsGm
+        {
+            get { return Account.IsGm; }
+            set { Account.IsGm = value; }
+        }
+
+        public int Id => m_characterInfo.Id;
+        public string Name
+        {
+            get { return m_characterInfo.Name; }
+            set { m_characterInfo.Name = value; }
+        }
+
+        public bool IsMarried => m_characterInfo.IsMarried;
+        public byte WorldId => m_characterInfo.WorldId;
+
+
+        public byte GmLevel
+        {
+            get { return m_characterInfo.GmLevel; }
+            set { m_characterInfo.GmLevel = value; }
+        }
+
+        public int Face
+        {
+            get { return m_characterInfo.Face; }
+            set { m_characterInfo.Face = value; }
+        }
+
+        public int Hair
+        {
+            get { return m_characterInfo.Hair; }
+            set { m_characterInfo.Hair = value; }
+        }
+
+        public short RemainingAp
+        {
+            get { return m_characterInfo.RemainingAp; }
+            set { m_characterInfo.RemainingAp = value; }
+        }
+
+        public short RemainingSp
+        {
+            get { return m_characterInfo.RemainingSp; }
+            set { m_characterInfo.RemainingSp = value; }
+        }
+
+        public short Fame
+        {
+            get { return m_characterInfo.Fame; }
+            set { m_characterInfo.Fame = value; }
+        }
 
         public short Hp
         {
-            get { return m_hp; }
+            get { return m_characterInfo.Hp; }
             set
             {
-                var oldhp = m_hp;
+                var oldhp = m_characterInfo.Hp;
                 var tmpHp = value;
                 if (tmpHp < 0)
                     tmpHp = 0;
                 if (tmpHp > Localmaxhp)
                     tmpHp = Localmaxhp;
-                m_hp = tmpHp;
+                m_characterInfo.Hp = tmpHp;
                 UpdatePartyMemberHp();
-                if (oldhp > m_hp && !IsAlive)
+                if (oldhp > m_characterInfo.Hp && !IsAlive)
                     PlayerDead();
                 CheckBerserk();
             }
         }
 
-        public short MaxHp { get; set; }
-
         public short Mp
         {
-            get { return m_mp; }
+            get { return m_characterInfo.Mp; }
             set
             {
                 var tmp = value;
@@ -130,21 +167,81 @@ namespace NeoMapleStory.Game.Client
                 {
                     tmp = Localmaxmp;
                 }
-                m_mp = tmp;
+                m_characterInfo.Mp = tmp;
             }
         }
 
-        public short MaxMp { get; set; }
-        public byte Level { get; set; }
-        public MapleSkinColor Skin { get; set; } = MapleSkinColor.Normal;
-        public short Dex { get; set; }
-        public short Int { get; set; }
-        public short Luk { get; set; }
-        public short Str { get; set; }
-        public int AutoHpPot { get; set; }
-        public int AutoMpPot { get; set; }
-        public byte InitialSpawnPoint { get; set; }
-        public bool Gender { get; set; }
+        public short MaxHp
+        {
+            get { return m_characterInfo.MaxHp; }
+            set { m_characterInfo.MaxHp = value; }
+        }
+
+        public short MaxMp
+        {
+            get { return m_characterInfo.MaxMp; }
+            set { m_characterInfo.MaxMp = value; }
+        }
+
+        public byte Level
+        {
+            get { return m_characterInfo.Level; }
+            set { m_characterInfo.Level = value; }
+        }
+
+        public MapleSkinColor Skin
+        {
+            get { return MapleSkinColor.GetByColorId(m_characterInfo.Skin); }
+            set { m_characterInfo.Skin = value.ColorId; }
+        }
+
+        public short Str
+        {
+            get { return m_characterInfo.Str; }
+            set { m_characterInfo.Str = value; }
+        }
+
+        public short Dex
+        {
+            get { return m_characterInfo.Dex; }
+            set { m_characterInfo.Dex = value; }
+        }
+
+        public short Int
+        {
+            get { return m_characterInfo.Int; }
+            set { m_characterInfo.Int = value; }
+        }
+
+        public short Luk
+        {
+            get { return m_characterInfo.Luk; }
+            set { m_characterInfo.Luk = value; }
+        }
+
+        public int AutoHpPot
+        {
+            get { return m_characterInfo.AutoHpPot; }
+            set { m_characterInfo.AutoHpPot = value; }
+        }
+
+        public int AutoMpPot
+        {
+            get { return m_characterInfo.AutoMpPot; }
+            set { m_characterInfo.AutoMpPot = value; }
+        }
+
+        public byte InitialSpawnPoint
+        {
+            get { return m_characterInfo.SpawnPoint; }
+            set { m_characterInfo.SpawnPoint = value; }
+        }
+
+        public bool Gender
+        {
+            get { return m_characterInfo.Gender; }
+            set { m_characterInfo.Gender = value; }
+        }
         //Character Info End
 
         //计算出的属性
@@ -171,7 +268,7 @@ namespace NeoMapleStory.Game.Client
 
         public InterLockedInt Exp { get; set; } = new InterLockedInt(0);
 
-        public InterLockedInt Money { get; set; } = new InterLockedInt(0);
+        public InterLockedInt Meso { get; set; } = new InterLockedInt(0);
 
         public MapleClient Client { get; set; }
 
@@ -238,45 +335,129 @@ namespace NeoMapleStory.Game.Client
         public CheatTracker AntiCheatTracker { get; private set; }
         public bool CanDoor { get; private set; } = true;
 
-        public static MapleCharacter GetDefault(MapleClient client)
+
+        public MapleCharacter()
         {
-            var ret = new MapleCharacter();
-            ret.Client = client;
-            ret.AccountId = client.AccountId;
-            ret.Inventorys[MapleInventoryType.Equip.Value] = new MapleInventory(MapleInventoryType.Equip, 24);
-            ret.Inventorys[MapleInventoryType.Use.Value] = new MapleInventory(MapleInventoryType.Use, 24);
-            ret.Inventorys[MapleInventoryType.Setup.Value] = new MapleInventory(MapleInventoryType.Setup, 24);
-            ret.Inventorys[MapleInventoryType.Etc.Value] = new MapleInventory(MapleInventoryType.Etc, 24);
-            ret.Inventorys[MapleInventoryType.Cash.Value] = new MapleInventory(MapleInventoryType.Cash, 50);
+            Stance = 0;
+            Inventorys = new MapleInventory[MapleInventoryType.TypeList.Length];
+            foreach (var type in MapleInventoryType.TypeList)
+            {
+                Inventorys[type.Value] = new MapleInventory(type, 100);
+            }
+            Position = Point.Empty;
+            AntiCheatTracker = new CheatTracker(this);
+
+        }
+
+        public MapleCharacter(int charid, MapleClient client, bool isInChannel) : this()
+        {
+            Client = client;
+            Load(charid, isInChannel);
+        }
+
+        public void Create(MapleClient client,int job,int top,int bottom,int shoes,int weapon)
+        {
+            Client = client;
+            m_characterInfo.Account = client.Account;
+            m_characterInfo.AId = Account.Id;
+
+            Inventorys[MapleInventoryType.Equip.Value] = new MapleInventory(MapleInventoryType.Equip, 24);
+            Inventorys[MapleInventoryType.Use.Value] = new MapleInventory(MapleInventoryType.Use, 24);
+            Inventorys[MapleInventoryType.Setup.Value] = new MapleInventory(MapleInventoryType.Setup, 24);
+            Inventorys[MapleInventoryType.Etc.Value] = new MapleInventory(MapleInventoryType.Etc, 24);
+            Inventorys[MapleInventoryType.Cash.Value] = new MapleInventory(MapleInventoryType.Cash, 50);
+
+            if (job == 2)
+            {
+                Str = 11;
+                Dex = 6;
+                Int = 4;
+               Luk = 4;
+                RemainingAp = 0;
+            }
+            else
+            {
+                Str = 4;
+                Dex = 4;
+                Int = 4;
+                Luk = 4;
+                RemainingAp = 9;
+            }
+
+            if (job == 1)
+            {
+                Job = MapleJob.Beginner;
+                Inventorys[MapleInventoryType.Etc.Value].AddItem(new Item(4161001, 0, 1));
+            }
+            else if (job == 0)
+            {
+                Job = MapleJob.Knight;
+                Inventorys[MapleInventoryType.Etc.Value].AddItem(new Item(4161047, 0, 1));
+            }
+            else if (job == 2)
+            {
+                Job = MapleJob.Ares;
+                Inventorys[MapleInventoryType.Etc.Value].AddItem(new Item(4161048, 0, 1));
+            }
+
+            var equip = Inventorys[MapleInventoryType.Equipped.Value];
+
+            var equipTop = new Equip(top, 0xFB)
+            {
+                Wdef = 3,
+                UpgradeSlots = 7
+            };
+            equip.AddFromDb(equipTop.Copy());
+
+            var equipBottom = new Equip(bottom, 0xFA)
+            {
+                Wdef = 2,
+                UpgradeSlots = 7
+            };
+            equip.AddFromDb(equipBottom.Copy());
+
+            var equipShoes = new Equip(shoes, 0xF9)
+            {
+                Wdef = 2,
+                UpgradeSlots = 7
+            };
+            equip.AddFromDb(equipShoes.Copy());
+
+            var equipWeapon = new Equip(weapon, 0xF5)
+            {
+                Watk = 15,
+                UpgradeSlots = 7
+            };
+            equip.AddFromDb(equipWeapon.Copy());
+
+            MaxHp = 50;
+            MaxMp = 50;
+
+            RecalcLocalStats();
+
+            Hp = 50;
+            Mp = 50;
+            GmLevel = 0;
+            Level = 1;
+            //BookCover = 0;
+            //Maplemount = null;
+            //TotalCp = 0;
+            //Team = -1;
+            //Incs = false;
+            //Inmts = false;
+            //AllianceRank = 5;
 
 
-            ret.Hp = 50;
-            ret.MaxHp = 50;
-            ret.Mp = 50;
-            ret.MaxMp = 50;
-            ret.Exp.Reset();
-            ret.GmLevel = 0;
-            ret.Money.Exchange(10000);
-            ret.Level = 1;
-            //BookCover = 0,
-            //Maplemount = null,
-            //TotalCp = 0,
-            //Team = -1,
-            //Incs = false,
-            //Inmts = false,
-            //AllianceRank = 5,
-            //AccountId = accountId
+            Map = null;
 
+            Buddies = new MapleBuddyList(20);
 
-            ret.Map = null;
+            m_cp = 0;
 
-            ret.Job = MapleJob.Beginner; // MapleJob.BEGINNER;
+            m_apqScore = 0;
 
-            ret.Buddies = new MapleBuddyList(20);
-
-            ret.m_cp = 0;
-
-            ret.m_apqScore = 0;
+            Exp.Reset();
+            Meso.Exchange(10000);
 
 
             //ret.keymap.put(Integer.valueOf(2), new MapleKeyBinding(4, 10));
@@ -316,10 +497,6 @@ namespace NeoMapleStory.Game.Client
             //ret.keymap.put(Integer.valueOf(63), new MapleKeyBinding(6, 104));
             //ret.keymap.put(Integer.valueOf(64), new MapleKeyBinding(6, 105));
             //ret.keymap.put(Integer.valueOf(65), new MapleKeyBinding(6, 106));
-
-            ret.RecalcLocalStats();
-
-            return ret;
         }
 
         private void RecalcLocalStats()
@@ -352,8 +529,7 @@ namespace NeoMapleStory.Game.Client
             }
 
             IMapleItem weapon;
-            if (!Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(11, out weapon) &&
-                Job == MapleJob.Pirate)
+            if (!Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(0xF5, out weapon) && Job == MapleJob.Pirate)
             {
                 // Barefists
                 Watk += 8;
@@ -481,8 +657,8 @@ namespace NeoMapleStory.Game.Client
             }
             else
             {
-                var weaponItem = Inventorys[MapleInventoryType.Equipped.Value].Inventory[11];
-                var barefists = weaponItem == null && (Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight);
+                IMapleItem weaponItem;
+                var barefists = !Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(0xF5, out weaponItem) && (Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight);
 
                 if (weaponItem != null || Job == MapleJob.Pirate || Job == MapleJob.ThiefKnight)
                 {
@@ -536,149 +712,96 @@ namespace NeoMapleStory.Game.Client
         }
 
 
-        public void SaveToDb(bool update)
+        public void Save()
         {
-            MySqlCommand cmd;
-            if (update)
-                cmd =
-                    new MySqlCommand(
-                        "UPDATE Characters SET Level =@Level, Fame = @Fame, Str =@Str , Dex = @Dex, Luk =@Luk, `Int` =@Int, EXP =@Exp, Hp = @Hp, Mp =@Mp, MaxHp =@MaxHp, MaxMp = @MaxMp, RemainingSp =@RemainingSP, RemainingAp =@RemainingAp, GmLevel =@GmLevel, Skin = @Skin,JobId =@JobId, Hair =@Hair, Face =@Face, MapId = @MapId, Money = @Money, SpawnPoint = @SpawnPoint, PartyId = @PartyId, AutoHpPot = @AutoHpPot, AutoMpPot = @AutoMpPot, IsMarried = @IsMarried, EquipSlots = @EquipSlots, UseSlots = @UseSlots, SetupSlots = @SetupSlots, EtcSlots = @EtcSlots, CashSlots = @CashSlots WHERE Id = @Id");
-            else
-                cmd = new MySqlCommand(
-                    @"INSERT Characters(AId,WorldId,Name,JobId,GmLevel,Level,Dex,`Int`,Luk,Str,Hp,MaxHp,Mp,MaxMp,EXP,Money,Fame,IsMarried,MapId,SpawnPoint,PartyId,Face,Hair,Skin,RemainingAp,RemainingSp,AutoHpPot,AutoMpPot,EquipSlots,UseSlots,SetupSlots,EtcSlots,CashSlots)
-VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp,@Mp,@MaxMp,@Exp,@Money,@Fame,@IsMarried,@MapId,@SpawnPoint,@PartyId,@Face,@Hair,@Skin,@RemainingAp,@RemainingSp,@AutoHpPot,@AutoMpPot,@EquipSlots,@UseSlots,@SetupSlots,@EtcSlots,@CashSlots)");
-
-
-            cmd.Parameters.Add(new MySqlParameter("@Level", Level));
-            cmd.Parameters.Add(new MySqlParameter("@Fame", Fame));
-            cmd.Parameters.Add(new MySqlParameter("@Str", Str));
-            cmd.Parameters.Add(new MySqlParameter("@Dex", Dex));
-            cmd.Parameters.Add(new MySqlParameter("@Luk", Luk));
-            cmd.Parameters.Add(new MySqlParameter("@Int", Int));
-            cmd.Parameters.Add(new MySqlParameter("@Exp", Exp.Value));
-            cmd.Parameters.Add(new MySqlParameter("@Hp", Hp));
-            cmd.Parameters.Add(new MySqlParameter("@Mp", Mp));
-            cmd.Parameters.Add(new MySqlParameter("@MaxHp", MaxHp));
-            cmd.Parameters.Add(new MySqlParameter("@MaxMp", MaxMp));
-            cmd.Parameters.Add(new MySqlParameter("@RemainingSp", RemainingSp));
-            cmd.Parameters.Add(new MySqlParameter("@RemainingAp", RemainingAp));
-            cmd.Parameters.Add(new MySqlParameter("@GmLevel", GmLevel));
-            cmd.Parameters.Add(new MySqlParameter("@Skin", Skin.ColorId));
-            cmd.Parameters.Add(new MySqlParameter("@JobId", Job.JobId));
-            cmd.Parameters.Add(new MySqlParameter("@Hair", Hair));
-            cmd.Parameters.Add(new MySqlParameter("@Face", Face));
-            cmd.Parameters.Add(new MySqlParameter("@Money", Money.Value));
-            //ps.setInt(22, hpApUsed);
-            //ps.setInt(23, mpApUsed);
-
-
-            var mapId = 0;
-            if (Map == null)
+            using (var db = new NeoMapleStoryDatabase())
             {
-                if (!update && Job.JobId == 1000)
-                    mapId = 130030000;
-                else if (!update && Job.JobId == 2000)
-                    mapId = 914000000;
+                var update = db.Characters.Where(x => x.Id == Id).Select(x => x).Any();
+
+                db.Entry(m_characterInfo).State = update ? EntityState.Modified : EntityState.Added;
+                db.Entry(m_characterInfo.Account).State = EntityState.Modified;
+
+                m_characterInfo.Exp = Exp.Value;
+                m_characterInfo.Skin = Skin.ColorId;
+                m_characterInfo.JobId = Job.JobId;
+                m_characterInfo.Meso = Meso.Value;
+
+                //ps.setInt(22, hpApUsed);
+                //ps.setInt(23, mpApUsed);
+
+
+                int mapId;
+                if (Map == null)
+                {
+                    if (!update && Job.JobId == 1000)
+                        mapId = 130030000;
+                    else if (!update && Job.JobId == 2000)
+                        mapId = 914000000;
+                    else
+                        mapId = 0;
+                }
+                else if (Map.MapId == 677000013 || Map.MapId == 677000012)
+                {
+                    mapId = 970030002;
+                }
+                else if (Map.ForcedReturnMapId != 999999999)
+                {
+                    mapId = Map.ForcedReturnMapId;
+                }
                 else
-                    mapId = 0;
-            }
-            else if (Map.MapId == 677000013 || Map.MapId == 677000012)
-            {
-                mapId = 970030002;
-            }
-            else if (Map.ForcedReturnMapId != 999999999)
-            {
-                mapId = Map.ForcedReturnMapId;
-            }
-            else
-            {
-                mapId = Map.MapId;
-            }
-
-            cmd.Parameters.Add(new MySqlParameter("@MapId", mapId));
-
-            var spawnPoint = 0;
-            if (Map == null || Map.MapId == 610020000 || Map.MapId == 610020001)
-            {
-                spawnPoint = 0;
-            }
-            else
-            {
-                var closest = Map.FindClosestSpawnpoint(Position);
-                spawnPoint = closest?.PortalId ?? 0;
-            }
-
-            cmd.Parameters.Add(new MySqlParameter("@SpawnPoint", spawnPoint));
-
-            cmd.Parameters.Add(new MySqlParameter("@PartyId", Party?.PartyId ?? 0));
-
-            cmd.Parameters.Add(new MySqlParameter("@AutoHpPot",
-                AutoHpPot != 0 && GetItemAmount(AutoHpPot) >= 1 ? AutoHpPot : 0));
-
-            cmd.Parameters.Add(new MySqlParameter("@AutoMpPot",
-                AutoMpPot != 0 && GetItemAmount(AutoMpPot) >= 1 ? AutoMpPot : 0));
-
-            cmd.Parameters.Add(new MySqlParameter("@IsMarried", IsMarried));
-
-
-            //if (Messenger == null)
-            //{
-            //    MessengerId = 0;
-            //    MessengerPosition = 4;
-            //}
-
-
-            //if (ZakumLvl > 2)
-            //    ZakumLvl = 2;
-
-
-            //if (maplemount != null)
-            //{
-            //    ps.setInt(49, maplemount.getLevel());
-            //    ps.setInt(50, maplemount.getExp());
-            //    ps.setInt(51, maplemount.getTiredness());
-            //}
-            //else {
-            //    ps.setInt(49, 1);
-            //    ps.setInt(50, 0);
-            //    ps.setInt(51, 0);
-            //}
-
-            cmd.Parameters.Add(new MySqlParameter("@EquipSlots", Inventorys[MapleInventoryType.Equip.Value].SlotLimit));
-            cmd.Parameters.Add(new MySqlParameter("@UseSlots", Inventorys[MapleInventoryType.Equip.Value].SlotLimit));
-            cmd.Parameters.Add(new MySqlParameter("@SetupSlots", Inventorys[MapleInventoryType.Setup.Value].SlotLimit));
-            cmd.Parameters.Add(new MySqlParameter("@EtcSlots", Inventorys[MapleInventoryType.Etc.Value].SlotLimit));
-            cmd.Parameters.Add(new MySqlParameter("@CashSlots", Inventorys[MapleInventoryType.Cash.Value].SlotLimit));
-
-            if (update)
-            {
-                cmd.Parameters.Add(new MySqlParameter("@Id", Id));
-            }
-            else
-            {
-                cmd.Parameters.Add(new MySqlParameter("@AId", AccountId));
-                cmd.Parameters.Add(new MySqlParameter("@Name", Name));
-                cmd.Parameters.Add(new MySqlParameter("@WorldId", WorldId));
-            }
-
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-                con.Open();
-                cmd.Transaction = con.BeginTransaction(IsolationLevel.ReadUncommitted);
-
-                var updateRow = cmd.ExecuteNonQuery();
-
-                if (!update)
                 {
-                    Id = Convert.ToInt32(cmd.LastInsertedId);
-                    cmd.Parameters.Clear();
+                    mapId = Map.MapId;
                 }
-                else if (updateRow < 1)
+
+                m_characterInfo.MapId = mapId;
+
+
+                if (Map == null || Map.MapId == 610020000 || Map.MapId == 610020001)
                 {
-                    throw new Exception("角色不存在于数据库中");
+                    m_characterInfo.SpawnPoint = 0;
                 }
+                else
+                {
+                    m_characterInfo.SpawnPoint = Map.FindClosestSpawnpoint(Position)?.PortalId ?? 0;
+                }
+
+                m_characterInfo.PartyId = Party?.PartyId ?? 0;
+                m_characterInfo.AutoHpPot = AutoHpPot != 0 && GetItemAmount(AutoHpPot) >= 1 ? AutoHpPot : 0;
+                m_characterInfo.AutoMpPot = AutoMpPot != 0 && GetItemAmount(AutoMpPot) >= 1 ? AutoMpPot : 0;
+                m_characterInfo.IsMarried = IsMarried;
+
+
+                //if (Messenger == null)
+                //{
+                //    MessengerId = 0;
+                //    MessengerPosition = 4;
+                //}
+
+
+                //if (ZakumLvl > 2)
+                //    ZakumLvl = 2;
+
+
+                //if (maplemount != null)
+                //{
+                //    ps.setInt(49, maplemount.getLevel());
+                //    ps.setInt(50, maplemount.getExp());
+                //    ps.setInt(51, maplemount.getTiredness());
+                //}
+                //else {
+                //    ps.setInt(49, 1);
+                //    ps.setInt(50, 0);
+                //    ps.setInt(51, 0);
+                //}
+
+                m_characterInfo.EquipSlots = Inventorys[MapleInventoryType.Equip.Value].SlotLimit;
+                m_characterInfo.UseSlots = Inventorys[MapleInventoryType.Equip.Value].SlotLimit;
+                m_characterInfo.SetupSlots = Inventorys[MapleInventoryType.Setup.Value].SlotLimit;
+                m_characterInfo.EtcSlots = Inventorys[MapleInventoryType.Etc.Value].SlotLimit;
+                m_characterInfo.CashSlots = Inventorys[MapleInventoryType.Cash.Value].SlotLimit;
+                
+                CashShopInventory?.Save();
+
 
                 //foreach (MaplePet pettt in Pets)
                 //{
@@ -711,72 +834,61 @@ VALUES(@AId,@WorldId,@Name,@JobId,@GmLevel,@Level,@Dex,@Int,@Luk,@Str,@Hp,@MaxHp
                 //        ps.close();
                 //    }
                 //}
-                //if (csinventory != null)
-                //{
-                //    getCSInventory().saveToDB();
-                //}
 
 
-                cmd.CommandText = "DELETE FROM InventoryItems WHERE CId=@CId";
-                cmd.Parameters.Add(new MySqlParameter("@CId", Id));
-                cmd.ExecuteNonQuery();
-                cmd.Parameters.Clear();
-
-                var cmdStrItem =
-                    "INSERT InventoryItems(Id,CId,ItemId,Type,Position,Quantity,Owner,ExpireDate,UniqueId) VALUES(@Id,@CId,@ItemId,@Type,@Position,@Quantity,@Owner,@ExpireDate,@UniqueId)";
-                var cmdStrEquipment =
-                    @"INSERT InventoryEquipments(Id,InventoryItemId,UpgradeSlots,Level,Str,Dex,`Int`,Luk,HP,MP,Watk,Matk,Wdef,Mdef,Acc,Avoid,Hands,Speed,Jump,Vicious,IsRing,Flag,Locked) 
-VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Watk,@Matk,@Wdef,@Mdef,@Acc,@Avoid,@Hands,@Speed,@Jump,@Vicious,@IsRing,@Flag,@Locked)";
+                var deleteItems = db.InventoryItems.Where(x => x.CId == Id).Select(x => x);
+                db.InventoryItems.RemoveRange(deleteItems);
 
                 foreach (var inventory in Inventorys)
                 {
                     foreach (var item in inventory.Inventory.Values)
                     {
-                        var tableId = Guid.NewGuid().ToString().ToUpper();
-                        cmd.CommandText = cmdStrItem;
-                        cmd.Parameters.Add(new MySqlParameter("@Id", tableId));
-                        cmd.Parameters.Add(new MySqlParameter("@CId", Id));
-                        cmd.Parameters.Add(new MySqlParameter("@ItemId", item.ItemId));
-                        cmd.Parameters.Add(new MySqlParameter("@Type", inventory.Type.Value));
-                        cmd.Parameters.Add(new MySqlParameter("@Position", item.Position));
-                        cmd.Parameters.Add(new MySqlParameter("@Quantity", item.Quantity));
-                        cmd.Parameters.Add(new MySqlParameter("@Owner", item.Owner ?? (object)DBNull.Value));
-                        cmd.Parameters.Add(new MySqlParameter("@UniqueId", item.UniqueId));
-                        cmd.Parameters.Add(new MySqlParameter("@ExpireDate", item.Expiration ?? (object)DBNull.Value));
-                        //PetSlot = /*getPetByUniqueId(item.UniqueID) > -1 ? getPetByUniqueId(item.UniqueID) + 1 :*/ 0,
-                        cmd.ExecuteNonQuery();
-
-                        cmd.Parameters.Clear();
+                        Guid guid = Guid.NewGuid();
+                        var inventoryItem = new InventoryItemModel
+                        {
+                            Id = guid,
+                            CId = Id,
+                            ItemId = item.ItemId,
+                            InventoryType = inventory.Type.Value,
+                            Position = item.Position,
+                            Quantity = item.Quantity,
+                            Owner = item.Owner,
+                            UniqueId = item.UniqueId,
+                            ExpireDate = item.Expiration,
+                            //PetSlot = /*getPetByUniqueId(item.UniqueID) > -1 ? getPetByUniqueId(item.UniqueID) + 1 :*/ 0,
+                        };
+                        db.InventoryItems.Add(inventoryItem);
 
                         if (inventory.Type == MapleInventoryType.Equip || inventory.Type == MapleInventoryType.Equipped)
                         {
+
                             var equip = (IEquip)item;
-                            cmd.CommandText = cmdStrEquipment;
-                            cmd.Parameters.Add(new MySqlParameter("@Id", Guid.NewGuid().ToString().ToUpper()));
-                            cmd.Parameters.Add(new MySqlParameter("@InventoryItemId", tableId));
-                            cmd.Parameters.Add(new MySqlParameter("@Acc", equip.Acc));
-                            cmd.Parameters.Add(new MySqlParameter("@Avoid", equip.Avoid));
-                            cmd.Parameters.Add(new MySqlParameter("@Dex", equip.Dex));
-                            cmd.Parameters.Add(new MySqlParameter("@Hands", equip.Hands));
-                            cmd.Parameters.Add(new MySqlParameter("@Hp", equip.Hp));
-                            cmd.Parameters.Add(new MySqlParameter("@Mp", equip.Mp));
-                            cmd.Parameters.Add(new MySqlParameter("@Int", equip.Int));
-                            cmd.Parameters.Add(new MySqlParameter("@IsRing", equip.IsRing));
-                            cmd.Parameters.Add(new MySqlParameter("@Jump", equip.Jump));
-                            cmd.Parameters.Add(new MySqlParameter("@Level", equip.Level));
-                            cmd.Parameters.Add(new MySqlParameter("@Locked", equip.Locked));
-                            cmd.Parameters.Add(new MySqlParameter("@Luk", equip.Luk));
-                            cmd.Parameters.Add(new MySqlParameter("@Matk", equip.Matk));
-                            cmd.Parameters.Add(new MySqlParameter("@Mdef", equip.Mdef));
-                            cmd.Parameters.Add(new MySqlParameter("@Watk", equip.Watk));
-                            cmd.Parameters.Add(new MySqlParameter("@Wdef", equip.Wdef));
-                            cmd.Parameters.Add(new MySqlParameter("@Speed", equip.Speed));
-                            cmd.Parameters.Add(new MySqlParameter("@Str", equip.Str));
-                            cmd.Parameters.Add(new MySqlParameter("@UpgradeSlots", equip.UpgradeSlots));
-                            cmd.Parameters.Add(new MySqlParameter("@Vicious", equip.Vicious));
-                            cmd.Parameters.Add(new MySqlParameter("@Flag", equip.Flag));
-                            cmd.ExecuteNonQuery();
-                            cmd.Parameters.Clear();
+                            var inventoryEquip = new InventoryEquipmentModel
+                            {
+                                Id = inventoryItem.Id,
+                                Acc = equip.Acc,
+                                Avoid = equip.Avoid,
+                                Dex = equip.Dex,
+                                Hands = equip.Hands,
+                                Hp = equip.Hp,
+                                Mp = equip.Mp,
+                                Int = equip.Int,
+                                IsRing = equip.IsRing,
+                                Jump = equip.Jump,
+                                Level = equip.Level,
+                                Locked = equip.Locked,
+                                Luk = equip.Luk,
+                                Matk = equip.Matk,
+                                Mdef = equip.Mdef,
+                                Watk = equip.Watk,
+                                Wdef = equip.Wdef,
+                                Speed = equip.Speed,
+                                Str = equip.Str,
+                                UpgradeSlots = equip.UpgradeSlots,
+                                Vicious = equip.Vicious,
+                                Flag = equip.Flag,
+                            };
+                            db.InventoryEquipments.Add(inventoryEquip);
                         }
                     }
                 }
@@ -806,22 +918,18 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                 //ps.close();
                 //pse.close();
 
-                cmd.CommandText = "DELETE FROM Skills WHERE CId = @CId";
-                cmd.Parameters.Add(new MySqlParameter("@CId", Id));
-                cmd.ExecuteNonQuery();
-                cmd.Parameters.Clear();
+                var deleteSkills = db.Skills.Where(x => x.CId == Id).Select(x => x);
+                db.Skills.RemoveRange(deleteSkills);
 
-                cmd.CommandText =
-                    "INSERT INTO Skills (CId, SkillId, Level, MasterLevel) VALUES (@CId, @SkillId, @Level, @MasterLevel)";
-                foreach (var skill in Skills)
+
+                var addSkills = Skills.Select(skill => new SkillModel
                 {
-                    cmd.Parameters.Add(new MySqlParameter("@CId", Id));
-                    cmd.Parameters.Add(new MySqlParameter("@SkillId", skill.Key.SkillId));
-                    cmd.Parameters.Add(new MySqlParameter("@Level", skill.Value.SkilLevel));
-                    cmd.Parameters.Add(new MySqlParameter("@MasterLevel", skill.Value.MasterLevel));
-                    cmd.ExecuteNonQuery();
-                    cmd.Parameters.Clear();
-                }
+                    CId = Id,
+                    SkillId = skill.Key.SkillId,
+                    Level = skill.Value.SkilLevel,
+                    MasterLevel = skill.Value.MasterLevel
+                }).ToList();
+                db.Skills.AddRange(addSkills);
 
                 //deleteWhereCharacterId(con, "DELETE FROM keymap WHERE characterid = ?");
                 //ps = con.prepareStatement("INSERT INTO keymap (characterid, `key`, `type`, `action`) VALUES (?, ?, ?, ?)");
@@ -896,7 +1004,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                 //}
 
 
-                cmd.Transaction.Commit();
+                db.SaveChanges();
             }
         }
 
@@ -907,67 +1015,33 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             TimerManager.Instance.RunOnceTask(() => { Client.Send(mapEffect.CreateDestroyData()); }, duration);
         }
 
-        public static MapleCharacter LoadCharFromDb(int charid, MapleClient client, bool channelserver)
+        private void Load(int charid, bool channelserver)
         {
-            var ret = new MapleCharacter();
-            ret.Client = client;
-
-            var cmd = new MySqlCommand("SELECT * FROM Characters WHERE Id=@Id");
-            cmd.Parameters.Add(new MySqlParameter("@Id", charid));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
+            using (var db = new NeoMapleStoryDatabase())
             {
-                cmd.Connection = con;
-                con.Open();
+                db.Configuration.LazyLoadingEnabled = false;
 
-                var reader = cmd.ExecuteReader(CommandBehavior.SingleRow);
+                var charInfo = db.Characters.Where(x => x.Id == charid).Select(x => x)
+                    .Include(x => x.Account)
+                    .Include(x => x.InventoryItems)
+                    .Include(x => x.InventoryItems.Select(y => y.InventoryEquipments))//"InventoryItems.InventoryEquipments"
+                    .FirstOrDefault();
 
-                if (!reader.Read())
+                if (charInfo == null)
                     throw new Exception("加载角色失败（未找到角色）");
 
-                ret.Id = (int)reader["Id"];
-                ret.AccountId = (int)reader["AId"];
-                ret.WorldId = (byte)reader["WorldId"];
+                m_characterInfo = charInfo;
 
-                ret.Name = (string)reader["Name"];
-                ret.Level = (byte)reader["Level"];
-                ret.Fame = (short)reader["Fame"];
-                ret.Str = (short)reader["Str"];
-                ret.Dex = (short)reader["Dex"];
-                ret.Int = (short)reader["Int"];
-                ret.Luk = (short)reader["Luk"];
-                ret.Exp.Exchange((int)reader["EXP"]);
-                ret.Money.Exchange((int)reader["Money"]);
-                ret.Localmaxhp = ret.MaxHp = (short)reader["MaxHP"];
-                ret.Localmaxmp = ret.MaxMp = (short)reader["MaxMP"];
-                ret.Hp = (short)reader["HP"];
-                ret.Mp = (short)reader["MP"];
+                Exp.Exchange(charInfo.Exp);
+                Meso.Exchange(charInfo.Meso);
+                Job = new MapleJob(charInfo.JobId);
 
 
-                ret.RemainingAp = (short)reader["RemainingAP"];
-                ret.RemainingSp = (short)reader["RemainingSP"];
-
-                ret.GmLevel = (byte)reader["GmLevel"];
-
-                ret.Job = new MapleJob((short)reader["JobId"]);
-                ret.Skin = new MapleSkinColor((byte)reader["Skin"]);
-                ret.IsMarried = (bool)reader["IsMarried"];
-                ret.Hair = (int)reader["Hair"];
-                ret.Face = (int)reader["Face"];
-
-                ret.AutoHpPot = (int)reader["AutoHPPot"];
-                ret.AutoMpPot = (int)reader["AutoMPPot"];
-
-                ret.Inventorys[MapleInventoryType.Equip.Value] = new MapleInventory(MapleInventoryType.Equip,
-                    (byte)reader["EquipSlots"]);
-                ret.Inventorys[MapleInventoryType.Use.Value] = new MapleInventory(MapleInventoryType.Use,
-                    (byte)reader["UseSlots"]);
-                ret.Inventorys[MapleInventoryType.Setup.Value] = new MapleInventory(MapleInventoryType.Setup,
-                    (byte)reader["SetupSlots"]);
-                ret.Inventorys[MapleInventoryType.Etc.Value] = new MapleInventory(MapleInventoryType.Etc,
-                    (byte)reader["EtcSlots"]);
-                ret.Inventorys[MapleInventoryType.Cash.Value] = new MapleInventory(MapleInventoryType.Cash,
-                    (byte)reader["CashSlots"]);
+                Inventorys[MapleInventoryType.Equip.Value] = new MapleInventory(MapleInventoryType.Equip, charInfo.EquipSlots);
+                Inventorys[MapleInventoryType.Use.Value] = new MapleInventory(MapleInventoryType.Use, charInfo.UseSlots);
+                Inventorys[MapleInventoryType.Setup.Value] = new MapleInventory(MapleInventoryType.Setup, charInfo.SetupSlots);
+                Inventorys[MapleInventoryType.Etc.Value] = new MapleInventory(MapleInventoryType.Etc, charInfo.EtcSlots);
+                Inventorys[MapleInventoryType.Cash.Value] = new MapleInventory(MapleInventoryType.Cash, charInfo.CashSlots);
 
                 //int mountexp = rs.getInt("mountexp");
                 //int mountlevel = rs.getInt("mountlevel");
@@ -975,26 +1049,25 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
 
                 if (channelserver)
                 {
-                    var mapFactory = MasterServer.Instance.ChannelServers[client.ChannelId].MapFactory;
-                    ret.Map = mapFactory.GetMap((int)reader["MapId"]);
-                    if (ret.Map == null)
+                    var mapFactory = MasterServer.Instance.ChannelServers[Client.ChannelId].MapFactory;
+                    Map = mapFactory.GetMap(charInfo.MapId);
+                    if (Map == null)
                     {
-                        //char is on a map that doesn't exist warp it to henesys
-                        ret.Map = mapFactory.GetMap(100000000);
+                        Map = mapFactory.GetMap(100000000);
                     }
-                    else if (ret.Map.ForcedReturnMapId != 999999999)
+                    else if (Map.ForcedReturnMapId != 999999999)
                     {
-                        ret.Map = mapFactory.GetMap(ret.Map.ForcedReturnMapId);
+                        Map = mapFactory.GetMap(Map.ForcedReturnMapId);
                     }
 
-                    var portal = ret.Map.GetPortal(ret.InitialSpawnPoint);
+                    var portal = Map.GetPortal(InitialSpawnPoint);
                     if (portal == null)
                     {
-                        portal = ret.Map.GetPortal(0);
+                        portal = Map.GetPortal(0);
                         // char is on a spawnpoint that doesn't exist - select the first spawnpoint instead
-                        ret.InitialSpawnPoint = 0;
+                        InitialSpawnPoint = 0;
                     }
-                    ret.Position = portal.Position;
+                    Position = portal.Position;
                 }
 
                 //if (channelserver)
@@ -1036,111 +1109,81 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                 //        }
                 //    }
                 //}
-                reader.Close();
 
-                cmd.Parameters.Clear();
-                cmd.CommandText = "SELECT * FROM Accounts WHERE Id = @Id";
-                cmd.Parameters.Add(new MySqlParameter("@Id", ret.AccountId));
-                reader = cmd.ExecuteReader();
-                while (reader.Read())
+                foreach (var item in m_characterInfo.InventoryItems)
                 {
-                    ret.IsGm = (bool)reader["IsGm"];
-                    ret.NexonPoint = (int)reader["NexonPoint"];
-                    ret.MaplePoint = (int)reader["MaplePoint"];
-                }
-                reader.Close();
-
-                if (!channelserver)
-                {
-                    cmd.CommandText=("SELECT * FROM InventoryItems LEFT JOIN InventoryEquipments ON InventoryItems.Id = InventoryEquipments.InventoryItemId WHERE CId= @CId AND Type=@Type");
-                    cmd.Parameters.Add(new MySqlParameter("@Type", MapleInventoryType.Equipped.Value));
-                }
-                else
-                {
-                    cmd.CommandText= "SELECT * FROM InventoryItems LEFT JOIN InventoryEquipments ON InventoryItems.Id = InventoryEquipments.InventoryItemId WHERE CId = @CId";
-                }
-
-                cmd.Parameters.Add(new MySqlParameter("@CId", charid));
-
-                reader = cmd.ExecuteReader();
-
-                while (reader.Read())
-                {
-                    var type = MapleInventoryType.GetByType((byte)reader["Type"]);
-
-                    DateTime? expiration;
-                    if (reader["ExpireDate"] == DBNull.Value)
-                        expiration = null;
-                    else
-                        expiration = DateTime.Parse((string)reader["ExpireDate"]);
+                    var type = MapleInventoryType.GetByType(item.InventoryType);
+                    var expiration = item.ExpireDate;
 
                     if (type == MapleInventoryType.Equip || type == MapleInventoryType.Equipped)
                     {
-                        var itemid = (int)reader["ItemId"];
-                        var equip = new Equip(itemid, (byte)reader["Position"]);
+                        var itemid = item.ItemId;
+                        var equip = new Equip(itemid, item.Position);
 
-                        if ((bool)reader["IsRing"])
+                        if (item.InventoryEquipments.IsRing)
                         {
                             //equip = MapleRing.loadFromDb(itemid, (byte)rs.getInt("position"), rs.getInt("uniqueid"));
-                            //log.info("ring loaded");
                         }
                         else
                         {
-                            equip.Owner = reader["Owner"] == DBNull.Value ? null : (string)reader["Owner"];
-                            equip.Quantity = (short)reader["Quantity"];
-                            equip.Acc = (short)reader["Acc"];
-                            equip.Avoid = (short)reader["Avoid"];
-                            equip.Dex = (short)reader["Dex"];
-                            equip.Hands = (short)reader["Hands"];
-                            equip.Hp = (short)reader["HP"];
-                            equip.Int = (short)reader["Int"];
-                            equip.Jump = (short)reader["Jump"];
-                            equip.Luk = (short)reader["Luk"];
-                            equip.Matk = (short)reader["Matk"];
-                            equip.Mdef = (short)reader["Mdef"];
-                            equip.Mp = (short)reader["MP"];
-                            equip.Speed = (short)reader["Speed"];
-                            equip.Str = (short)reader["Str"];
-                            equip.Watk = (short)reader["Watk"];
-                            equip.Wdef = (short)reader["Wdef"];
-                            equip.UpgradeSlots = (byte)reader["UpgradeSlots"];
-                            equip.Locked = (byte)reader["Locked"];
-                            equip.Level = (byte)reader["Level"];
-                            equip.Flag = (byte)reader["Flag"];
-                            equip.Vicious = (short)reader["Vicious"];
-                            equip.UniqueId = (int)reader["UniqueId"];
+                            equip.Owner = item.Owner;
+                            equip.Quantity = item.Quantity;
+                            equip.UniqueId = item.UniqueId;
+                            equip.Acc = item.InventoryEquipments.Acc;
+                            equip.Avoid = item.InventoryEquipments.Avoid;
+                            equip.Dex = item.InventoryEquipments.Dex;
+                            equip.Hands = item.InventoryEquipments.Hands;
+                            equip.Hp = item.InventoryEquipments.Hp;
+                            equip.Int = item.InventoryEquipments.Int;
+                            equip.Jump = item.InventoryEquipments.Jump;
+                            equip.Luk = item.InventoryEquipments.Luk;
+                            equip.Matk = item.InventoryEquipments.Matk;
+                            equip.Mdef = item.InventoryEquipments.Mdef;
+                            equip.Mp = item.InventoryEquipments.Mp;
+                            equip.Speed = item.InventoryEquipments.Speed;
+                            equip.Str = item.InventoryEquipments.Str;
+                            equip.Watk = item.InventoryEquipments.Watk;
+                            equip.Wdef = item.InventoryEquipments.Wdef;
+                            equip.UpgradeSlots = item.InventoryEquipments.UpgradeSlots;
+                            equip.Locked = item.InventoryEquipments.Locked;
+                            equip.Level = item.InventoryEquipments.Level;
+                            equip.Flag = item.InventoryEquipments.Flag;
+                            equip.Vicious = item.InventoryEquipments.Vicious;
+
                         }
                         if (expiration.HasValue)
                         {
                             if (expiration > DateTime.Now)
                             {
                                 equip.Expiration = expiration;
-                                ret.Inventorys[type.Value].AddFromDb(equip);
+                                Inventorys[type.Value].AddFromDb(equip);
                             }
                             else
                             {
                                 var name = MapleItemInformationProvider.Instance.GetName(itemid);
-                                ret.m_mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
+                                m_mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
                             }
                         }
                         else
                         {
-                            ret.Inventorys[type.Value].AddFromDb(equip);
+                            Inventorys[type.Value].AddFromDb(equip);
                         }
                     }
                     else
                     {
-                        var itemid = (int)reader["ItemId"];
-                        var newitem = new Item(itemid, (byte)reader["Position"], (short)reader["Quantity"]);
-                        newitem.Owner = reader["Owner"] == DBNull.Value ? null : (string)reader["Owner"];
-                        newitem.UniqueId = (int)reader["UniqueId"];
+                        var itemid = item.ItemId;
+                        var newitem = new Item(itemid, item.Position, item.Quantity)
+                        {
+                            Owner = item.Owner,
+                            UniqueId = item.UniqueId
+                        };
 
                         if (expiration.HasValue)
                         {
                             if (expiration > DateTime.Now)
                             {
                                 newitem.Expiration = expiration;
-                                ret.Inventorys[type.Value].AddFromDb(newitem);
+                                Inventorys[type.Value].AddFromDb(newitem);
                                 if (itemid >= 5000000 && itemid <= 5000100)
                                 {
                                     //if (item.items.PetSlot > 0)
@@ -1168,18 +1211,15 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                             else
                             {
                                 var name = MapleItemInformationProvider.Instance.GetName(itemid);
-                                ret.m_mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
+                                m_mapletips.Add($"现金道具[{name}]由于过期已经被清除了");
                             }
                         }
                         else
                         {
-                            ret.Inventorys[type.Value].AddFromDb(newitem);
+                            Inventorys[type.Value].AddFromDb(newitem);
                         }
                     }
                 }
-
-                reader.Close();
-                cmd.Parameters.Clear();
 
                 if (channelserver)
                 {
@@ -1210,18 +1250,16 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                     //    ps.close();
                     //    pse.close();
 
-                    cmd.CommandText = "SELECT SkillId,Level,MasterLevel FROM Skills WHERE CId = @CId";
-                    cmd.Parameters.Add(new MySqlParameter("@CId", ret.Id));
-                    reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    var skills = db.Skills.Where(x => x.CId == charid).Select(x => x);
+                    foreach (var skill in skills)
                     {
-                        var skill = SkillFactory.GetSkill((int)reader["SkillId"]);
-                        var skillEntry = new SkillEntry((int)reader["Level"], (int)reader["MasterLevel"]);
+                        var iskill = SkillFactory.GetSkill(skill.SkillId);
+                        var skillEntry = new SkillEntry(skill.Level, skill.MasterLevel);
 
-                        if (ret.Skills.ContainsKey(skill))
-                            ret.Skills[skill] = skillEntry;
+                        if (Skills.ContainsKey(iskill))
+                            Skills[iskill] = skillEntry;
                         else
-                            ret.Skills.Add(skill, skillEntry);
+                            Skills.Add(iskill, skillEntry);
                     }
 
                     //    ps = con.prepareStatement("SELECT * FROM skillmacros WHERE characterid = ?");
@@ -1302,30 +1340,29 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                 //}
                 //rs.close();
                 //ps.close();
-            }
 
-            //int mountid = ret.getJobType() * 20000000 + 1004;
-            //if (ret.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18) != null)
-            //{
-            //    ret.maplemount = new MapleMount(ret, ret.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18).getItemId(), mountid);
-            //    ret.maplemount.setExp(mountexp);
-            //    ret.maplemount.setLevel(mountlevel);
-            //    ret.maplemount.setTiredness(mounttiredness);
-            //    ret.maplemount.setActive(false);
-            //}
-            //else {
-            //    ret.maplemount = new MapleMount(ret, 0, mountid);
-            //    ret.maplemount.setExp(mountexp);
-            //    ret.maplemount.setLevel(mountlevel);
-            //    ret.maplemount.setTiredness(mounttiredness);
-            //    ret.maplemount.setActive(false);
-            //}
-            ret.RecalcLocalStats();
-            //ret.SilentEnforceMaxHpMp();
+                //int mountid = ret.getJobType() * 20000000 + 1004;
+                //if (ret.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18) != null)
+                //{
+                //    ret.maplemount = new MapleMount(ret, ret.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18).getItemId(), mountid);
+                //    ret.maplemount.setExp(mountexp);
+                //    ret.maplemount.setLevel(mountlevel);
+                //    ret.maplemount.setTiredness(mounttiredness);
+                //    ret.maplemount.setActive(false);
+                //}
+                //else {
+                //    ret.maplemount = new MapleMount(ret, 0, mountid);
+                //    ret.maplemount.setExp(mountexp);
+                //    ret.maplemount.setLevel(mountlevel);
+                //    ret.maplemount.setTiredness(mounttiredness);
+                //    ret.maplemount.setActive(false);
+                //}
+            }
+            RecalcLocalStats();
+            //SilentEnforceMaxHpMp();
             //ISkill ship = SkillFactory.getSkill(5221006);
             //ret.battleshipHP = (ret.getSkillLevel(ship) * 4000 + (ret.getLevel() - 120) * 2000);
             //ret.loggedInTimer = System.currentTimeMillis();
-            return ret;
         }
 
         public void CancelBuffStats(MapleBuffStat stat)
@@ -1535,6 +1572,15 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             }
         }
 
+        public void CancelSavedBuffs()
+        {
+            foreach (long key in BuffsToCancel.Keys)
+            {
+                CancelEffect(BuffsToCancel[key], false, key);
+            }
+            BuffsToCancel.Clear();
+        }
+
         public void DispelSkill(int skillid)
         {
             var allBuffs = new LinkedList<MapleBuffStatValueHolder>(m_effects.Values);
@@ -1605,7 +1651,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             return ret.SkilLevel;
         }
 
-        public int GetSkillLevel(ISkill skill)
+        public byte GetSkillLevel(ISkill skill)
         {
             SkillEntry ret;
 
@@ -1709,6 +1755,67 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             ChangeMap(map, map.GetPortal(portal));
         }
 
+        public void ChangeCashShopPoints(byte type, int quantity)
+        {
+            switch (type)
+            {
+                case 0:
+                    NexonPoint += quantity;
+                    break;
+                case 1:
+                    MaplePoint += quantity;
+                    break;
+                    //case 4:
+                    //    this.cardnx += quantity;
+                    //    break;
+            }
+        }
+
+        public int GetCashShopPoints(byte type)
+        {
+            switch (type)
+            {
+                case 0:
+                    return NexonPoint;
+                case 1:
+                    return MaplePoint;
+                //case 4:
+                //    return this.cardnx;
+                default:
+                    return 0;
+            }
+        }
+
+        public static int GetNextUniqueId()
+        {
+            int nextid;
+            using (var db = new NeoMapleStoryDatabase())
+            {
+                var itemUid = db.InventoryItems.Max(x => (int?)x.UniqueId) + 1 ?? 0;
+                var cashItemUid = db.CashShopInventories.Max(x => (int?)x.UniqueId) + 1 ?? 0;
+                nextid = cashItemUid > itemUid ? cashItemUid : itemUid;
+            }
+            return nextid;
+        }
+
+        public void EquipChanged()
+        {
+            Map.BroadcastMessage(this, PacketCreator.UpdateCharLook(this), false);
+            RecalcLocalStats();
+            EnforceMaxHpMp();
+            if (Messenger != null)
+            {
+                //WorldChannelInterface wci = ChannelServer.getInstance(getClient().getChannel()).getWorldInterface();
+                //try
+                //{
+                //    wci.updateMessenger(getClient().getPlayer().getMessenger().getId(), getClient().getPlayer().getName(), getClient().getChannel());
+                //}
+                //catch 
+                //{
+                //    //getClient().getChannelServer().reconnectWorld();
+                //}
+            }
+        }
 
         public int GetItemAmount(int itemid)
         {
@@ -1744,12 +1851,12 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
 
         public void GainMeso(int gain, bool show, bool enableActions = false, bool inChat = false)
         {
-            if (Money.Value + gain < 0)
+            if (Meso.Value + gain < 0)
             {
                 Client.Send(PacketCreator.EnableActions());
                 return;
             }
-            var newVal = Money.Add(gain);
+            var newVal = Meso.Add(gain);
             UpdateSingleStat(MapleStat.Meso, newVal, enableActions);
             if (show)
             {
@@ -1794,7 +1901,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             return m_coolDowns.ContainsKey(skillId);
         }
 
-        public int GetMasterLevel(ISkill skill)
+        public byte GetMasterLevel(ISkill skill)
         {
             SkillEntry ret;
             if (!Skills.TryGetValue(skill, out ret))
@@ -2100,7 +2207,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             GuildUpdate();
         }
 
-        public void ChangeSkillLevel(ISkill skill, int newLevel, int newMasterlevel)
+        public void ChangeSkillLevel(ISkill skill, byte newLevel, byte newMasterlevel)
         {
             if (Skills.ContainsKey(skill))
                 Skills[skill] = new SkillEntry(newLevel, newMasterlevel);
@@ -2543,7 +2650,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
         public void CancelEffectFromBuffStat(MapleBuffStat stat)
         {
             MapleBuffStatValueHolder value;
-            if (m_effects.TryGetValue(stat,out value))
+            if (m_effects.TryGetValue(stat, out value))
             {
                 CancelEffect(value.Effect, false, -1);
             }
@@ -2776,7 +2883,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
                 combo = SkillFactory.GetSkill(11111001);
             }
             MapleStatEffect ceffect = combo.GetEffect(GetSkillLevel(combo));
-            List<Tuple<MapleBuffStat, int>> stat =new List<Tuple<MapleBuffStat, int>> { new Tuple<MapleBuffStat, int>(MapleBuffStat.Combo, 1) };
+            List<Tuple<MapleBuffStat, int>> stat = new List<Tuple<MapleBuffStat, int>> { new Tuple<MapleBuffStat, int>(MapleBuffStat.Combo, 1) };
             SetBuffedValue(MapleBuffStat.Combo, 1);
             int duration = ceffect.Duration;
             duration += (int)(GetBuffedStarttime(MapleBuffStat.Combo) ?? DateTime.Now.GetTimeMilliseconds() - DateTime.Now.GetTimeMilliseconds());
@@ -2786,7 +2893,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
             }
             else
             {
-               Client.Send(PacketCreator.GiveBuff(this, 1111002, duration, stat));
+                Client.Send(PacketCreator.GiveBuff(this, 1111002, duration, stat));
             }
             Map.BroadcastMessage(this, PacketCreator.GiveForeignBuff(this, stat, ceffect), false);
         }
@@ -2794,7 +2901,7 @@ VALUES(@Id,@InventoryItemId,@UpgradeSlots,@Level,@Str,@Dex,@Int,@Luk,@HP,@MP,@Wa
         public void SetBuffedValue(MapleBuffStat effect, int value)
         {
             MapleBuffStatValueHolder mbsvh;
-            if (!m_effects.TryGetValue(effect,out mbsvh))
+            if (!m_effects.TryGetValue(effect, out mbsvh))
             {
                 return;
             }

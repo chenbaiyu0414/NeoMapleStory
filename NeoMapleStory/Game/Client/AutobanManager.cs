@@ -41,7 +41,7 @@ namespace NeoMapleStory.Game.Client
             {
                 return;
             }
-            var acc = c.Player.AccountId;
+            var acc = c.Player.Account.Id;
             List<string> reasonList;
             if (m_mPoints.ContainsKey(acc))
             {

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Linq;
 using System.Net;
@@ -15,7 +14,6 @@ using NeoMapleStory.Game.Map;
 using NeoMapleStory.Game.Mob;
 using NeoMapleStory.Game.Movement;
 using NeoMapleStory.Game.Shop;
-using NeoMapleStory.Game.Skill;
 using NeoMapleStory.Server;
 using NeoMapleStory.Settings;
 
@@ -45,7 +43,7 @@ namespace NeoMapleStory.Packet
         {
             p.WriteByte(0x01);
             p.WriteMapleString(chr.Name);
-            p.WriteInt(chr.Money.Value); //冒险币
+            p.WriteInt(chr.Meso.Value); //冒险币
             p.WriteInt(chr.Id);
             p.WriteLong(0); //豆豆
             p.WriteByte(chr.Inventorys[MapleInventoryType.Equip.Value].SlotLimit); // equip slots
@@ -60,7 +58,7 @@ namespace NeoMapleStory.Packet
             var equipped = new List<IMapleItem>(equippedC.Count);
             lock (iv)
             {
-                equipped.AddRange(equippedC.Where(item => item.Position < 100));
+                equipped.AddRange(equippedC.Where(item => item.Position > 156));
             }
 
             equipped.Sort();
@@ -76,7 +74,7 @@ namespace NeoMapleStory.Packet
 
             lock (iv)
             {
-                equipped.AddRange(equippedC.Where(item => item.Position > 100));
+                equipped.AddRange(equippedC.Where(item => item.Position < 156));
             }
             equipped.Sort();
 
@@ -301,8 +299,7 @@ namespace NeoMapleStory.Packet
             using (var p = new OutPacket(SendOpcodes.CharCash))
             {
                 p.WriteInt(chr.Id);
-                p.WriteInt(chr.NexonPoint);
-                //p.WriteInt(chr.getCSPoints(1));
+                p.WriteInt(chr.MaplePoint);
                 return p;
             }
         }
@@ -940,7 +937,7 @@ namespace NeoMapleStory.Packet
                     p.WriteByte(0x01);
                     p.WriteByte(0x00);
                     p.WriteInt(pet.ItemId);
-                    p.WriteMapleString(pet.PetInfo.PetName);
+                    p.WriteMapleString(pet.PetInfo.Name);
                     p.WriteInt(pet.UniqueId);
                     p.WriteInt(0);
                     p.WriteShort((short)pet.Pos.X);
@@ -1354,7 +1351,7 @@ namespace NeoMapleStory.Packet
                 LoginPacket.AddCharStats(p, chr);
                 p.WriteByte(20); // ???
                 p.WriteByte(0);
-                p.WriteInt(chr.Money.Value); // mesos
+                p.WriteInt(chr.Meso.Value); // mesos
                 p.WriteInt(chr.Id);
                 p.WriteInt(0);
                 p.WriteInt(0);
@@ -1369,7 +1366,7 @@ namespace NeoMapleStory.Packet
                 List<Item> equipped = new List<Item>(equippedC.Count);
                 foreach (var item in equippedC)
                 {
-                    if (((Item)item).Position > 100)
+                    if (((Item)item).Position >156)
                     {
                         equipped.Add((Item)item);
                     }
@@ -1384,7 +1381,7 @@ namespace NeoMapleStory.Packet
                 equipped.Clear();
                 foreach (var item in equippedC)
                 {
-                    if (((Item)item).Position < 100)
+                    if (((Item)item).Position <156)
                     {
                         equipped.Add((Item)item);
                     }
@@ -1454,7 +1451,7 @@ namespace NeoMapleStory.Packet
                 }
                 p.WriteZero(15);
 
-                p.WriteMapleString(chr.Client.AccountName);
+                p.WriteMapleString(chr.Client.Account.Username);
                 if (isMTS)
                 {
                     p.WriteInt(5000);
@@ -1471,7 +1468,7 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket sendWishList(int characterid)
+        public static OutPacket SendWishList(int characterid)
         {
             using (var p = new OutPacket(SendOpcodes.CsOperation))
             {
@@ -1505,13 +1502,12 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket showNXMapleTokens(MapleCharacter chr)
+        public static OutPacket ShowNXMapleTokens(MapleCharacter chr)
         {
             using (var p = new OutPacket(SendOpcodes.CsUpdate))
             {
                 p.WriteInt(chr.NexonPoint); // Paypal/PayByCash NX
                 p.WriteInt(chr.MaplePoint); // Maple Points
-
                 return p;
             }
         }
@@ -1527,7 +1523,7 @@ namespace NeoMapleStory.Packet
                 {
                     p.WriteInt(citem.UniqueId);
                     p.WriteInt(0);
-                    p.WriteInt(chr.AccountId);
+                    p.WriteInt(chr.Account.Id);
                     p.WriteInt(0);
                     p.WriteInt(citem.ItemId);
                     p.WriteInt(citem.Sn);
@@ -1593,6 +1589,131 @@ namespace NeoMapleStory.Packet
             using (var p = new OutPacket(SendOpcodes.BlockMsg))
             {
                 p.WriteByte(type);
+                return p;
+            }
+        }
+
+        public static OutPacket ShowBoughtCashShopItem(MapleClient c, MapleCashShopInventoryItem item)
+        {
+            using (var p = new OutPacket(SendOpcodes.CsOperation))
+            {
+                p.WriteByte(0x4C);
+                p.WriteInt(item.UniqueId);
+                p.WriteInt(0);
+                p.WriteInt(c.Account.Id);
+                p.WriteInt(0);
+                p.WriteInt(item.ItemId);
+                p.WriteInt(item.Sn);
+                p.WriteShort(item.Quantity);
+
+                string s = item.Sender;
+                if (Encoding.Default.GetByteCount(s) > 12)
+                {
+                    s = s.Substring(0, 12);
+                }
+                p. WriteString(s);
+                p.WriteZero(12 - Encoding.Default.GetByteCount(s));
+
+                p.WriteBytes(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00 });
+                p.WriteLong(item.Expire == null ? DateUtiliy.GetFileTimestamp(FinalTime) :DateUtiliy.GetFileTimestamp(item.Expire.Value.GetTimeMilliseconds()));
+                p.WriteLong(0);
+
+                return p;
+            }
+        }
+
+        public static OutPacket ShowCannotToMe()
+        {
+            using (var p = new OutPacket(SendOpcodes.CsOperation))
+            {
+                p.WriteByte(0x43);
+                p.WriteByte(0x8D);
+                return p;
+            }
+        }
+
+        public static OutPacket EnableCashShopOrMTS()
+        {
+            using (var p = new OutPacket())
+            {
+                p.WriteBytes(new byte[] { 0x15, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 });
+                return p;
+            }
+        }
+
+        public static OutPacket UpdateCharLook(MapleCharacter chr)
+        {
+            using (var p = new OutPacket(SendOpcodes.UpdateCharLook))
+            {
+                p.WriteInt(chr.Id);
+                p.WriteByte(0x01);
+                LoginPacket.AddCharLook(p, chr, false);
+                MapleInventory iv = chr.Inventorys[MapleInventoryType.Equipped.Value];
+                List<IMapleItem> equippedC = iv.Inventory.Values.ToList();
+                List<Item> equipped = new  List<Item>(equippedC.Count);
+                foreach (var item in equippedC)
+                {
+                    equipped.Add((Item)item);
+                }
+                equipped.Sort();
+                List<IEquip> rings = new List<IEquip>();
+                foreach (var item in equipped)
+                {
+                    if (item.ItemId >= 1112800 && item.ItemId <= 1112802 || item.ItemId >= 1112001 && item.ItemId <= 1112003)
+                    {
+                        rings.Add(MapleRing.LoadFromDb(item.ItemId, item.Position, item.UniqueId));
+                    }
+                }
+                rings.Sort();
+                if (rings.Any())
+                {
+                    p.WriteByte(0x00);
+                    foreach (var ring in rings)
+                    {
+                        p.WriteByte(0x01);
+                        p.WriteInt(1);//?
+                        p.WriteInt(ring.UniqueId);
+                        p.WriteInt(0);
+                        p.WriteInt(ring.PartnerUniqueId);
+                        p.WriteInt(0);
+                        p.WriteInt(ring.ItemId);
+                    }
+                    p.WriteByte(0x00);
+                }
+                else
+                {
+                    p.WriteByte(0);
+                    p.WriteShort(0);
+                }
+                return p;
+            }
+        }
+
+        public static OutPacket DropInventoryItemUpdate(MapleInventoryType type, IMapleItem item)
+        {
+            using (var p = new OutPacket(SendOpcodes.ModifyInventoryItem))
+            {
+                p.WriteBytes(new byte[] { 0x01, 0x01, 0x01 });
+                p.WriteByte(type.Value);
+                p.WriteShort(item.Position);
+                p.WriteShort(item.Quantity);
+
+                return p;
+            }
+        }
+
+        public static OutPacket DropInventoryItem(MapleInventoryType type, short src)
+        {
+            using (var p = new OutPacket(SendOpcodes.ModifyInventoryItem))
+            {
+                p.WriteBytes (new byte[] { 0x01, 0x01, 0x03 });
+                p.WriteByte(type.Value);
+                p.WriteShort(src);
+                if (src < 0)
+                {
+                    p.WriteByte(0x01);
+                }
+
                 return p;
             }
         }
@@ -2525,6 +2646,38 @@ namespace NeoMapleStory.Packet
             }
         }
 
+        public static OutPacket transferFromCSToInv(IMapleItem item, byte position)
+        {
+            //23 01 4D 01 00 01 CA 4A 0F 00 01 A7 C0 62 00 00 00 00 00 00 CD 77 3C AB 25 CA 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 65 69 6E 6E 08 00 00 40 E0 FD 3B 37 4F 01 FF FF FF FF
+            using (var p = new OutPacket(SendOpcodes.CsOperation))
+            {
+                p.WriteByte(0x5D);
+                p.WriteByte(position);//in csinventory
+                AddItemInfo(p, item, true, false, true);
+                return p;
+            }
+        }
+
+        public static OutPacket TransferFromInvToCs(MapleCharacter c, MapleCashShopInventoryItem item)
+        {
+            using (var p = new OutPacket(SendOpcodes.CsOperation))
+            {
+                p.WriteByte(0x5F);
+                p.WriteInt(item.UniqueId);
+                p.WriteInt(0);
+                p.WriteInt(c.Account.Id);
+                p.WriteInt(0);
+                p.WriteInt(item.ItemId);
+                p.WriteInt(item.Sn);
+                p.WriteShort(item.Quantity);
+                p.WriteString(item.Sender);
+                p.WriteZero(13 - Encoding.Default.GetByteCount(item.Sender));
+                p.WriteLong(item.Expire == null ?DateUtiliy .GetFileTimestamp(FinalTime) : DateUtiliy.GetFileTimestamp(item.Expire.Value.GetTimeMilliseconds()));
+                p.WriteLong(0);
+                return p;
+            }
+        }
+
         /**
          * code (8 = sell, 0 = buy, 0x20 = due to an error the trade did not happen
          * o.o)
@@ -2587,15 +2740,15 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket MoveInventoryItem(MapleInventoryType type, byte src, byte dst, byte equipIndicator = 0)
+        public static OutPacket MoveInventoryItem(MapleInventoryType type,  short src,  short dst, byte equipIndicator)
         {
             using (var p = new OutPacket(SendOpcodes.ModifyInventoryItem))
             {
                 p.WriteBytes(new byte[] { 0x01, 0x01, 0x02 });
-                p.WriteByte(type.Value);
+                p.WriteByte((byte)(type == MapleInventoryType.Equipped ? 0xFF : type.Value));
                 p.WriteShort(src);
                 p.WriteShort(dst);
-                if (equipIndicator != 0)
+                if (equipIndicator != 0xFF)
                 {
                     p.WriteByte(equipIndicator);
                 }
@@ -2717,8 +2870,7 @@ namespace NeoMapleStory.Packet
         //    }
         //}
 
-        public static void AddItemInfo(OutPacket p, IMapleItem item, bool zeroPosition = false, bool leaveOut = false,
-            bool cs = false)
+        public static void AddItemInfo(OutPacket p, IMapleItem item, bool zeroPosition = false, bool leaveOut = false,bool cs = false)
         {
             if (item.UniqueId > 0)
             {
@@ -2726,8 +2878,7 @@ namespace NeoMapleStory.Packet
                 {
                     AddPetItemInfo(p, item, zeroPosition, leaveOut, cs);
                 }
-                else if ((item.ItemId >= 1112800 && item.ItemId <= 1112802) ||
-                         (item.ItemId >= 1112001 && item.ItemId <= 1112003))
+                else if ((item.ItemId >= 1112800 && item.ItemId <= 1112802) || (item.ItemId >= 1112001 && item.ItemId <= 1112003))
                 {
                     AddRingItemInfo(p, item, zeroPosition, leaveOut, cs);
                 }
@@ -2761,16 +2912,16 @@ namespace NeoMapleStory.Packet
                     p.WriteByte(0x00);
                 }
             }
-            else if (pos <= 0xFF)
+            else if (pos >= 128 && pos <= 0xFF)
             {
-                if (pos > 100)
+                if (pos < 156)
                 {
                     masking = true;
-                    p.WriteByte((byte)(pos - 100));
+                    p.WriteByte((byte)(156-pos));
                 }
                 else
                 {
-                    p.WriteByte(pos);
+                    p.WriteByte((byte)(256 - pos));
                 }
                 equipped = true;
             }
@@ -2851,15 +3002,15 @@ namespace NeoMapleStory.Packet
                     p.WriteByte(0x00);
                 }
             }
-            else if (pos <= 0xFF)
+            else if (pos >= 128 && pos <= 0xFF)
             {
-                if (pos > 100)
+                if (pos > 156)
                 {
-                    p.WriteByte((byte)(pos - 100));
+                    p.WriteByte((byte)(156 - pos));
                 }
                 else
                 {
-                    p.WriteByte(pos);
+                    p.WriteByte((byte)(256 - pos));
                 }
             }
             else
@@ -2873,9 +3024,9 @@ namespace NeoMapleStory.Packet
             p.WriteInt(item.UniqueId);
             p.WriteInt(0);
 
-            var pet = MaplePet.LoadFromDb(item.ItemId, item.Position, item.UniqueId);
+            var pet = MaplePet.Load(item.ItemId, item.Position, item.UniqueId);
             p.WriteLong(DateUtiliy.GetFileTimestamp(item.Expiration?.GetTimeMilliseconds() ?? FinalTime));
-            var petname = pet.PetInfo.PetName;
+            var petname = pet.PetInfo.Name;
             if (Encoding.Default.GetByteCount(petname) > 13)
             {
                 petname = petname.Substring(0, 13);
@@ -2915,15 +3066,15 @@ namespace NeoMapleStory.Packet
                     p.WriteByte(0x00);
                 }
             }
-            else if (pos <= 0xFF)
+            else if (pos >= 128 && pos <= 0xFF)
             {
-                if (pos > 100 || pos == 128 || ring)
+                if (pos< 156 || pos == 128 || ring)
                 {
-                    p.WriteByte((byte)(pos - 100));
+                    p.WriteByte((byte)(156-pos));
                 }
                 else
                 {
-                    p.WriteByte(pos);
+                    p.WriteByte((byte)(256 - pos));
                 }
             }
             else
@@ -2988,16 +3139,16 @@ namespace NeoMapleStory.Packet
                     p.WriteByte(0x00);
                 }
             }
-            else if (pos <= 0xFF)
+            else if (pos >= 128 && pos <= 0xFF)
             {
-                if (pos > 100)
+                if (pos <156)
                 {
-                    p.WriteByte((byte)(pos - 100));
+                    p.WriteByte((byte)(156 - pos));
                     masking = true;
                 }
                 else
                 {
-                    p.WriteByte(pos);
+                    p.WriteByte((byte)(256 - pos));
                 }
                 equipped = true;
             }

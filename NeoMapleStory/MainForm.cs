@@ -1,13 +1,8 @@
 ﻿using System;
-using System.Collections;
-using System.Diagnostics;
-using System.Drawing;
+using System.ComponentModel;
 using System.Threading;
 using System.Windows.Forms;
-using System.Windows.Forms.DataVisualization.Charting;
-using MySql.Data.MySqlClient;
 using NeoMapleStory.Core;
-using NeoMapleStory.Core.Encryption;
 using NeoMapleStory.Server;
 
 namespace NeoMapleStory
@@ -22,48 +17,14 @@ namespace NeoMapleStory
             InitializeComponent();
         }
 
-        private void button2_Click(object sender, EventArgs e)
-        {
-            //Username = "cby40899570",
-            //        Password = Core.Encryption.Sha256.Get("cby159753", grid),
-            //        Salt = grid,
-            //        SecretKey = "159753",
-            //        IsGm = true,
-            //        MaplePoint = 1000000,
-            //        NexonPoint = 1000000,
-
-            var g1 = Guid.NewGuid();
-            var g2 = Guid.NewGuid();
-
-            var cmd = new MySqlCommand(
-                @"INSERT Account(Username,Password,PasswordSalt,SecretKey,SecretKeySalt,IsGm,MaplePoint,NexonPoint,BirthDate,RegisterDate,Email) 
-                             VALUES(@Username,@Password,@PasswordSalt,@SecretKey,@SecretKeySalt,@IsGm,@MaplePoint,@NexonPoint,@BirthDate,@RegisterDate,@Email)");
-            cmd.Parameters.Add(new MySqlParameter("@Username", "cby40899570"));
-            cmd.Parameters.Add(new MySqlParameter("@Password", Sha256.Get("cby159753", g1.ToString())));
-            cmd.Parameters.Add(new MySqlParameter("@PasswordSalt", g1.ToString().ToUpper()));
-            cmd.Parameters.Add(new MySqlParameter("@SecretKey", Sha256.Get("159753", g2.ToString())));
-            cmd.Parameters.Add(new MySqlParameter("@SecretKeySalt", g2.ToString().ToUpper()));
-            cmd.Parameters.Add(new MySqlParameter("@IsGm", true));
-            cmd.Parameters.Add(new MySqlParameter("@MaplePoint", 1000000));
-            cmd.Parameters.Add(new MySqlParameter("@BirthDate", DateTime.Now));
-            cmd.Parameters.Add(new MySqlParameter("@NexonPoint", 1000000));
-            cmd.Parameters.Add(new MySqlParameter("@RegisterDate", DateTime.Now));
-            cmd.Parameters.Add(new MySqlParameter("@Email", "cby40899570@qq.com"));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-
-                con.Open();
-
-                MessageBox.Show(cmd.ExecuteNonQuery() > 0 ? "成功" : "失败");
-            }
-        }
-
-
         private void MainForm_Load(object sender, EventArgs e)
         {
             Console.SetOut(new TextBoxWriter(textBox1));
+
+            panel_Game.Dock = panel_Settings.Dock = DockStyle.Fill;
+            panel_Game.BringToFront();
+
+            propertyGrid1.SelectedObject = new ServerProperties();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -80,10 +41,18 @@ namespace NeoMapleStory
             }
         }
 
-
-        private void toolStripButton_StartServer_Click(object sender, EventArgs e)
+        private void timer1_Tick(object sender, EventArgs e)
         {
+            //toolStripStatusLabel_ServerTime.Text = $"服务器时间：{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}";
+            //if (m_isRunning)
+            //{
+            //    m_runningTime = m_runningTime.AddSeconds(1);
+            //    toolStripStatusLabel_ServerRunningTime.Text = $"服务端已运行时间：{m_runningTime.ToString("HH:mm:ss")}";
+            //}
+        }
 
+        private void toolStripButton_LaunchServer_Click(object sender, EventArgs e)
+        {
             if (!m_isRunning)
             {
                 Thread startThread = new Thread(() => { MasterServer.Instance.Start(); });
@@ -91,7 +60,7 @@ namespace NeoMapleStory
                 if (startThread.ThreadState == System.Threading.ThreadState.Running)
                 {
                     m_isRunning = true;
-                    toolStripButton_StartServer.Text = "关闭服务端";
+                    toolStripButton_LaunchServer.Text = "关闭服务端";
                 }
             }
             else
@@ -99,20 +68,43 @@ namespace NeoMapleStory
                 Thread stopThread = new Thread(() => { MasterServer.Instance.Stop(); });
                 stopThread.Start();
                 m_isRunning = false;
-                toolStripButton_StartServer.Text = "启动服务端";
-                toolStripButton_StartServer.Enabled = false;
+                toolStripButton_LaunchServer.Text = "启动服务端";
+                toolStripButton_LaunchServer.Enabled = false;
             }
         }
 
+        private void toolBtn_Game_Click(object sender, EventArgs e) => panel_Game.BringToFront();
 
-        private void timer1_Tick(object sender, EventArgs e)
+        private void toolBtn_Settings_Click(object sender, EventArgs e) => panel_Settings.BringToFront();
+
+    }
+
+    public class ServerProperties
+    {
+        public enum ServerLocale :byte
         {
-            toolStripStatusLabel_ServerTime.Text = $"服务器时间：{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}";
-            if (m_isRunning)
-            {
-                m_runningTime = m_runningTime.AddSeconds(1);
-                toolStripStatusLabel_ServerRunningTime.Text = $"服务端已运行时间：{m_runningTime.ToString("HH:mm:ss")}";
-            }
+            China,
         }
+
+        [Category("基本设置"), DescriptionAttribute("冒险岛版本")]
+        public int Version { get; set; } = 79;
+
+        [Category("基本设置"), DescriptionAttribute("冒险岛地区版本")]
+        public ServerLocale Locale { get; set; } = ServerLocale.China;
+
+        [Category("基本设置"), DescriptionAttribute("冒险岛服务器名字")]
+        public string ServerName { get; set; } = "NeoMapleStory";
+
+        [Category("基本设置"), DescriptionAttribute("冒险岛顶部滚动的广告")]
+        public string ServerAdvertisment { get; set; } = "NeoMapleStory v79 测试中可能频繁掉线";
+
+        [Category("倍率"), DescriptionAttribute("掉落倍率")]
+        public double DropRate { get; set; } = 1.0;
+
+        [Category("倍率"), DescriptionAttribute("经验倍率")]
+        public double ExpRate { get; set; } = 1.0;
+
+        [Category("倍率"), DescriptionAttribute("金币倍率")]
+        public double MesoRate { get; set; } = 1.0;
     }
 }

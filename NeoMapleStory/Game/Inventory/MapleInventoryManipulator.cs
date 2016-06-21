@@ -3,6 +3,8 @@ using System.Linq;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
+using NeoMapleStory.Game.Buff;
+using System.Drawing;
 
 namespace NeoMapleStory.Game.Inventory
 {
@@ -38,14 +40,14 @@ namespace NeoMapleStory.Game.Inventory
                         {
                             if (i.MoveNext())
                             {
-                                var eItem = (Item) i.Current;
+                                var eItem = (Item)i.Current;
                                 if (eItem != null)
                                 {
                                     var oldQ = eItem.Quantity;
                                     if (oldQ < slotMax && item.Owner == eItem.Owner)
                                     {
-                                        var newQ = (short) Math.Min(oldQ + quantity, slotMax);
-                                        quantity -= (short) (newQ - oldQ);
+                                        var newQ = (short)Math.Min(oldQ + quantity, slotMax);
+                                        quantity -= (short)(newQ - oldQ);
                                         eItem.Quantity = newQ;
                                         c.Send(PacketCreator.UpdateInventorySlot(type, eItem, true));
                                     }
@@ -60,13 +62,13 @@ namespace NeoMapleStory.Game.Inventory
                     {
                         var newQ = Math.Min(quantity, slotMax);
                         quantity -= newQ;
-                        var nItem = new Item(item.ItemId, 0, newQ) {Owner = item.Owner};
+                        var nItem = new Item(item.ItemId, 0, newQ) { Owner = item.Owner };
                         var newSlot = c.Player.Inventorys[type.Value].AddItem(nItem);
                         if (newSlot == 0xFF)
                         {
                             c.Send(PacketCreator.GetInventoryFull());
                             c.Send(PacketCreator.GetShowInventoryFull());
-                            item.Quantity = (short) (quantity + newQ);
+                            item.Quantity = (short)(quantity + newQ);
                             return false;
                         }
                         c.Send(PacketCreator.AddInventorySlot(type, nItem, true));
@@ -235,7 +237,7 @@ namespace NeoMapleStory.Game.Inventory
                             var oldQ = eItem.Quantity;
                             if (oldQ < slotMax && owner == eItem.Owner)
                             {
-                                var newQ = (short) Math.Min(oldQ + quantity, slotMax);
+                                var newQ = (short)Math.Min(oldQ + quantity, slotMax);
                                 quantity -= newQ - oldQ;
                             }
                             if (quantity <= 0)
@@ -249,7 +251,7 @@ namespace NeoMapleStory.Game.Inventory
                 if (slotMax > 0)
                 {
                     // add new slots if there is still something left
-                    numSlotsNeeded = (int) Math.Ceiling((double) quantity/slotMax);
+                    numSlotsNeeded = (int)Math.Ceiling((double)quantity / slotMax);
                 }
                 else if (ii.IsThrowingStar(itemid) || ii.IsBullet(itemid))
                 {
@@ -286,8 +288,7 @@ namespace NeoMapleStory.Game.Inventory
             }
         }
 
-        public static bool AddById(MapleClient c, int itemId, short quantity, string logInfo, string owner = null,
-            int petid = -1)
+        public static bool AddById(MapleClient c, int itemId, short quantity, string logInfo, string owner = null, int petid = -1)
         {
             if (quantity < 0)
             {
@@ -307,12 +308,12 @@ namespace NeoMapleStory.Game.Inventory
 
                         for (var i = 0; i < existing.Count && quantity > 0; i++)
                         {
-                            var eItem = (Item) existing[i];
+                            var eItem = (Item)existing[i];
                             var oldQ = eItem.Quantity;
                             if (oldQ < slotMax && (eItem.Owner == owner || owner == null))
                             {
-                                var newQ = (short) Math.Min(oldQ + quantity, slotMax);
-                                quantity -= (short) (newQ - oldQ);
+                                var newQ = (short)Math.Min(oldQ + quantity, slotMax);
+                                quantity -= (short)(newQ - oldQ);
                                 eItem.Quantity = newQ;
                                 //eItem.log("Added " + (newQ - oldQ) + " items to stack, new quantity is " + newQ + " (" + logInfo + " )", false);
                                 c.Send(PacketCreator.UpdateInventorySlot(type, eItem));
@@ -396,8 +397,7 @@ namespace NeoMapleStory.Game.Inventory
             return true;
         }
 
-        public static void RemoveFromSlot(MapleClient c, MapleInventoryType type, byte slot, short quantity,
-            bool fromDrop, bool consume = false)
+        public static void RemoveFromSlot(MapleClient c, MapleInventoryType type, byte slot, short quantity, bool fromDrop, bool consume = false)
         {
             if (quantity < 0)
             {
@@ -415,14 +415,13 @@ namespace NeoMapleStory.Game.Inventory
             {
                 if (!consume)
                 {
-                    //item.l(c.getPlayer().getName() + " removed " + quantity + ". " + item.getQuantity() + " left.", false);
+                    //item.l(c.Player.getName() + " removed " + quantity + ". " + item.getQuantity() + " left.", false);
                 }
-                c.Send(PacketCreator.UpdateInventorySlot(type, (Item) item, fromDrop));
+                c.Send(PacketCreator.UpdateInventorySlot(type, (Item)item, fromDrop));
             }
         }
 
-        public static void RemoveById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop,
-            bool consume, bool v)
+        public static void RemoveById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop, bool consume, bool v)
         {
             var items = c.Player.Inventorys[type.Value].ListById(itemId);
             var remremove = quantity;
@@ -430,7 +429,7 @@ namespace NeoMapleStory.Game.Inventory
             {
                 if (remremove <= item.Quantity)
                 {
-                    RemoveFromSlot(c, type, item.Position, (short) remremove, fromDrop, consume);
+                    RemoveFromSlot(c, type, item.Position, (short)remremove, fromDrop, consume);
                     remremove = 0;
                     break;
                 }
@@ -444,8 +443,7 @@ namespace NeoMapleStory.Game.Inventory
             }
         }
 
-        public static void RemoveById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop,
-            bool consume)
+        public static void RemoveById(MapleClient c, MapleInventoryType type, int itemId, int quantity, bool fromDrop, bool consume)
         {
             if (quantity < 0)
             {
@@ -457,7 +455,7 @@ namespace NeoMapleStory.Game.Inventory
             {
                 if (remremove <= item.Quantity)
                 {
-                    RemoveFromSlot(c, type, item.Position, (short) remremove, fromDrop, consume);
+                    RemoveFromSlot(c, type, item.Position, (short)remremove, fromDrop, consume);
                     remremove = 0;
                     break;
                 }
@@ -466,377 +464,397 @@ namespace NeoMapleStory.Game.Inventory
             }
             if (remremove > 0)
             {
-                throw new Exception("Not enough cheese available ( ItemID:" + itemId + ", Remove Amount:" +
-                                    (quantity - remremove) + "| Current Amount:" + quantity + ")");
+                throw new Exception("Not enough cheese available ( ItemID:" + itemId + ", Remove Amount:" + (quantity - remremove) + "| Current Amount:" + quantity + ")");
             }
         }
 
-        //    MapleItemInformationProvider ii = MapleItemInformationProvider.getInstance();
-        //    }
-        //        return;
-        //    {
-        //    if (src < 0 || dst < 0 || src > c.getPlayer().getInventory(type).getSlots() || dst > c.getPlayer().getInventory(type).getSlots())
-        //{
+        public static void Move(MapleClient c, MapleInventoryType type, short src, short dst)
+        {
+            byte srcSlot = (byte)src;
+            byte dstSlot = (byte)dst;
 
-        //public static void move(MapleClient c, MapleInventoryType type, byte src, byte dst)
-        //    IMapleItem source = c.getPlayer().getInventory(type).getItem(src);
-        //    IMapleItem initialTarget = c.getPlayer().getInventory(type).getItem(dst);
-        //    if (source == null)
-        //    {
-        //        return;
-        //    }
-        //    short olddstQ = -1;
-        //    if (initialTarget != null)
-        //    {
-        //        olddstQ = initialTarget.getQuantity();
-        //    }
-        //    short oldsrcQ = source.getQuantity();
-        //    short slotMax = ii.getSlotMax(c, source.getItemId());
-        //    bool op = c.getPlayer().getInventory(type).move(src, dst, slotMax);
-        //    if (!op)
-        //    {
-        //        c.getSession().write(MaplePacketCreator.enableActions());
-        //        return;
-        //    }
-        //    if (!type.equals(MapleInventoryType.EQUIP) && initialTarget != null &&
-        //            initialTarget.getItemId() == source.getItemId() && !ii.isThrowingStar(source.getItemId()) &&
-        //            !ii.isBullet(source.getItemId()))
-        //    {
-        //        if ((olddstQ + oldsrcQ) > slotMax)
-        //        {
-        //            c.getSession().write(MaplePacketCreator.moveAndMergeWithRestInventoryItem(type, src, dst, (short)((olddstQ + oldsrcQ) - slotMax), slotMax));
-        //        }
-        //        else {
-        //            c.getSession().write(MaplePacketCreator.moveAndMergeInventoryItem(type, src, dst, ((Item)c.getPlayer().getInventory(type).getItem(dst)).getQuantity()));
-        //        }
-        //    }
-        //    else {
-        //        c.getSession().write(MaplePacketCreator.moveInventoryItem(type, src, dst));
-        //    }
-        //}
+            if (srcSlot > 127 || dstSlot > 127 || srcSlot > c.Player.Inventorys[type.Value].SlotLimit || dstSlot > c.Player.Inventorys[type.Value].SlotLimit)
+            {
+                return;
+            }
+            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+            IMapleItem source;
+            IMapleItem initialTarget;
+            if (!c.Player.Inventorys[type.Value].Inventory.TryGetValue(srcSlot, out source))
+            {
+                return;
+            }
+            short olddstQ = -1;
+            if (c.Player.Inventorys[type.Value].Inventory.TryGetValue(dstSlot, out initialTarget))
+            {
+                olddstQ = initialTarget.Quantity;
+            }
+            short oldsrcQ = source.Quantity;
+            short slotMax = ii.GetSlotMax(c, source.ItemId);
+            bool op = c.Player.Inventorys[type.Value].Move(srcSlot, dstSlot, slotMax);
+            if (!op)
+            {
+                c.Send(PacketCreator.EnableActions());
+                return;
+            }
+            if (type != MapleInventoryType.Equip && initialTarget != null && initialTarget.ItemId == source.ItemId && !ii.IsThrowingStar(source.ItemId) && !ii.IsBullet(source.ItemId))
+            {
+                if ((olddstQ + oldsrcQ) > slotMax)
+                {
+                    c.Send(PacketCreator.MoveAndMergeWithRestInventoryItem(type, srcSlot, dstSlot, (short)((olddstQ + oldsrcQ) - slotMax), slotMax));
+                }
+                else
+                {
+                    c.Send(PacketCreator.MoveAndMergeInventoryItem(type, srcSlot, dstSlot, ((Item)c.Player.Inventorys[type.Value].Inventory[dstSlot]).Quantity));
+                }
+            }
+            else
+            {
+                c.Send(PacketCreator.MoveInventoryItem(type, src, dst, 0));
+            }
+        }
 
-        //public static void equip(MapleClient c, byte src, byte dst)
-        //{
-        //    MapleItemInformationProvider ii = MapleItemInformationProvider.getInstance();
-        //    Equip source = (Equip)c.getPlayer().getInventory(MapleInventoryType.EQUIP).getItem(src);
-        //    Equip target = (Equip)c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem(dst);
+        public static void Equip(MapleClient c, short src, short dst)
+        {
+            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
 
-        //    if (source == null)
-        //    {
-        //        return;
-        //    }
-        //    if (!c.getPlayer().isGM())
-        //    {
-        //        switch (source.getItemId())
-        //        {
-        //            case 1002140: // Wizet Invincible Hat
-        //            case 1042003: // Wizet Plain Suit
-        //            case 1062007: // Wizet Plain Suit Pants
-        //            case 1322013: // Wizet Secret Agent Suitcase
-        //                removeAllById(c, source.getItemId(), false);
-        //                c.getPlayer().dropMessage(1, "无法佩带此物品");
-        //                return;
-        //        }
-        //    }
-        //    int reqLevel = ii.getReqLevel(source.getItemId());
-        //    int reqStr = ii.getReqStr(source.getItemId());
-        //    int reqDex = ii.getReqDex(source.getItemId());
-        //    int reqInt = ii.getReqInt(source.getItemId());
-        //    int reqLuk = ii.getReqLuk(source.getItemId());
-        //    bool cashSlot = false;
-        //    if (source.getItemId() == 1812006)
-        //    {
-        //        removeAllById(c, source.getItemId(), false);
-        //        c.getPlayer().dropMessage(1, "物品已被封印");
-        //        return;
-        //    }
-        //    if (dst < -99)
-        //    {
-        //        cashSlot = true;
-        //    }
-        //    if (!ii.isCash(source.getItemId()))
-        //    {
-        //        String type = ii.getType(source.getItemId());
-        //        if ((type.equalsIgnoreCase("Cp") && dst != -1) ||
-        //                (type.equalsIgnoreCase("Af") && dst != -2) ||
-        //                (type.equalsIgnoreCase("Ay") && dst != -3) ||
-        //                (type.equalsIgnoreCase("Ae") && dst != -4) ||
-        //                ((type.equalsIgnoreCase("Ma") || type.equalsIgnoreCase("MaPn")) && dst != -5) ||
-        //                (type.equalsIgnoreCase("Pn") && dst != -6) ||
-        //                (type.equalsIgnoreCase("So") && dst != -7) ||
-        //                (type.equalsIgnoreCase("Gv") && dst != -8) ||
-        //                (type.equalsIgnoreCase("Sr") && dst != -9) ||
-        //                (type.equalsIgnoreCase("Si") && dst != -10) ||
-        //                ((type.equalsIgnoreCase("Wp") || type.equalsIgnoreCase("WpSi")) && dst != -11) ||
-        //                (type.equalsIgnoreCase("Pe") && dst != -17))
-        //        {
-        //            c.getSession().write(MaplePacketCreator.enableActions());
-        //            return;
-        //        }
-        //    }
-        //    if ((ii.getName(source.getItemId()).contains("(Male)") && c.getPlayer().getGender() != 0) ||
-        //            (ii.getName(source.getItemId()).contains("(Female)") && c.getPlayer().getGender() != 1) ||
-        //            reqLevel > c.getPlayer().getLevel() ||
-        //            reqStr > c.getPlayer().getTotalStr() ||
-        //            reqDex > c.getPlayer().getTotalDex() ||
-        //            reqInt > c.getPlayer().getTotalInt() ||
-        //            reqLuk > c.getPlayer().getTotalLuk() ||
-        //            (cashSlot && !ii.isCash(source.getItemId())))
-        //    {
-        //        c.getSession().write(MaplePacketCreator.enableActions());
-        //        return;
-        //    }
+            byte srcSlot = (byte)src;
+            byte dstSlot = (byte)dst;
 
-        //    if (dst == -6)
-        //    { // unequip the overall
-        //        IMapleItem top = c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-5);
-        //        if (top != null && ii.isOverall(top.getItemId()))
-        //        {
-        //            if (c.getPlayer().getInventory(MapleInventoryType.EQUIP).isFull())
-        //            {
-        //                c.getSession().write(MaplePacketCreator.getInventoryFull());
-        //                c.getSession().write(MaplePacketCreator.getShowInventoryFull());
-        //                return;
-        //            }
-        //            unequip(c, (byte)-5, c.getPlayer().getInventory(MapleInventoryType.EQUIP).getNextFreeSlot());
-        //        }
-        //    }
-        //    else if (dst == -5)
-        //    { // unequip the bottom and top
-        //        IMapleItem top = c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-5);
-        //        IMapleItem bottom = c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-6);
-        //        if (top != null && ii.isOverall(source.getItemId()))
-        //        {
-        //            if (c.getPlayer().getInventory(MapleInventoryType.EQUIP).isFull(bottom != null && ii.isOverall(source.getItemId()) ? 1 : 0))
-        //            {
-        //                c.getSession().write(MaplePacketCreator.getInventoryFull());
-        //                c.getSession().write(MaplePacketCreator.getShowInventoryFull());
-        //                return;
-        //            }
-        //            unequip(c, (byte)-5, c.getPlayer().getInventory(MapleInventoryType.EQUIP).getNextFreeSlot());
-        //        }
-        //        if (bottom != null && ii.isOverall(source.getItemId()))
-        //        {
-        //            if (c.getPlayer().getInventory(MapleInventoryType.EQUIP).isFull())
-        //            {
-        //                c.getSession().write(MaplePacketCreator.getInventoryFull());
-        //                c.getSession().write(MaplePacketCreator.getShowInventoryFull());
-        //                return;
-        //            }
-        //            unequip(c, (byte)-6, c.getPlayer().getInventory(MapleInventoryType.EQUIP).getNextFreeSlot());
-        //        }
-        //    }
-        //    else if (dst == -10)
-        //    { // check if weapon is two-handed
-        //        IMapleItem weapon = c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-11);
-        //        if (weapon != null && ii.isTwoHanded(weapon.getItemId()))
-        //        {
-        //            if (c.getPlayer().getInventory(MapleInventoryType.EQUIP).isFull())
-        //            {
-        //                c.getSession().write(MaplePacketCreator.getInventoryFull());
-        //                c.getSession().write(MaplePacketCreator.getShowInventoryFull());
-        //                return;
-        //            }
-        //            unequip(c, (byte)-11, c.getPlayer().getInventory(MapleInventoryType.EQUIP).getNextFreeSlot());
-        //        }
-        //    }
-        //    else if (dst == -11)
-        //    {
-        //        IMapleItem shield = c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-10);
-        //        if (shield != null && ii.isTwoHanded(source.getItemId()))
-        //        {
-        //            if (c.getPlayer().getInventory(MapleInventoryType.EQUIP).isFull())
-        //            {
-        //                c.getSession().write(MaplePacketCreator.getInventoryFull());
-        //                c.getSession().write(MaplePacketCreator.getShowInventoryFull());
-        //                return;
-        //            }
-        //            unequip(c, (byte)-10, c.getPlayer().getInventory(MapleInventoryType.EQUIP).getNextFreeSlot());
-        //        }
-        //    }
-        //    else if (dst == -18)
-        //    {
-        //        if (c.getPlayer().getMount() != null)
-        //        {
-        //            c.getPlayer().getMount().setItemId(source.getItemId());
-        //        }
-        //    }
-        //    source = (Equip)c.getPlayer().getInventory(MapleInventoryType.EQUIP).getItem(src);
-        //    target = (Equip)c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem(dst);
-        //    c.getPlayer().getInventory(MapleInventoryType.EQUIP).removeSlot(src);
-        //    if (target != null)
-        //    {
-        //        c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).removeSlot(dst);
-        //    }
-        //    source.setPosition(dst);
-        //    c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).addFromDB(source);
-        //    if (target != null)
-        //    {
-        //        target.setPosition(src);
-        //        c.getPlayer().getInventory(MapleInventoryType.EQUIP).addFromDB(target);
-        //    }
-        //    if (c.getPlayer().getBuffedValue(MapleBuffStat.BOOSTER) != null && ii.isWeapon(source.getItemId()))
-        //    {
-        //        c.getPlayer().cancelBuffStats(MapleBuffStat.BOOSTER);
-        //    }
-        //    c.getSession().write(MaplePacketCreator.moveInventoryItem(MapleInventoryType.EQUIP, src, dst, (byte)2));
-        //    c.getPlayer().equipChanged();
-        //    //c.getSession().write(MaplePacketCreator.upChrLook());
-        //}
+            Equip source = c.Player.Inventorys[MapleInventoryType.Equip.Value].Inventory.FirstOrDefault(x=>x.Key==srcSlot).Value as Equip;
+            Equip target = c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.FirstOrDefault(x => x.Key == dstSlot).Value as Equip;
 
-        //public static void unequip(MapleClient c, byte src, byte dst)
-        //{
-        //    Equip source = (Equip)c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).getItem(src);
-        //    Equip target = (Equip)c.getPlayer().getInventory(MapleInventoryType.EQUIP).getItem(dst);
-        //    if (dst < 0)
-        //    {
-        //        log.warn("Unequipping to negative slot. ({}: {}->{})", new Object[] { c.getPlayer().getName(), src, dst });
-        //    }
-        //    if (source == null)
-        //    {
-        //        return;
-        //    }
-        //    if (target != null && src <= 0)
-        //    { // do not allow switching with equip
-        //        c.getSession().write(MaplePacketCreator.getInventoryFull());
-        //        return;
-        //    }
-        //    c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).removeSlot(src);
-        //    if (target != null)
-        //    {
-        //        c.getPlayer().getInventory(MapleInventoryType.EQUIP).removeSlot(dst);
-        //    }
-        //    source.setPosition(dst);
-        //    c.getPlayer().getInventory(MapleInventoryType.EQUIP).addFromDB(source);
-        //    if (target != null)
-        //    {
-        //        target.setPosition(src);
-        //        c.getPlayer().getInventory(MapleInventoryType.EQUIPPED).addFromDB(target);
-        //    }
-        //    c.getSession().write(MaplePacketCreator.moveInventoryItem(MapleInventoryType.EQUIP, src, dst, (byte)1));
-        //    c.getPlayer().equipChanged();
-        //}
+            if (source==null)
+            {
+                return;
+            }
+            if (!c.Player.IsGm)
+            {
+                switch (source.ItemId)
+                {
+                    case 1002140: // Wizet Invincible Hat
+                    case 1042003: // Wizet Plain Suit
+                    case 1062007: // Wizet Plain Suit Pants
+                    case 1322013: // Wizet Secret Agent Suitcase
+                        RemoveAllById(c, source.ItemId, false);
+                        c.Player.DropMessage(PacketCreator.ServerMessageType.Popup, "无法佩带此物品");
+                        return;
+                }
+            }
+            int reqLevel = ii.GetReqLevel(source.ItemId);
+            int reqStr = ii.GetReqStr(source.ItemId);
+            int reqDex = ii.GetReqDex(source.ItemId);
+            int reqInt = ii.GetReqInt(source.ItemId);
+            int reqLuk = ii.GetReqLuk(source.ItemId);
+            bool cashSlot = false;
+            if (source.ItemId == 1812006)
+            {
+                RemoveAllById(c, source.ItemId, false);
+                c.Player.DropMessage(PacketCreator.ServerMessageType.Popup, "物品已被封印");
+                return;
+            }
+            if (dstSlot < 0x9D)
+            {
+                cashSlot = true;
+            }
+            if (!ii.IsCash(source.ItemId))
+            {
+                string type = ii.GetType(source.ItemId);
+                if ((type.Equals("Cp", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xFF) ||
+                        (type.Equals("Af", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xFE) ||
+                        (type.Equals("Ay", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xFD) ||
+                        (type.Equals("Ae", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xFC) ||
+                        ((type.Equals("Ma", StringComparison.CurrentCultureIgnoreCase) || type.Equals("MaPn", StringComparison.CurrentCultureIgnoreCase)) && dstSlot != 0xFB) ||
+                        (type.Equals("Pn", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xFA) ||
+                        (type.Equals("So", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xF9) ||
+                        (type.Equals("Gv", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xF8) ||
+                        (type.Equals("Sr", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xF7) ||
+                        (type.Equals("Si", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xF6) ||
+                        ((type.Equals("Wp", StringComparison.CurrentCultureIgnoreCase) || type.Equals("WpSi", StringComparison.CurrentCultureIgnoreCase)) && dstSlot != 0xF5) ||
+                        (type.Equals("Pe", StringComparison.CurrentCultureIgnoreCase) && dstSlot != 0xEF))
+                {
+                    c.Send(PacketCreator.EnableActions());
+                    return;
+                }
+            }
+            if ((ii.GetName(source.ItemId).Contains("(Male)") && !c.Player.Gender) ||
+                    (ii.GetName(source.ItemId).Contains("(Female)") && c.Player.Gender) ||
+                    reqLevel > c.Player.Level ||
+                    reqStr > c.Player.Localstr ||
+                    reqDex > c.Player.Localdex ||
+                    reqInt > c.Player.Localint ||
+                    reqLuk > c.Player.Localluk ||
+                    (cashSlot && !ii.IsCash(source.ItemId)))
+            {
+                c.Send(PacketCreator.EnableActions());
+                return;
+            }
 
-        //public static void drop(MapleClient c, MapleInventoryType type, byte src, short quantity)
-        //{
-        //    MapleItemInformationProvider ii = MapleItemInformationProvider.getInstance();
+            switch (dstSlot)
+            {
+                case 0xFA:
+                    {
+                        // unequip the overall
+                        IMapleItem top;
+                        if (c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(0xFB, out top) && ii.IsOverall(top.ItemId))
+                        {
+                            if (c.Player.Inventorys[MapleInventoryType.Equip.Value].IsFull())
+                            {
+                                c.Send(PacketCreator.GetInventoryFull());
+                                c.Send(PacketCreator.GetShowInventoryFull());
+                                return;
+                            }
+                            UnEquip(c, -5, c.Player.Inventorys[MapleInventoryType.Equip.Value].GetNextFreeSlot());
+                        }
+                    }
+                    break;
+                case 0xFB:
+                    {// unequip the bottom and top
+                        IMapleItem top = c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.FirstOrDefault(x => x.Key == 0xFB).Value;
+                        IMapleItem bottom = c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.FirstOrDefault(x => x.Key == 0xFA).Value;
+                        if (top != null && ii.IsOverall(source.ItemId))
+                        {
+                            if (c.Player.Inventorys[MapleInventoryType.Equip.Value].IsFull(bottom != null && ii.IsOverall(source.ItemId) ? 1 : 0))
+                            {
+                                c.Send(PacketCreator.GetInventoryFull());
+                                c.Send(PacketCreator.GetShowInventoryFull());
+                                return;
+                            }
+                            UnEquip(c, -5, c.Player.Inventorys[MapleInventoryType.Equip.Value].GetNextFreeSlot());
+                        }
+                        if (bottom != null && ii.IsOverall(source.ItemId))
+                        {
+                            if (c.Player.Inventorys[MapleInventoryType.Equip.Value].IsFull())
+                            {
+                                c.Send(PacketCreator.GetInventoryFull());
+                                c.Send(PacketCreator.GetShowInventoryFull());
+                                return;
+                            }
+                            UnEquip(c, -6, c.Player.Inventorys[MapleInventoryType.Equip.Value].GetNextFreeSlot());
+                        }
+                    }
+                    break;
+                case 0xF6:
+                    // check if weapon is two-handed
+                    IMapleItem weapon;
+                    if ( c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(0xF5,out weapon) && ii.IsTwoHanded(weapon.ItemId))
+                    {
+                        if (c.Player.Inventorys[MapleInventoryType.Equip.Value].IsFull())
+                        {
+                            c.Send(PacketCreator.GetInventoryFull());
+                            c.Send(PacketCreator.GetShowInventoryFull());
+                            return;
+                        }
+                        UnEquip(c, -11, c.Player.Inventorys[MapleInventoryType.Equip.Value].GetNextFreeSlot());
+                    }
+                    break;
+                case 0xF5:
+                    IMapleItem shield;
+                    if (c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(0xF6, out shield) && ii.IsTwoHanded(source.ItemId))
+                    {
+                        if (c.Player.Inventorys[MapleInventoryType.Equip.Value].IsFull())
+                        {
+                            c.Send(PacketCreator.GetInventoryFull());
+                            c.Send(PacketCreator.GetShowInventoryFull());
+                            return;
+                        }
+                        UnEquip(c, -10, c.Player.Inventorys[MapleInventoryType.Equip.Value].GetNextFreeSlot());
+                    }
+                    break;
+                case 0xEE:
+                    //if (c.Player.Mount != null)
+                    //{
+                    //    c.Player.getMount().setItemId(source.ItemId);
+                    //}
+                    break;
+            }
 
-        //    if (src < 0)
-        //    {
-        //        type = MapleInventoryType.EQUIPPED;
-        //    }
-        //    IMapleItem source = c.getPlayer().getInventory(type).getItem(src);
-        //    if (quantity > ii.getSlotMax(c, source.getItemId()))
-        //    {
-        //        try
-        //        {
-        //            c.getChannelServer().getWorldInterface().broadcastGMMessage(c.getPlayer().getName(), MaplePacketCreator.serverNotice(0, c.getPlayer().getName() + " is dropping more than slotMax.").getBytes());
-        //        }
-        //        catch (Throwable u)
-        //        {
-        //        }
-        //    }
-        //    if (quantity < 0 || quantity == 0 && !ii.isThrowingStar(source.getItemId()) && !ii.isBullet(source.getItemId()))
-        //    {
-        //        String message = "Dropping " + quantity + " " + (source == null ? "?" : source.getItemId()) + " (" +
-        //                type.name() + "/" + src + ")";
-        //        log.info(MapleClient.getLogMessage(c, message));
-        //        c.getSession().close(); // disconnect the client as is inventory is inconsistent with the serverside inventory
-        //        return;
-        //    }
-        //    Point dropPos = new Point(c.getPlayer().getPosition());
-        //    if (quantity < source.getQuantity() && !ii.isThrowingStar(source.getItemId()) && !ii.isBullet(source.getItemId()))
-        //    {
-        //        IMapleItem target = source.copy();
-        //        target.setQuantity(quantity);
-        //        target.log(c.getPlayer().getName() + " dropped part of a stack at " + dropPos.toString() + " on map " + c.getPlayer().getMapId() + ". Quantity of this (new) instance is now " + quantity, false);
-        //        source.setQuantity((short)(source.getQuantity() - quantity));
-        //        source.log(c.getPlayer().getName() + " dropped part of a stack at " + dropPos.toString() + " on map " + c.getPlayer().getMapId() + ". Quantity of this (leftover) instance is now " + source.getQuantity(), false);
-        //        c.getSession().write(MaplePacketCreator.dropInventoryItemUpdate(type, source));
-        //        bool weddingRing = source.getItemId() == 1112804;
-        //        bool LiRing = source.getItemId() == 1112405;
-        //        if (weddingRing)
-        //        {
-        //            c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos);
-        //        }
-        //        else if (LiRing)
-        //        {
-        //            c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos);
-        //        }
-        //        else if (c.getPlayer().getMap().getEverlast())
-        //        {
-        //            if (!c.getChannelServer().allowUndroppablesDrop() && (ii.isDropRestricted(target.getItemId())))
-        //            {
-        //                c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos);
-        //            }
-        //            else {
-        //                if (LiRing)
-        //                {
-        //                    c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos);
-        //                }
-        //                else {
-        //                    c.getPlayer().getMap().spawnItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos, true, false);
-        //                }
-        //            }
-        //        }
-        //        else {
-        //            if (!c.getChannelServer().allowUndroppablesDrop() && (ii.isDropRestricted(target.getItemId())))
-        //            {
-        //                c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos);
-        //            }
-        //            else {
-        //                if (LiRing)
-        //                {
-        //                    c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos);
-        //                }
-        //                else {
-        //                    c.getPlayer().getMap().spawnItemDrop(c.getPlayer(), c.getPlayer(), target, dropPos, true, false);
-        //                }
-        //            }
-        //        }
-        //    }
-        //    else {
-        //        source.log(c.getPlayer().getName() + " dropped this (with full quantity) at " + dropPos.toString() + " on map " + c.getPlayer().getMapId(), false);
-        //        c.getPlayer().getInventory(type).removeSlot(src);
-        //        c.getSession().write(MaplePacketCreator.dropInventoryItem((src < 0 ? MapleInventoryType.EQUIP : type), src));
-        //        bool LiRing = source.getItemId() == 1112405;
-        //        if (src < 0)
-        //        {
-        //            c.getPlayer().equipChanged();
-        //        }
-        //        if (c.getPlayer().getMap().getEverlast())
-        //        {
-        //            if (!c.getChannelServer().allowUndroppablesDrop() && ii.isDropRestricted(source.getItemId()))
-        //            {
-        //                c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos);
-        //            }
-        //            else {
-        //                c.getPlayer().getMap().spawnItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos, true, false);
-        //                if (LiRing)
-        //                {
-        //                    c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos);
-        //                }
-        //                else {
-        //                    c.getPlayer().getMap().spawnItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos, true, true);
-        //                }
-        //            }
-        //        }
-        //        else {
-        //            if (!c.getChannelServer().allowUndroppablesDrop() && ii.isDropRestricted(source.getItemId()))
-        //            {
-        //                c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos);
-        //            }
-        //            else {
-        //                if (LiRing)
-        //                {
-        //                    c.getPlayer().getMap().disappearingItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos);
-        //                }
-        //                else {
-        //                    c.getPlayer().getMap().spawnItemDrop(c.getPlayer(), c.getPlayer(), source, dropPos, true, true);
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
+            source = c.Player.Inventorys[MapleInventoryType.Equip.Value].Inventory.FirstOrDefault(x => x.Key == srcSlot).Value as Equip;
+            target = c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.FirstOrDefault(x => x.Key == dstSlot).Value as Equip;
+
+            c.Player.Inventorys[MapleInventoryType.Equip.Value].RemoveSlot(srcSlot);
+
+            if (target!=null)
+            {
+                c.Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveSlot(dstSlot);
+            }
+
+            source.Position = dstSlot;
+
+            c.Player.Inventorys[MapleInventoryType.Equipped.Value].AddFromDb(source);
+
+            if (target!=null)
+            {
+                target.Position = srcSlot;
+                c.Player.Inventorys[MapleInventoryType.Equip.Value].AddFromDb(target);
+            }
+
+            if (c.Player.GetBuffedValue(MapleBuffStat.Booster) != null && ii.IsWeapon(source.ItemId))
+            {
+                c.Player.CancelBuffStats(MapleBuffStat.Booster);
+            }
+
+            c.Send(PacketCreator.MoveInventoryItem(MapleInventoryType.Equip,src,dst, 2));
+            c.Player.EquipChanged();
+        }
+
+        public static void UnEquip(MapleClient c,short src, short dst)
+        {
+            byte srcSlot = (byte)src;
+            byte dstSlot = (byte)dst;
+
+            Equip source = c.Player.Inventorys[MapleInventoryType.Equipped.Value].Inventory.FirstOrDefault(x => x.Key == srcSlot).Value as Equip;
+            Equip target = c.Player.Inventorys[MapleInventoryType.Equip.Value].Inventory.FirstOrDefault(x => x.Key == dstSlot).Value as Equip;
+
+            if (dstSlot > 127)
+            {
+                Console.WriteLine("Unequipping to negative slot. ({0}: {1}->{2})", c.Player.Name, srcSlot, dstSlot);
+            }
+            if (source == null)
+            {
+                return;
+            }
+            if (target != null && (srcSlot > 127 || srcSlot == 0))
+            {
+                // do not allow switching with equip
+                c.Send(PacketCreator.GetInventoryFull());
+                return;
+            }
+
+            c.Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveSlot(srcSlot);
+            if (target != null)
+            {
+                c.Player.Inventorys[MapleInventoryType.Equip.Value].RemoveSlot(dstSlot);
+            }
+            source.Position = dstSlot;
+            c.Player.Inventorys[MapleInventoryType.Equip.Value].AddFromDb(source);
+            if (target != null)
+            {
+                target.Position = srcSlot;
+                c.Player.Inventorys[MapleInventoryType.Equipped.Value].AddFromDb(target);
+            }
+            c.Send(PacketCreator.MoveInventoryItem(MapleInventoryType.Equip,src, dst, 1));
+            c.Player.EquipChanged();
+        }
+
+        public static void Drop(MapleClient c, MapleInventoryType type, byte srcSlot, short quantity)
+        {
+            MapleItemInformationProvider ii = MapleItemInformationProvider.Instance;
+
+            if (srcSlot > 127)
+            {
+                type = MapleInventoryType.Equipped;
+            }
+            IMapleItem source = c.Player.Inventorys[type.Value].Inventory[srcSlot];
+            if (quantity > ii.GetSlotMax(c, source.ItemId))
+            {
+                //try
+                //{
+                //    c.getChannelServer().getWorldInterface().broadcastGMMessage(c.Player.getName(), PacketCreator.serverNotice(0, c.Player.getName() + " is dropping more than slotMax.").getBytes());
+                //}
+                //catch (Throwable u)
+                //{
+                //}
+            }
+            if (quantity < 0 || quantity == 0 && !ii.IsThrowingStar(source.ItemId) && !ii.IsBullet(source.ItemId))
+            {
+                //String message = "Dropping " + quantity + " " + (source == null ? "?" : source.ItemId) + " (" +type.name() + "/" + srcSlot + ")";
+                //log.info(MapleClient.getLogMessage(c, message));
+                c.Close(); // disconnect the client as is inventory is inconsistent with the serverside inventory
+                return;
+            }
+            Point dropPos = c.Player.Position;
+            if (quantity < source.Quantity && !ii.IsThrowingStar(source.ItemId) && !ii.IsBullet(source.ItemId))
+            {
+                IMapleItem target = source.Copy();
+                target.Quantity = quantity;
+                //target.log(c.Player.getName() + " dropped part of a stack at " + dropPos.toString() + " on map " + c.Player.getMapId() + ". Quantity of this (new) instance is now " + quantity, false);
+                source.Quantity -= quantity;
+                //source.log(c.Player.getName() + " dropped part of a stack at " + dropPos.toString() + " on map " + c.Player.getMapId() + ". Quantity of this (leftover) instance is now " + source.getQuantity(), false);
+                c.Send(PacketCreator.DropInventoryItemUpdate(type, source));
+                bool weddingRing = source.ItemId == 1112804;
+                bool liRing = source.ItemId == 1112405;
+                if (weddingRing)
+                {
+                    c.Player.Map.disappearingItemDrop(c.Player, c.Player, target, dropPos);
+                }
+                else if (liRing)
+                {
+                    c.Player.Map.disappearingItemDrop(c.Player, c.Player, target, dropPos);
+                }
+                else if (c.Player.Map.Everlast)
+                {
+                    if (ii.IsDropRestricted(target.ItemId))
+                    {
+                        c.Player.Map.disappearingItemDrop(c.Player, c.Player, target, dropPos);
+                    }
+                    else
+                    {
+                        c.Player.Map.spawnItemDrop(c.Player, c.Player, target, dropPos, true, false);
+                    }
+                }
+                else
+                {
+                    if (ii.IsDropRestricted(target.ItemId))
+                    {
+                        c.Player.Map.disappearingItemDrop(c.Player, c.Player, target, dropPos);
+                    }
+                    else
+                    {
+
+                        c.Player.Map.spawnItemDrop(c.Player, c.Player, target, dropPos, true, false);
+
+                    }
+                }
+            }
+            else
+            {
+                //source.log(c.Player.getName() + " dropped this (with full quantity) at " + dropPos.toString() + " on map " + c.Player.getMapId(), false);
+                c.Player.Inventorys[type.Value].RemoveSlot(srcSlot);
+                c.Send(PacketCreator.DropInventoryItem(srcSlot < 128 ? MapleInventoryType.Equip : type, srcSlot));
+                bool liRing = source.ItemId == 1112405;
+                if (srcSlot > 127)
+                {
+                    c.Player.EquipChanged();
+                }
+                if (c.Player.Map.Everlast)
+                {
+                    if (ii.IsDropRestricted(source.ItemId))
+                    {
+                        c.Player.Map.disappearingItemDrop(c.Player, c.Player, source, dropPos);
+                    }
+                    else
+                    {
+                        c.Player.Map.spawnItemDrop(c.Player, c.Player, source, dropPos, true, false);
+                        if (liRing)
+                        {
+                            c.Player.Map.disappearingItemDrop(c.Player, c.Player, source, dropPos);
+                        }
+                        else
+                        {
+                            c.Player.Map.spawnItemDrop(c.Player, c.Player, source, dropPos, true, true);
+                        }
+                    }
+                }
+                else
+                {
+                    if (ii.IsDropRestricted(source.ItemId))
+                    {
+                        c.Player.Map.disappearingItemDrop(c.Player, c.Player, source, dropPos);
+                    }
+                    else
+                    {
+                        if (liRing)
+                        {
+                            c.Player.Map.disappearingItemDrop(c.Player, c.Player, source, dropPos);
+                        }
+                        else
+                        {
+                            c.Player.Map.spawnItemDrop(c.Player, c.Player, source, dropPos, true, true);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

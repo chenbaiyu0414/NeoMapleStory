@@ -11,7 +11,6 @@ using NeoMapleStory.Game.Job;
 using NeoMapleStory.Game.Map;
 using NeoMapleStory.Game.Mob;
 using NeoMapleStory.Game.Skill;
-using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 
 namespace NeoMapleStory.Game.Client
@@ -1591,9 +1590,9 @@ namespace NeoMapleStory.Game.Client
 
             public CancelEffectAction(MapleCharacter target, MapleStatEffect effect, long startTime)
             {
-                this.m_effect = effect;
-                this.m_target = new WeakReference<MapleCharacter>(target);
-                this.m_startTime = startTime;
+               m_effect = effect;
+               m_target = new WeakReference<MapleCharacter>(target);
+               m_startTime = startTime;
             }
 
             public void Run()
@@ -1601,11 +1600,11 @@ namespace NeoMapleStory.Game.Client
                 MapleCharacter realTarget;
                 if (m_target.TryGetTarget(out realTarget))
                 {
-                    //if (realTarget.inCS() || realTarget.inMTS())
-                    //{
-                    //    realTarget.AddToCancelBuffPackets(effect, startTime);
-                    //    return;
-                    //}
+                    if (realTarget.InCashShop /*|| realTarget.inMTS()*/)
+                    {
+                        realTarget.BuffsToCancel.Add(m_startTime, m_effect);
+                        return;
+                    }
                     realTarget.CancelEffect(m_effect, false, m_startTime);
                 }
             }

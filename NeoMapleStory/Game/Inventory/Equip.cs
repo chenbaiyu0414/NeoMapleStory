@@ -59,29 +59,31 @@ namespace NeoMapleStory.Game.Inventory
 
         public new IMapleItem Copy()
         {
-            var ret = new Equip(ItemId, Position, IsRing);
-            ret.Str = Str;
-            ret.Dex = Dex;
-            ret.Int = Int;
-            ret.Luk = Luk;
-            ret.Hp = Hp;
-            ret.Mp = Mp;
-            ret.Matk = Matk;
-            ret.Mdef = Mdef;
-            ret.Watk = Watk;
-            ret.Wdef = Wdef;
-            ret.Acc = Acc;
-            ret.Avoid = Avoid;
-            ret.Hands = Hands;
-            ret.Speed = Speed;
-            ret.Jump = Jump;
-            ret.Flag = Flag;
-            ret.Locked = Locked;
-            ret.UpgradeSlots = UpgradeSlots;
-            ret.Level = Level;
-            ret.Vicious = Vicious;
-            ret.Owner = Owner;
-            ret.Quantity = Quantity;
+            var ret = new Equip(ItemId, Position, IsRing)
+            {
+                Str = Str,
+                Dex = Dex,
+                Int = Int,
+                Luk = Luk,
+                Hp = Hp,
+                Mp = Mp,
+                Matk = Matk,
+                Mdef = Mdef,
+                Watk = Watk,
+                Wdef = Wdef,
+                Acc = Acc,
+                Avoid = Avoid,
+                Hands = Hands,
+                Speed = Speed,
+                Jump = Jump,
+                Flag = Flag,
+                Locked = Locked,
+                UpgradeSlots = UpgradeSlots,
+                Level = Level,
+                Vicious = Vicious,
+                Owner = Owner,
+                Quantity = Quantity
+            };
             return ret;
         }
 

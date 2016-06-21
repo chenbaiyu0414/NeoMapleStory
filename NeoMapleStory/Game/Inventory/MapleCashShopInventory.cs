@@ -1,90 +1,87 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MySql.Data.MySqlClient;
 using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database;
+using NeoMapleStory.Core.Database.Models;
 using NeoMapleStory.Game.Client;
 
 namespace NeoMapleStory.Game.Inventory
 {
     public class MapleCashShopInventory
     {
-    private int accountid;
-        private int characterid;
-        private MapleCharacter chr;
-        public Dictionary<int, MapleCashShopInventoryItem> CashShopItems { get; private set; } = new Dictionary<int, MapleCashShopInventoryItem>();
-        public Dictionary<int, MapleCashShopInventoryItem> CashShopGifts { get; private set; } = new Dictionary<int, MapleCashShopInventoryItem>();
+        private readonly int m_accountId;
+        private readonly MapleCharacter m_player;
+        public Dictionary<int, MapleCashShopInventoryItem> CashShopItems { get; } = new Dictionary<int, MapleCashShopInventoryItem>();
+        public Dictionary<int, MapleCashShopInventoryItem> CashShopGifts { get; } = new Dictionary<int, MapleCashShopInventoryItem>();
 
         public MapleCashShopInventory(MapleCharacter chr)
         {
-            this.accountid = chr.AccountId;
-            this.characterid = chr.Id;
-            this.chr = chr;
-            LoadFromDb(accountid);
+            m_accountId = chr.Account.Id;
+            m_player = chr;
+            Load(m_accountId);
         }
 
-        public void LoadFromDb(int id)
+        public void Load(int id)
         {
             try
             {
-                var cmd = new MySqlCommand("SELECT * FROM CashShopInventory WHERE AccountId = @AccountId");
-                cmd.Parameters.Add(new MySqlParameter("@AccountId", id));
-                using (var con = DbConnectionManager.Instance.GetConnection())
+                using (var db = new NeoMapleStoryDatabase())
                 {
-                    cmd.Connection = con;
-                    con.Open();
+                    var cashItemQuery = db.CashShopInventories.Where(x => x.AId == m_accountId).Select(x => x);
 
-                    var reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    foreach (var item in cashItemQuery)
                     {
-                        MapleCashShopInventoryItem citem = new MapleCashShopInventoryItem(reader.GetInt32("UniqueId"),reader.GetInt32("ItemId"), reader.GetInt32("Sn"), (short)reader.GetInt32("Quantity"), reader.GetBoolean("IsGift"));
-                        citem.Expire= (DateTime?)reader["ExpireDate"];
-                        citem.Sender= (reader.GetString("sender"));
+                        var citem = new MapleCashShopInventoryItem(item.UniqueId, item.ItemId, item.Sn, item.Quantity, item.IsGift)
+                        {
+                            Expire = item.ExpireDate,
+                            Sender = item.Sender
+                        };
                         if (CashShopItems.ContainsKey(citem.UniqueId))
                             CashShopItems[citem.UniqueId] = citem;
                         else
                             CashShopItems.Add(citem.UniqueId, citem);
                     }
-                    reader.Close();
 
-                    cmd.CommandText="SELECT * FROM CashShopGifts WHERE AId = @AccountId";
 
-                    reader = cmd.ExecuteReader();
-                    while (reader.Read())
+                    var cashGiftQuery = db.CashShopGifts.Where(x => x.AId == m_accountId).Select(x => x);
+
+                    foreach (var giftinfo in cashGiftQuery)
                     {
                         MapleCashShopInventoryItem gift;
-                        if (reader.GetInt32("ItemId") >= 5000000 && reader.GetInt32("ItemId") <= 5000100)
+                        if (giftinfo.ItemId >= 5000000 && giftinfo.ItemId <= 5000100)
                         {
-                            //int petId = MaplePet.CreatePet(rs.getInt("itemid"), chr);
-                            //gift = new MapleCashShopInventoryItem(petId, rs.getInt("itemid"), rs.getInt("sn"), (short)1, true);
+                            int petId = MaplePet.Create(giftinfo.ItemId, m_player);
+                            gift = new MapleCashShopInventoryItem(petId, giftinfo.ItemId, giftinfo.Sn, 1, true);
                         }
                         else
                         {
-                            //if (reader.GetInt32("Ring") > 0)
-                            //{
-                            //    gift = new MapleCashShopInventoryItem(reader.GetInt32("Ring"), reader.GetInt32("ItemId"), reader.GetInt32("Sn"), (short)reader.GetInt32("Quantity"), true);
-                            //    gift.IsRing = true;
-                            //}
-                            //else
-                            //{
-                            //    gift = new MapleCashShopInventoryItem(MapleCharacter, reader.GetInt32("ItemId"), reader.GetInt32("Sn"), (short)reader.GetInt32("Quantity"), true);
-                            //}
+                            gift = new MapleCashShopInventoryItem(giftinfo.RingUniqueId, giftinfo.ItemId, giftinfo.Sn, giftinfo.Quantity, true)
+                            {
+                                IsRing = giftinfo.RingUniqueId > 0
+                            };
                         }
-                        //gift.setExpire(reader.getTimestamp("expiredate"));
-                        //gift.setSender(reader.getString("sender"));
-                        //gift.setMessage(reader.getString("message"));
-                        //CashShopGifts.put(gift.getUniqueId(), gift);
-                        //CashShopItems.put(gift.getUniqueId(), gift);
-                        saveToDB();
+                        gift.Expire = giftinfo.ExpireDate;
+                        gift.Sender = giftinfo.Sender;
+                        gift.Message = giftinfo.Message;
+
+                        if (CashShopGifts.ContainsKey(gift.UniqueId))
+                            CashShopGifts[gift.UniqueId] = gift;
+                        else
+                            CashShopGifts.Add(gift.UniqueId, gift);
+
+                        if (CashShopItems.ContainsKey(gift.UniqueId))
+                            CashShopItems[gift.UniqueId] = gift;
+                        else
+                            CashShopItems.Add(gift.UniqueId, gift);
+
+                        Save();
                     }
-                    //reader.close();
-                    //ps.close();
-                    //ps = con.prepareStatement("DELETE FROM csgifts WHERE accountid = ?");
-                    //ps.setInt(1, accountid);
-                    //ps.executeUpdate();
-                    //ps.close();
+
+                    var deleteGiftQuery = db.CashShopGifts.Where(x => x.AId == m_accountId).Select(x => x);
+                    db.CashShopGifts.RemoveRange(deleteGiftQuery);
+
+                    db.SaveChanges();
                 }
 
             }
@@ -95,33 +92,33 @@ namespace NeoMapleStory.Game.Inventory
 
         }
 
-        public void saveToDB()
+        public void Save()
         {
             try
             {
-                //Connection con = DatabaseConnection.getConnection();
-                //PreparedStatement ps = con.prepareStatement("DELETE FROM csinventory WHERE accountid = ?");
-                //ps.setInt(1, accountid);
-                //ps.executeUpdate();
-                //ps.close();
+                using (var db = new NeoMapleStoryDatabase())
+                {
+                    var deleteQuery = db.CashShopInventories.Where(x => x.AId == m_accountId).Select(x => x);
+                    db.CashShopInventories.RemoveRange(deleteQuery);
 
-                //ps = con.prepareStatement("INSERT INTO csinventory (accountid, uniqueid, itemid, sn, quantity, sender, message, expiredate, gift, isRing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                //for (MapleCSInventoryItem citem : CashShopItems.values())
-                //{
-                //    ps.setInt(1, accountid);
-                //    ps.setInt(2, citem.getUniqueId());
-                //    ps.setInt(3, citem.getItemId());
-                //    ps.setInt(4, citem.getSn());
-                //    ps.setInt(5, citem.getQuantity());
-                //    ps.setString(6, citem.getSender());
-                //    ps.setString(7, citem.getMessage());
-                //    ps.setTimestamp(8, citem.getExpire());
-                //    ps.setBoolean(9, citem.isGift());
-                //    ps.setBoolean(10, citem.isRing());
-                //    ps.executeUpdate();
-                //}
-                //ps.close();
+                    List<CashShopInventoryModel> list = new List<CashShopInventoryModel>();
+                    foreach (var citem in CashShopItems.Values)
+                    {
+                        list.Add(new CashShopInventoryModel()
+                        {
+                        UniqueId= citem.UniqueId,
+                        ItemId= citem.ItemId,
+                        Sn= citem.Sn,
+                        Quantity= citem.Quantity,
+                        Sender=citem.Sender,
+                        Message= citem.Message,
+                        ExpireDate= citem.Expire,
+                        IsGift= citem.IsGift,
+                        IsRing= citem.IsRing,
+                        });
+                    }
 
+                }
             }
             catch (Exception e)
             {

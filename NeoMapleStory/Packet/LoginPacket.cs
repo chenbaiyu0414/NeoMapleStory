@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text;
 using NeoMapleStory.Core;
@@ -146,12 +147,10 @@ namespace NeoMapleStory.Packet
             {
                 packet.WriteByte(0x00);
                 packet.WriteInt(0);
-                var chars = DatabaseHelper.LoadCharacters(mc);
-                packet.WriteByte((byte) chars.Count);
-                foreach (var chr in chars)
-                {
-                    AddCharEntry(packet, chr);
-                }
+                packet.WriteByte((byte)(mc.Account.Characters?.Count ?? 0));
+                if (mc.Account.Characters != null)
+                    foreach (var chr in mc.Account.Characters)
+                        AddCharEntry(packet, new MapleCharacter(chr.Id, mc, false));
                 packet.WriteShort(3);
                 packet.WriteInt(ServerSettings.MaxCharacterCouldCreate);
                 return packet;
@@ -246,41 +245,55 @@ namespace NeoMapleStory.Packet
                 foreach (var item in equip.Inventory.Values)
                 {
                     var pos = item.Position;
-                    if (pos < 100 && !myEquip.ContainsKey(pos))
+                    if (pos > 0x9C && !myEquip.ContainsKey(pos))
                     {
-                        myEquip.Add(pos, item.ItemId);
+                        if (myEquip.ContainsKey(pos))
+                            myEquip[pos] = item.ItemId;
+                        else
+                            myEquip.Add(pos, item.ItemId);
                     }
-                    else if ((pos > 100 || pos == 128) && pos != 111)
+                    else if ((pos < 0x9C || pos == 128) && pos != 0x91)
                     {
                         pos -= 100;
                         if (myEquip.ContainsKey(pos))
                         {
-                            maskedEquip.Add(pos, myEquip[pos]);
+                            if (maskedEquip.ContainsKey(pos))
+                                maskedEquip[pos] = myEquip[pos];
+                            else
+                                maskedEquip.Add(pos, myEquip[pos]);
+
+                            myEquip[pos] = item.ItemId;
                         }
-                        myEquip.Add(pos, item.ItemId);
+                        else
+                        {
+                            myEquip.Add(pos, item.ItemId);
+                        } 
                     }
                     else if (myEquip.ContainsKey(pos))
                     {
-                        maskedEquip.Add(pos, item.ItemId);
+                        if (maskedEquip.ContainsKey(pos))
+                            maskedEquip[pos] = myEquip[pos];
+                        else
+                            maskedEquip.Add(pos, myEquip[pos]);
                     }
                 }
 
                 foreach (var entry in myEquip)
                 {
-                    p.WriteByte(entry.Key);
+                    p.WriteByte((byte)(256 - entry.Key));
                     p.WriteInt(entry.Value);
                 }
                 p.WriteByte(0xFF);
 
                 foreach (var entry in maskedEquip)
                 {
-                    p.WriteByte(entry.Key);
+                    p.WriteByte((byte)(256 - entry.Key));
                     p.WriteInt(entry.Value);
                 }
                 p.WriteByte(0xFF);
 
                 IMapleItem cWeapon;
-                p.WriteInt(equip.Inventory.TryGetValue(111, out cWeapon) ? cWeapon.ItemId : 0);
+                p.WriteInt(equip.Inventory.TryGetValue(145, out cWeapon) ? cWeapon.ItemId : 0);
             }
             p.WriteInt(0);
             p.WriteLong(0);

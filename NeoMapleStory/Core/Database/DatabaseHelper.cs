@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using MySql.Data.MySqlClient;
 using NeoMapleStory.Core.Encryption;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Server;
+using System.Linq;
+using NeoMapleStory.Core.Database.Models;
+using System.Data.Entity;
 
 namespace NeoMapleStory.Core.Database
 {
@@ -44,184 +46,54 @@ namespace NeoMapleStory.Core.Database
             GenderNeeded
         }
 
-        public static void ChangeGender(string username, byte gender)
+        public static void ChangeGender(MapleClient c, string username, byte gender)
         {
-            var cmd = new MySqlCommand("UPDATE Accounts SET Gender=@Gender Where Username=@Username");
-            cmd.Parameters.Add(new MySqlParameter("@Username", username));
-            cmd.Parameters.Add(new MySqlParameter("@Gender", gender != 0));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
+            using (var db = new NeoMapleStoryDatabase())
             {
-                cmd.Connection = con;
-                con.Open();
-                cmd.ExecuteNonQuery();
+                var model = db.Accounts.Where(x => x.Username == username).Select(x => x).FirstOrDefault();
+                if (model == null)
+                    return;
+                model.Gender = gender != 0;
+                db.SaveChangesAsync();
             }
         }
 
-        public static bool CheckNameUsed(string name)
+        public static bool CheckNameUsed(MapleClient c, string name)
         {
-            var cmd = new MySqlCommand("SELECT Id FROM Characters Where Name=@Name");
-            cmd.Parameters.Add(new MySqlParameter("@Name", name));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
+            using (var db = new NeoMapleStoryDatabase())
             {
-                cmd.Connection = con;
-                con.Open();
-                return cmd.ExecuteScalar() != null;
+                return db.Characters.Where(x => x.Name == name).Select(x => x).Any();
             }
         }
 
-        public static LoginResultCode Login(MapleClient client, string username, string password)
+        public static LoginResultCode Login(MapleClient c, string username, string password)
         {
-            var cmd =
-                new MySqlCommand(
-                    "SELECT Id,Username,Password,PasswordSalt,PermanentBan,TempBanDate,Gender,IsGm,NexonPoint,MaplePoint,LoginState FROM Accounts WHERE Username=@Username");
-            cmd.Parameters.Add(new MySqlParameter("@Username", username));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
+            var state = LoginResultCode.Unfind;
+            using (var db = new NeoMapleStoryDatabase())
             {
-                cmd.Connection = con;
-                con.Open();
-                var reader = cmd.ExecuteReader();
-                if (reader.Read())
-                {
-                    if (
-                        (MapleClient.LoginState)
-                            Enum.Parse(typeof(MapleClient.LoginState), (string) reader["LoginState"]) !=
-                        MapleClient.LoginState.NotLogin)
-                        return LoginResultCode.IsLogged;
-                    if ((string) reader["Password"] != Sha256.Get(password, Guid.Parse((string) reader["PasswordSalt"])))
-                        return LoginResultCode.IncorrectPassword;
-                    if ((bool) reader["PermanentBan"] || reader["TempBanDate"] != DBNull.Value)
-                        return LoginResultCode.Banned;
-                    if (reader["Gender"] == DBNull.Value)
-                        return LoginResultCode.GenderNeeded;
+                db.Configuration.LazyLoadingEnabled = false;
 
-                    client.AccountId = (int) reader["Id"];
-                    client.Gender = (bool) reader["Gender"];
-                    client.IsGm = (bool) reader["IsGm"];
+                var model = db.Accounts.Where(x => x.Username == username).Select(x => x).Include(x => x.Characters).FirstOrDefault();
 
-                    client.State =
-                        (MapleClient.LoginState)
-                            Enum.Parse(typeof(MapleClient.LoginState), (string) reader["LoginState"]);
+                if (model == null) return state;
 
-                    reader.Close();
-                    return LoginResultCode.Success;
-                }
-                return LoginResultCode.Unfind;
-            }
-        }
+                c.Account = model;
 
-
-        public static List<MapleCharacter> LoadCharacters(MapleClient client)
-        {
-            var chars = new List<MapleCharacter>();
-            var cmd = new MySqlCommand("SELECT Id FROM Characters WHERE AId=@AId");
-            cmd.Parameters.Add(new MySqlParameter("@AId", client.AccountId));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-                con.Open();
-                var reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    chars.Add(MapleCharacter.LoadCharFromDb((int) reader["Id"], client, false));
-                }
-
-                return chars;
-            }
-        }
-
-        public static int GetMaxIndex(string tableName, string columnName)
-        {
-            var cmd = new MySqlCommand("SELECT MAX(@ColumnName) FROM @TableName");
-            cmd.Parameters.Add(new MySqlParameter("@ColumnName", columnName));
-            cmd.Parameters.Add(new MySqlParameter("@TableName", tableName));
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-                con.Open();
-                return (int) cmd.ExecuteScalar();
-            }
-        }
-
-        //public static Account LoadAccount(string username)
-        //{
-        //    MySqlCommand cmd =
-        //        new MySqlCommand(
-        //            "SELECT Id,Username,Gender,IsGm,NexonPoint,MaplePoint FROM Accounts WHERE Username=@Username");
-        //    cmd.Parameters.Add(new MySqlParameter("@Username", username));
-
-        //    using (var con = DbConnectionManager.Instance.GetConnection())
-        //    {
-        //        cmd.Connection = con;
-        //        con.Open();
-        //        var reader = cmd.ExecuteReader();
-        //        if (reader.Read())
-        //            return new Account
-        //            {
-        //                Id = (int) reader["Id"],
-        //                Username = (string) reader["Username"],
-        //                Gender = (bool) reader["Gender"],
-        //                IsGm = (bool) reader["IsGm"],
-        //                NexonPoint = (int) reader["NexonPoint"],
-        //                MaplePoint = (int) reader["MaplePoint"]
-        //            };
-        //        throw new Exception("加载账号错误");
-        //    }
-        //}
-
-        public static void PlayerExit(Account account)
-        {
-            var cmd = new MySqlCommand("SELECT IsLogged FROM Accounts WHERE Username=@Username");
-            cmd.Parameters.Add(new MySqlParameter("@Username", account.Username));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-                con.Open();
-                var reader = cmd.ExecuteReader();
-                if (!reader.Read()) return;
-                if (!(bool) reader["IsLogged"]) return;
-
-                reader.Close();
-                cmd.CommandText = "UPDATE Accounts SET IsLogged=false WHERE Username=@Username";
-                Console.WriteLine(cmd.ExecuteNonQuery() > 0 ? "角色下线成功！" : "角色下线失败！");
-            }
-        }
-
-        public static void UpdateState(int id, MapleClient.LoginState state)
-        {
-            var cmd = new MySqlCommand("UPDATE Accounts SET LoginState = @LoginState WHERE Id = @Id");
-            cmd.Parameters.Add(new MySqlParameter("@LoginState", state.ToString()));
-            cmd.Parameters.Add(new MySqlParameter("@Id", id));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-                con.Open();
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        public static MapleClient.LoginState GetState(int id)
-        {
-            var cmd = new MySqlCommand("SELECT LoginState FROM Accounts WHERE Id=@Id");
-            cmd.Parameters.Add(new MySqlParameter("@Id", id));
-
-            using (var con = DbConnectionManager.Instance.GetConnection())
-            {
-                cmd.Connection = con;
-                con.Open();
-                var reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    return (MapleClient.LoginState)
-                        Enum.Parse(typeof(MapleClient.LoginState), (string) reader["LoginState"]);
+                if (model.LoginState != LoginStateType.NotLogin)
+                    state = LoginResultCode.IsLogged;
+                else if (model.Password != Sha256.Get(password, model.PasswordSalt))
+                    state = LoginResultCode.IncorrectPassword;
+                else if (model.IsPermanentBan || model.TempBanDate != null)
+                    state = LoginResultCode.Banned;
+                else if (model.Gender == null)
+                    state = LoginResultCode.GenderNeeded;
+                else
+                {                 
+                    db.SaveChanges();
+                    state = LoginResultCode.Success;
                 }
             }
-            return MapleClient.LoginState.NotLogin;
+            return state;
         }
     }
 }

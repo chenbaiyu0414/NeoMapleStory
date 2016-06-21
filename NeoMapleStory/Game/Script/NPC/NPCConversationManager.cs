@@ -5,7 +5,6 @@ using NeoMapleStory.Game.Shop;
 using NeoMapleStory.Game.World;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
-using NeoMapleStory.Game.Script.NPC;
 using NeoMapleStory.Game.Skill;
 
 namespace NeoMapleStory.Game.Script.NPC
@@ -205,7 +204,7 @@ namespace NeoMapleStory.Game.Script.NPC
         //            MapleQuest.getInstance(id).forfeit(getPlayer());
         //        }
 
-        public int GetMeso() => Player.Money.Value;
+        public int GetMeso() => Player.Meso.Value;
 
         public void GiveMeso(int value) => Player.GainMeso(value, true, false, true);
 
@@ -239,7 +238,7 @@ namespace NeoMapleStory.Game.Script.NPC
         //            }
         //        }
 
-        public void TeachSkill(int id, int level, int masterlevel) => Player.ChangeSkillLevel(SkillFactory.GetSkill(id), level, masterlevel);
+        public void TeachSkill(int id, byte level, byte masterlevel) => Player.ChangeSkillLevel(SkillFactory.GetSkill(id), level, masterlevel);
 
         public void ClearSkills()
         {

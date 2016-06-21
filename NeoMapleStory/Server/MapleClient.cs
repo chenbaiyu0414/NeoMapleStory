@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Security.Cryptography;
 using NeoMapleStory.Core.Database;
+using NeoMapleStory.Core.Database.Models;
 using NeoMapleStory.Core.Encryption;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Client;
@@ -9,16 +10,39 @@ using SuperSocket.SocketBase;
 
 namespace NeoMapleStory.Server
 {
-    public sealed class MapleClient : AppSession<MapleClient, PacketRequestInfo>
+    public sealed class MapleClient : AppSession<MapleClient, PacketRequestInfo>,IDisposable
     {
-        public enum LoginState
+        public MapleCipher SendCipher { get; }
+        public MapleCipher RecvCipher { get; private set; }
+
+        public byte[] SendIv { get; } = new byte[4];
+        public byte[] RecvIv { get; } = new byte[4];
+
+        public AccountModel Account { get; set; }
+        public MapleCharacter Player { get; set; }
+
+        public byte WorldId { get; set; }
+        public byte ChannelId { get; set; }
+        public bool IsLoggedIn { get; set; }
+        public ChannelServer ChannelServer => MasterServer.Instance.ChannelServers[ChannelId];
+
+
+        public DateTime LastPongTime { get; set; }
+        public int LastActionId { get; set; }
+
+        public LoginStateType State
         {
-            NotLogin,
-            WaitingForDetail,
-            ServerTransition,
-            LoggedIn,
-            Waiting,
-            ViewAllChar
+            get { return Account.LoginState; }
+            set
+            {
+                IsLoggedIn = value == LoginStateType.LoggedIn || value == LoginStateType.ServerTransition;
+                using (var db = new NeoMapleStoryDatabase())
+                {
+                    db.Accounts.Attach(Account);
+                    Account.LoginState = value;
+                    db.SaveChanges();
+                }                 
+            }
         }
 
         public MapleClient()
@@ -35,48 +59,6 @@ namespace NeoMapleStory.Server
                 SendCipher = new MapleCipher((short) (0xFFFF - ServerSettings.MapleVersion), SendIv,
                     MapleCipher.CipherType.Encrypt);
                 RecvCipher = new MapleCipher(ServerSettings.MapleVersion, RecvIv, MapleCipher.CipherType.Decrypt);
-            }
-        }
-
-        public MapleCipher SendCipher { get; }
-        public MapleCipher RecvCipher { get; private set; }
-
-        public byte[] SendIv { get; } = new byte[4];
-        public byte[] RecvIv { get; } = new byte[4];
-
-        //基础账号信息
-        public int AccountId { get; set; }
-        public bool Gender { get; set; }
-        public bool IsGm { get; set; }
-        public string AccountName { get; set; }
-
-        //aa
-        public byte WorldId { get; set; }
-        public byte ChannelId { get; set; }
-        public bool IsLoggedIn { get; set; }
-        public ChannelServer ChannelServer => MasterServer.Instance.ChannelServers[ChannelId];
-        public MapleCharacter Player { get; set; }
-
-        public DateTime LastPongTime { get; set; }
-        public int LastActionId { get; set; }
-
-
-
-        public LoginState State
-        {
-            get
-            {
-                var state = DatabaseHelper.GetState(AccountId);
-                if (state == LoginState.LoggedIn) IsLoggedIn = true;
-                return state;
-            }
-            set
-            {
-                DatabaseHelper.UpdateState(AccountId, value);
-                if (value == LoginState.NotLogin)
-                    IsLoggedIn = false;
-                else
-                    IsLoggedIn = value != LoginState.ServerTransition;
             }
         }
 
@@ -163,7 +145,7 @@ namespace NeoMapleStory.Server
                 //    getChannelServer().reconnectWorld();
                 //    chr.setMessenger(null);
                 //}
-                chr.SaveToDb(true);
+                chr.Save();
                 chr.Map.RemovePlayer(chr);
                 //try
                 //{
@@ -241,12 +223,10 @@ namespace NeoMapleStory.Server
                 //    }
                 //}
             }
-            if (State != LoginState.ServerTransition && IsLoggedIn)
+            if (Account != null && State != LoginStateType.ServerTransition && IsLoggedIn)
             {
-                State = LoginState.NotLogin;
+                State = LoginStateType.NotLogin;
             }
-            //this.setPacketLog(false);
-            Close();
         }
 
         #region 发送封包
@@ -275,5 +255,10 @@ namespace NeoMapleStory.Server
         }
 
         #endregion
+
+        public void Dispose()
+        {
+            
+        }
     }
 }

@@ -1,19 +1,15 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace NeoMapleStory.Core.Database.DataModel
+namespace NeoMapleStory.Core.Database.Models
 {
-    public class InventoryEquipment
+    [Table("InventoryEquipments")]
+    public class InventoryEquipmentModel
     {
         [Key]
-        public int InventoryEquipmentId { get; set; }
+        public Guid Id { get; set; }
 
-        [ForeignKey("InventoryItemId")]
-        public virtual InventoryItem InventoryItem { get; set; }
-
-        public int InventoryItemId { get; set; }
-
-        //public virtual IEquip InventoryEquip { get; set; }
         public byte UpgradeSlots { get; set; }
 
         public byte Locked { get; set; }
@@ -55,5 +51,7 @@ namespace NeoMapleStory.Core.Database.DataModel
         public bool IsRing { get; set; }
 
         public byte Flag { get; set; }
+
+        public virtual InventoryItemModel InventoryItem { get; set; }
     }
 }

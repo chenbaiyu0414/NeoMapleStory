@@ -7,8 +7,6 @@ namespace NeoMapleStory.Server
     {
         protected override void OnNewClientConnected(MapleClient client)
         {
-            Console.WriteLine(
-                $"玩家 {client.SocketSession.RemoteEndPoint.Address}:{client.SocketSession.RemoteEndPoint.Port} 已连接");
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
         }
 

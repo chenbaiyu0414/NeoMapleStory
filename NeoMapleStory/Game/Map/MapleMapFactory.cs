@@ -61,13 +61,15 @@ namespace NeoMapleStory.Game.Map
                     {
                         monsterRate = (float) mobRate.Data;
                     }
-                    map = new MapleMap(mapid, ChannelId, MapleDataTool.GetInt("info/returnMap", mapData), monsterRate);
-                    map.OnFirstUserEnter = MapleDataTool.GetString(mapData.GetChildByPath("info/onFirstUserEnter"),
-                        mapid.ToString());
-                    map.OnUserEnter = MapleDataTool.GetString(mapData.GetChildByPath("info/onUserEnter"),
-                        mapid.ToString());
-                    map.TimeMobId = MapleDataTool.GetInt(mapData.GetChildByPath("info/timeMob/id"), -1);
-                    map.TimeMobMessage = MapleDataTool.GetString(mapData.GetChildByPath("info/timeMob/message"), "");
+                    map = new MapleMap(mapid, ChannelId, MapleDataTool.GetInt("info/returnMap", mapData), monsterRate)
+                    {
+                        OnFirstUserEnter = MapleDataTool.GetString(mapData.GetChildByPath("info/onFirstUserEnter"),
+                            mapid.ToString()),
+                        OnUserEnter = MapleDataTool.GetString(mapData.GetChildByPath("info/onUserEnter"),
+                            mapid.ToString()),
+                        TimeMobId = MapleDataTool.GetInt(mapData.GetChildByPath("info/timeMob/id"), -1),
+                        TimeMobMessage = MapleDataTool.GetString(mapData.GetChildByPath("info/timeMob/message"), "")
+                    };
 
                     var portalFactory = new PortalFactory();
                     foreach (var portal in mapData.GetChildByPath("portal"))

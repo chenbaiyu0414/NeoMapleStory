@@ -69,11 +69,15 @@ namespace NeoMapleStory.Game.Inventory
 
         public void AddFromDb(IMapleItem item)
         {
-            if (item.Position > 128 && !Type.Equals(MapleInventoryType.Equipped))
+            if (item.Position > 127 && Type!=MapleInventoryType.Equipped)
             {
                 Console.WriteLine($"Item with negative position in non-equipped IV wtf? ID:{item.ItemId}");
             }
-            Inventory.Add(item.Position, item);
+
+            if (Inventory.ContainsKey(item.Position))
+                Inventory[item.Position] = item;
+            else
+                Inventory.Add(item.Position, item);
         }
 
         public bool Move(byte sSlot, byte dSlot, short slotMax)
@@ -156,7 +160,7 @@ namespace NeoMapleStory.Game.Inventory
                 RemoveSlot(slot);
         }
 
-        private void RemoveSlot(byte slot) => Inventory.Remove(slot);
+        public void RemoveSlot(byte slot) => Inventory.Remove(slot);
 
         public bool IsFull() => Inventory.Count >= SlotLimit;
 

@@ -26,7 +26,7 @@
 
         public byte ColorId { get; private set; }
 
-        public static MapleSkinColor GetByColorId(int colorId)
+        public static MapleSkinColor GetByColorId(byte colorId)
         {
             switch (colorId)
             {

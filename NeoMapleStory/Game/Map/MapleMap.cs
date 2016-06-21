@@ -1393,6 +1393,33 @@ namespace NeoMapleStory.Game.Map
             return character;
         }
 
+        public void disappearingItemDrop(IMapleMapObject dropper,MapleCharacter owner,  IMapleItem item, Point pos)
+        {
+             Point droppos = CalcDropPos(pos, pos);
+             MapleMapItem drop = new MapleMapItem(item, droppos, dropper, owner);
+             BroadcastMessage(PacketCreator.DropItemFromMapObject(item.ItemId, drop.ObjectId, 0, 0, dropper.Position, droppos, 3), drop.Position);
+        }
+
+        public void spawnItemDrop(IMapleMapObject dropper, MapleCharacter owner, IMapleItem item, Point pos, bool ffaDrop, bool expire)
+        {
+            TimerManager tMan = TimerManager.Instance;
+            Point droppos = CalcDropPos(pos, pos);
+            MapleMapItem drop = new MapleMapItem(item, droppos, dropper, owner);
+            SpawnAndAddRangedMapObject(drop, (c) =>
+            {
+                c.Send(PacketCreator.DropItemFromMapObject(item.ItemId, drop.ObjectId, 0, ffaDrop ? 0 : owner.Id, dropper.Position, droppos, 1));
+            }, null);
+
+            BroadcastMessage(PacketCreator.DropItemFromMapObject(item.ItemId, drop.ObjectId, 0, ffaDrop ? 0 : owner.Id, dropper.Position, droppos, 0), drop.Position);
+
+            if (expire)
+            {
+                tMan.RunOnceTask(() => ExpireMapItemJob(drop), m_dropLife);
+            }
+
+            ActivateItemReactors(drop);
+        }
+
         public void SpawnMonsterWithEffect(MapleMonster monster, int effect, Point pos)
         {
             try

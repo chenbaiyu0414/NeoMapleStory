@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CSScriptLibrary;
 using NeoMapleStory.Server;
+using System.IO;
 
 namespace NeoMapleStory.Game.Script.NPC
 {
@@ -45,14 +46,24 @@ namespace NeoMapleStory.Game.Script.NPC
 #else
                     CSScript.KeepCompilingHistory = true;
 #endif
-                    dynamic script = CSScript.Load($"Script//NPC//{npcId}.cs").CreateObject("*");
+                    string scriptPath = $"Script//NPC//{npcId}.cs";
 
-                    if (m_scripts.ContainsKey(c))
-                        m_scripts[c] = script;
+                    if (File.Exists(scriptPath))
+                    {
+                        dynamic script = CSScript.Load($"Script//NPC//{npcId}.cs").CreateObject("*");
+
+                        if (m_scripts.ContainsKey(c))
+                            m_scripts[c] = script;
+                        else
+                            m_scripts.Add(c, script);
+
+                        script.Start(cm);
+                    }
                     else
-                        m_scripts.Add(c, script);
-
-                    script.Start(cm);
+                    {
+                        cm.SendOk($"脚本不存在或者脚本错误，请与管理员联系。\r\n我的ID：#b{npcId}#k");
+                        cm.Close();
+                    }
                 }
             }
             catch (Exception e)

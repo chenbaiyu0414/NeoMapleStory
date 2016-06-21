@@ -1,6 +1,11 @@
 ﻿using System.Drawing;
-using NeoMapleStory.Core.Database.DataModel;
+using System.Linq;
+using NeoMapleStory.Core.Database;
+using NeoMapleStory.Core.Database.Models;
 using NeoMapleStory.Game.Inventory;
+using System;
+using System.Collections.Generic;
+using NeoMapleStory.Game.Movement;
 
 namespace NeoMapleStory.Game.Client
 {
@@ -19,120 +24,111 @@ namespace NeoMapleStory.Game.Client
 
         public Point Pos { get; set; }
 
-        public static MaplePet LoadFromDb(int itemid, byte position, int uniqueid)
+        public static MaplePet Load(int itemid, byte position, int uniqueid)
         {
             var ret = new MaplePet(itemid, position, uniqueid);
 
-            //using (var db = new NeoDatabase())
-            //{
-            //    var result = db.Pets.Where(x => x.UniqueId == uniqueid).Select(x => x).FirstOrDefault();
-            //    if (result == null)
-            //        return null;
+            using (var db = new NeoMapleStoryDatabase())
+            {
+                var result = db.Pets.Where(x => x.UniqueId == uniqueid).Select(x => x).FirstOrDefault();
+                if (result == null)
+                    return null;
 
-            //    ret.PetInfo.PetName = result.PetName;
-            //    ret.PetInfo.Closeness = result.Closeness;
-            //    ret.PetInfo.Level = result.Level;
-            //    ret.PetInfo.Fullness = result.Fullness;
-            //    return ret;
-            //}
-            return null;
+                ret.PetInfo = result;
+                return ret;
+            }
         }
 
 
-        public void SaveToDb()
+        public void Save()
         {
-            //Connection con = DatabaseConnection.getConnection(); // Get a connection to the database
-            //PreparedStatement ps = con.prepareStatement("UPDATE pets SET name = ?, level = ?, closeness = ?, fullness = ? WHERE uniqueid = ?");
-            //ps.setString(1, getName()); // Set name
-            //ps.setInt(2, getLevel()); // Set Level
-            //ps.setInt(3, getCloseness()); // Set Closeness
-            //ps.setInt(4, getFullness()); // Set Fullness
-            //ps.setInt(5, getUniqueId()); // Set ID
-            //ps.executeUpdate(); // Execute statement
-            //ps.close();
+            try
+            {
+                using (var db = new NeoMapleStoryDatabase())
+                {
+                    var pet = db.Pets.Where(x => x.UniqueId == UniqueId).Select(x => x).FirstOrDefault();
+                    if (pet == null)
+                        return;
+                    pet = PetInfo;
+                    db.SaveChanges();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
-        //        PreparedStatement ps = con.prepareStatement("INSERT INTO pets (name, level, closeness, fullness, uniqueid) VALUES (?, ?, ?, ?, ?)");
+        public static int Create(int itemid, MapleCharacter chr)
+        {
+            try
+            {
+                MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
+                using (var db = new NeoMapleStoryDatabase())
+                {
+                    var petmodel = new PetModel()
+                    {
+                        Name = mii.GetName(itemid),
+                        Level = 1,
+                        Closeness = 0,
+                        Fullness = 100,
+                        UniqueId = MapleCharacter.GetNextUniqueId()
+                    };
+                    db.Pets.Add(petmodel);
+                    db.SaveChanges();
+                    chr.Save();
+                    return petmodel.Id;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return -1;
+            }
+        }
 
-        //        Connection con = DatabaseConnection.getConnection();
-        //        MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
-        //    {
-        //    try
-        //{
+        public static int Create(int itemid)
+        {
+            try
+            {
+                MapleItemInformationProvider mii = MapleItemInformationProvider.Instance;
+                using (var db = new NeoMapleStoryDatabase())
+                {
+                    var petmodel = new PetModel()
+                    {
+                        Name = mii.GetName(itemid),
+                        Level = 1,
+                        Closeness = 0,
+                        Fullness = 100
+                    };
+                    db.Pets.Add(petmodel);
+                    db.SaveChanges();
+                    return petmodel.Id;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return -1;
+            }
 
-        //public static int createPet(int itemid, MapleCharacter chr)
-        //        ps.setString(1, mii.getName(itemid));
-        //        ps.setInt(2, 1);
-        //        ps.setInt(3, 0);
-        //        ps.setInt(4, 100);
-        //        int ret = MapleCharacter.getNextUniqueId();
-        //        ps.setInt(5, ret);
-        //        ps.executeUpdate();
-        //        ps.close();
-        //        chr.saveToDB(true);
-        //        return ret;
-        //    }
-        //    catch 
-        //    {
+        }
 
-        //        return -1;
-        //    }
+        public bool CanConsume(int itemId) => MapleItemInformationProvider.Instance.PetsCanConsume(itemId).Any(petId => petId == ItemId);
 
-        //}
-
-        //public static int createPet(int itemid)
-        //{
-        //    try
-        //    {
-        //        MapleItemInformationProvider mii = MapleItemInformationProvider.getInstance();
-
-        //        Connection con = DatabaseConnection.getConnection();
-        //        PreparedStatement ps = con.prepareStatement("INSERT INTO pets (name, level, closeness, fullness) VALUES (?, ?, ?, ?)");
-        //        ps.setString(1, mii.getName(itemid));
-        //        ps.setInt(2, 1);
-        //        ps.setInt(3, 0);
-        //        ps.setInt(4, 100);
-        //        ps.executeUpdate();
-        //        ResultSet rs = ps.getGeneratedKeys();
-        //        rs.next();
-        //        int ret = rs.getInt(1);
-        //        rs.close();
-        //        ps.close();
-
-        //        return ret;
-        //    }
-        //    catch (SQLException ex)
-        //    {
-
-        //        return -1;
-        //    }
-
-        //}
-
-        //public bool canConsume(int itemId)
-        //{
-        //    MapleItemInformationProvider mii = MapleItemInformationProvider.getInstance();
-        //    for (int petId : mii.petsCanConsume(itemId))
-        //    {
-        //        if (petId == this.getItemId())
-        //        {
-        //            return true;
-        //        }
-        //    }
-        //    return false;
-        //}
-
-        //public void updatePosition(List<LifeMovementFragment> movement)
-        //{
-        //    for (LifeMovementFragment move : movement)
-        //    {
-        //        if (move instanceof LifeMovement) {
-        //        if (move instanceof AbsoluteLifeMovement) {
-        //            Point position = ((LifeMovement)move).getPosition();
-        //            this.setPos(position);
-        //        }
-        //        this.setStance(((LifeMovement)move).getNewstate());
-        //    }
-        //}
+        public void UpdatePosition(List<ILifeMovementFragment> movement)
+        {
+            foreach (var move in movement)
+            {
+                var lifemovement = move as ILifeMovement;
+                if (lifemovement == null) continue;
+                var absoluteLifemovent = lifemovement as AbsoluteLifeMovement;
+                if (absoluteLifemovent != null)
+                {
+                    Pos = lifemovement.Position;
+                }
+                Stance = lifemovement.Newstate;
+            }
+        }
     }
 }

@@ -115,7 +115,13 @@ namespace NeoMapleStory.Game.Inventory
             return ret;
         }
 
-        public int GetNextUniqueId() => DatabaseHelper.GetMaxIndex("InventoryItem", "UniqueId") + 1;
+        public int GetNextUniqueId()
+        {
+            using (var db = new NeoMapleStoryDatabase())
+            {
+               return db.InventoryItems.Max(x => (int?)x.UniqueId) + 1 ?? 0;
+            }
+        } 
 
 
         public List<Tuple<int, string>> GetAllItems()

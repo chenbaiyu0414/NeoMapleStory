@@ -26,7 +26,7 @@ namespace NeoMapleStory.Game.Script.NPC
 
         public string AdvertisementText => ServerSettings.ServerAdvertisement;
 
-        public void ClearAranPolearm() => Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveItem(11);
+        public void ClearAranPolearm() => Player.Inventorys[MapleInventoryType.Equipped.Value].RemoveItem(0xF5);
 
         public void WarpMap(int map) => Player.ChangeMap(GetWarpMap(map), GetWarpMap(map).GetPortal(0));
 

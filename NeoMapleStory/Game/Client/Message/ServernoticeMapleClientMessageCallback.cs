@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NeoMapleStory.Packet;
+﻿using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
 
 namespace NeoMapleStory.Game.Client.Message

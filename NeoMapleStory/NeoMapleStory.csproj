@@ -22,7 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <UseVSHostingProcess>true</UseVSHostingProcess>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -37,6 +37,9 @@
   <PropertyGroup>
     <ApplicationIcon>GameCenter.ico</ApplicationIcon>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Common.Logging, Version=3.3.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e, processorArchitecture=MSIL">
       <HintPath>..\packages\Common.Logging.3.3.1\lib\net40\Common.Logging.dll</HintPath>
@@ -48,6 +51,14 @@
     </Reference>
     <Reference Include="CSScriptLibrary, Version=3.12.2.0, Culture=neutral, PublicKeyToken=70fcc3d18c749033, processorArchitecture=MSIL">
       <HintPath>..\packages\CS-Script.bin.3.12.2.1\lib\net46\CSScriptLibrary.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.SqlServer.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="log4net, Version=1.2.15.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
@@ -74,7 +85,9 @@
       <HintPath>..\packages\CS-Script.bin.3.12.2.1\lib\net46\Mono.CSharp.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="MySql.Data, Version=6.9.8.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL" />
+    <Reference Include="MySql.Data.Entity.EF6, Version=6.9.8.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="Quartz, Version=2.3.3.0, Culture=neutral, PublicKeyToken=f6b8c98a402cc8a4, processorArchitecture=MSIL">
       <HintPath>..\packages\Quartz.2.3.3\lib\net40\Quartz.dll</HintPath>
       <Private>True</Private>
@@ -111,6 +124,7 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="System.Windows.Forms.DataVisualization" />
+    <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -120,12 +134,21 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="UIAutomationProvider" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\BitTool.cs" />
     <Compile Include="Core\Database\DatabaseHelper.cs" />
+    <Compile Include="Core\Database\Models\CashShopGiftModel.cs" />
+    <Compile Include="Core\Database\Models\CashShopInventoryModel.cs" />
+    <Compile Include="Core\Database\Models\MonsterDropModel.cs" />
+    <Compile Include="Core\Database\Models\PetModel.cs" />
+    <Compile Include="Core\Database\Models\SkillModel.cs" />
+    <Compile Include="Core\Database\Models\StorageModel.cs" />
+    <Compile Include="Core\Database\NeoMapleStoryDatabase.cs" />
     <Compile Include="Core\DateUtiliy.cs" />
-    <Compile Include="Core\DbConnectionManager.cs" />
     <Compile Include="Core\Encryption\AesCipher.cs" />
     <Compile Include="Core\Encryption\MapleCipher.cs" />
     <Compile Include="Core\Encryption\SHA256.cs" />
@@ -141,15 +164,11 @@
     <Compile Include="Game\Client\AntiCheat\CheatTracker.cs" />
     <Compile Include="Game\Client\AutobanManager.cs" />
     <Compile Include="Game\Client\CheatingOffensePersister.cs" />
-    <Compile Include="Core\Database\Account.cs" />
-    <Compile Include="Core\Database\DataModel\CharacterModel.cs" />
-    <Compile Include="Core\Database\DataModel\InventoryEquipment.cs" />
-    <Compile Include="Core\Database\DataModel\InventoryItem.cs" />
-    <Compile Include="Core\Database\DataModel\PetModel.cs" />
-    <Compile Include="Core\Database\DataModel\RingModel.cs" />
-    <Compile Include="Core\Database\DataModel\Shop.cs" />
-    <Compile Include="Core\Database\DataModel\ShopItem.cs" />
-    <Compile Include="Core\Database\DataModel\TRockLocation.cs" />
+    <Compile Include="Core\Database\Models\AccountModel.cs" />
+    <Compile Include="Core\Database\Models\CharacterModel.cs" />
+    <Compile Include="Core\Database\Models\InventoryEquipmentModel.cs" />
+    <Compile Include="Core\Database\Models\InventoryItemModel.cs" />
+    <Compile Include="Core\Database\Models\ShopMappingModel.cs" />
     <Compile Include="Game\Client\Message\IMessageCallback.cs" />
     <Compile Include="Game\Client\Message\ServernoticeMapleClientMessageCallback.cs" />
     <Compile Include="Game\Data\FileStoredPngMapleCanvas.cs" />
@@ -169,6 +188,8 @@
     <Compile Include="Game\Data\XMLDomMapleData.cs" />
     <Compile Include="Game\Data\XMLWZFile.cs" />
     <Compile Include="Game\Client\ExpTable.cs" />
+    <Compile Include="Game\Inventory\CashItem.cs" />
+    <Compile Include="Game\Inventory\CashItemFactory.cs" />
     <Compile Include="Game\Inventory\Equip.cs" />
     <Compile Include="Game\Inventory\IEquip.cs" />
     <Compile Include="Game\Inventory\IMapleItem.cs" />
@@ -271,6 +292,11 @@
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201606210928219_06211.cs" />
+    <Compile Include="Migrations\201606210928219_06211.Designer.cs">
+      <DependentUpon>201606210928219_06211.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Packet\ChannelPacket.cs" />
     <Compile Include="Packet\LoginPacket.cs" />
     <Compile Include="Packet\PacketCreator.cs" />
@@ -279,9 +305,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Core\TextBoxWriter.cs" />
-    <Compile Include="Scripting.evaluator.cs" />
-    <Compile Include="Scripting.Extensions.cs" />
-    <Compile Include="Scripting.native.cs" />
     <Compile Include="Server\BaseServer.cs" />
     <Compile Include="Server\ChannelPacketHandlers.cs" />
     <Compile Include="Server\ChannelServer.cs" />
@@ -297,6 +320,12 @@
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="MainForm.zh.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201606210928219_06211.resx">
+      <DependentUpon>201606210928219_06211.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -305,6 +334,7 @@
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <None Include="job_scheduling_data_2_0.xsd">
       <SubType>Designer</SubType>
@@ -326,6 +356,9 @@
   <ItemGroup />
   <ItemGroup>
     <Content Include="GameCenter.ico" />
+    <None Include="Resources\performance.png" />
+    <None Include="Resources\record.png" />
+    <None Include="Resources\icon.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

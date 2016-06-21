@@ -522,7 +522,7 @@ namespace NeoMapleStory.Game.Life
                     }
                     else if (attack.IsHh && monster.IsBoss)
                     {
-                        var weaponItem = player.Inventorys[MapleInventoryType.Equipped.Value].Inventory[11]; //装备
+                        var weaponItem = player.Inventorys[MapleInventoryType.Equipped.Value].Inventory[0xF5]; //装备
                         MapleItemInformationProvider.Instance.GetWeaponType(weaponItem.ItemId);
                     }
                     else

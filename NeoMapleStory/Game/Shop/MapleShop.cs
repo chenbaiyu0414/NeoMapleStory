@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using MySql.Data.MySqlClient;
 using NeoMapleStory.Core;
+using NeoMapleStory.Core.Database;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
@@ -162,7 +162,7 @@ namespace NeoMapleStory.Game.Shop
             if (item.Quantity < slotMax)
             {
                 var price = (int) Math.Round(ii.GetPrice(item.ItemId)*(slotMax - item.Quantity));
-                if (c.Player.Money.Value >= price)
+                if (c.Player.Meso.Value >= price)
                 {
                     item.Quantity = slotMax;
                     c.Send(PacketCreator.UpdateInventorySlot(MapleInventoryType.Use, (Item) item));
@@ -182,49 +182,42 @@ namespace NeoMapleStory.Game.Shop
             
             try
             {
-                var cmd =
-                    new MySqlCommand($"SELECT ShopId,NpcId FROM Shops WHERE {(isShopId ? "ShopId" : "NpcId")} = @Id");
-
-                cmd.Parameters.Add(new MySqlParameter("@Id", id));
-                using (var con = DbConnectionManager.Instance.GetConnection())
+                using (var db = new NeoMapleStoryDatabase())
                 {
-                    con.Open();
-                    cmd.Connection = con;
-                    var reader = cmd.ExecuteReader();
+                    var shopQuery = db.ShopMappings.Where(x => id == (isShopId ? x.ShopId : x.Npcid)).Select(x => x).FirstOrDefault();
 
                     int shopId;
-                    if (reader.Read())
-                        shopId = reader.GetInt32("ShopId");
+                    if (shopQuery != null)
+                        shopId = shopQuery.ShopId;
                     else
                         return null;
 
-                    ret = new MapleShop(shopId,reader.GetInt32("NpcId"));
+                    ret = new MapleShop(shopId,shopQuery.Npcid);
 
                     List<int> recharges = new List<int>(MRechargeableItems);
 
-                    reader.Close();
-                    cmd.Parameters.Clear();
-                    cmd.CommandText = "SELECT * FROM ShopItems WHERE ShopId=@ShopId ORDER BY Position";
-                    cmd.Parameters.Add(new MySqlParameter("ShopId", shopId));
+                    
+                    //cmd.CommandText = "SELECT * FROM ShopItems WHERE ShopId=@ShopId ORDER BY Position";
+                    //cmd.Parameters.Add(new MySqlParameter("ShopId", shopId));
 
-                    reader = cmd.ExecuteReader();
-                    while(reader.Read())
-                    {
-                        int itemId = reader.GetInt32("ItemId");
-                        if (ii.IsThrowingStar(itemId) || ii.IsBullet(itemId))
-                        {
-                            MapleShopItem starItem = new MapleShopItem(1, itemId, reader.GetInt32("Price"));
-                            ret.AddItem(starItem);
-                            if (MRechargeableItems.Contains(starItem.ItemId))
-                            {
-                                recharges.Remove(starItem.ItemId);
-                            }
-                        }
-                        else
-                        {
-                            ret.AddItem(new MapleShopItem(1000, itemId, reader.GetInt32("Price")));
-                        }
-                    }
+                    //reader = cmd.ExecuteReader();
+                    //while(reader.Read())
+                    //{
+                    //    int itemId = reader.GetInt32("ItemId");
+                    //    if (ii.IsThrowingStar(itemId) || ii.IsBullet(itemId))
+                    //    {
+                    //        MapleShopItem starItem = new MapleShopItem(1, itemId, reader.GetInt32("Price"));
+                    //        ret.AddItem(starItem);
+                    //        if (MRechargeableItems.Contains(starItem.ItemId))
+                    //        {
+                    //            recharges.Remove(starItem.ItemId);
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        ret.AddItem(new MapleShopItem(1000, itemId, reader.GetInt32("Price")));
+                    //    }
+                    //}
 
 
                     foreach (var itemId in recharges)

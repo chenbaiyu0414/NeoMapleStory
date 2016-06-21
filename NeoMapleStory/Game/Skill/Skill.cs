@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using NeoMapleStory.Game.Client;
 using NeoMapleStory.Game.Data;
 using NeoMapleStory.Game.Job;
@@ -29,7 +28,7 @@ namespace NeoMapleStory.Game.Skill
                 ret = m_effects[level - 1];
             return ret;
         }
-        public int MaxLevel => m_effects.Count;
+        public byte MaxLevel => (byte)m_effects.Count;
 
         public bool CanBeLearned(MapleJob job)
         {

@@ -39,7 +39,6 @@ namespace NeoMapleStory.Server
 
         protected override void OnNewClientConnected(MapleClient client)
         {
-            Console.WriteLine($"玩家{client.SessionID} 进入 频道服务器{ChannelId}");
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
             //TimerManager.Instance.RepeatTask(() =>
             //{
@@ -77,6 +76,10 @@ namespace NeoMapleStory.Server
             Processor.AppendHandler(RecvOpcodes.UseItem, ChannelPacketHandlers.USE_ITEM);
             Processor.AppendHandler(RecvOpcodes.SpecialMove, ChannelPacketHandlers.SPECIAL_MOVE);
             Processor.AppendHandler(RecvOpcodes.EnterCashShop, ChannelPacketHandlers.ENTER_CASHSHOP);
+            Processor.AppendHandler(RecvOpcodes.EnterMts, ChannelPacketHandlers.ENTER_MTS);
+            Processor.AppendHandler(RecvOpcodes.CashShop, ChannelPacketHandlers.CASHSHOP);
+            Processor.AppendHandler(RecvOpcodes.ItemMove, ChannelPacketHandlers.ITEM_MOVE);
+            Processor.AppendHandler(RecvOpcodes.TouchingCs, ChannelPacketHandlers.TOUCHING_CASHSHOP);
         }
 
         public override bool Start()
