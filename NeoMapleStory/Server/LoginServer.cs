@@ -8,11 +8,14 @@ namespace NeoMapleStory.Server
         protected override void OnNewClientConnected(MapleClient client)
         {
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
+            client.HasHandShaked = true;
         }
 
         protected override void OnPacketHandlers()
         {
             Processor = new PacketProcessor("登录服务器");
+
+            Processor.AppendHandler(RecvOpcodes.Pong, LoginPacketHandlers.PONG);
 
             Processor.AppendHandler(RecvOpcodes.LoginPassword, LoginPacketHandlers.LOGIN_AUTH);
             Processor.AppendHandler(RecvOpcodes.SetGender, LoginPacketHandlers.OnGENDER_RESULT);

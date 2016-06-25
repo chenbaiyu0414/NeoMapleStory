@@ -14,14 +14,14 @@ namespace NeoMapleStory.Game.Map
             Item = item;
             Dropper = dropper;
             Owner = owner;
-            Money = 0;
+            Meso = 0;
         }
 
         public MapleMapItem(int meso, Point position, IMapleMapObject dropper, MapleCharacter owner)
         {
             Position = position;
             Item = null;
-            Money = meso;
+            Meso = meso;
             Dropper = dropper;
             Owner = owner;
         }
@@ -29,7 +29,7 @@ namespace NeoMapleStory.Game.Map
         public IMapleItem Item { get; }
         public IMapleMapObject Dropper { get; }
         public MapleCharacter Owner { get; }
-        public int Money { get; }
+        public int Meso { get; }
         public bool IsPickedUp { get; set; }
 
         public override MapleMapObjectType GetType() => MapleMapObjectType.Item;
@@ -42,9 +42,9 @@ namespace NeoMapleStory.Game.Map
 
         public override void SendSpawnData(MapleClient client)
         {
-            if (Money > 0)
+            if (Meso > 0)
             {
-                client.Send(PacketCreator.DropMesoFromMapObject(Money, ObjectId, Dropper.ObjectId, Owner.Id, Point.Empty,
+                client.Send(PacketCreator.DropMesoFromMapObject(Meso, ObjectId, Dropper.ObjectId, Owner.Id, Point.Empty,
                     Position, 2));
             }
             else

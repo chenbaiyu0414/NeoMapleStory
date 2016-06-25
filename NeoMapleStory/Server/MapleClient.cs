@@ -1,16 +1,18 @@
 ﻿using System;
 using System.Security.Cryptography;
+using NeoMapleStory.Core;
 using NeoMapleStory.Core.Database;
 using NeoMapleStory.Core.Database.Models;
 using NeoMapleStory.Core.Encryption;
 using NeoMapleStory.Core.IO;
 using NeoMapleStory.Game.Client;
+using NeoMapleStory.Packet;
 using NeoMapleStory.Settings;
 using SuperSocket.SocketBase;
 
 namespace NeoMapleStory.Server
 {
-    public sealed class MapleClient : AppSession<MapleClient, PacketRequestInfo>,IDisposable
+    public sealed class MapleClient : AppSession<MapleClient, PacketRequestInfo>, IDisposable
     {
         public MapleCipher SendCipher { get; }
         public MapleCipher RecvCipher { get; private set; }
@@ -26,9 +28,11 @@ namespace NeoMapleStory.Server
         public bool IsLoggedIn { get; set; }
         public ChannelServer ChannelServer => MasterServer.Instance.ChannelServers[ChannelId];
 
-
+        public bool HasHandShaked { get; set; } = false;
         public DateTime LastPongTime { get; set; }
         public int LastActionId { get; set; }
+
+
 
         public LoginStateType State
         {
@@ -41,7 +45,7 @@ namespace NeoMapleStory.Server
                     db.Accounts.Attach(Account);
                     Account.LoginState = value;
                     db.SaveChanges();
-                }                 
+                }
             }
         }
 
@@ -56,7 +60,7 @@ namespace NeoMapleStory.Server
             unchecked
             {
                 //ushort value = 0xFFFF - ServerSettings.MapleVersion;
-                SendCipher = new MapleCipher((short) (0xFFFF - ServerSettings.MapleVersion), SendIv,
+                SendCipher = new MapleCipher((short)(0xFFFF - ServerSettings.MapleVersion), SendIv,
                     MapleCipher.CipherType.Encrypt);
                 RecvCipher = new MapleCipher(ServerSettings.MapleVersion, RecvIv, MapleCipher.CipherType.Decrypt);
             }
@@ -256,9 +260,31 @@ namespace NeoMapleStory.Server
 
         #endregion
 
+        protected override void OnSessionStarted()
+        {
+            TimerManager.Instance.RepeatTask(() =>
+            {
+                if (HasHandShaked)
+                {
+                    DateTime pingTime = DateTime.Now;
+                    Send(PacketCreator.Ping());
+                    TimerManager.Instance.RunOnceTask(() =>
+                    {
+                        if ((pingTime - LastPongTime).Seconds>10)
+                        {
+                            if (SocketSession.AppSession.Connected)
+                                Close();
+                        }
+                    }, 15 * 1000);
+                }
+            }, 30 * 1000);
+
+            base.OnSessionStarted();
+        }
+
         public void Dispose()
         {
-            
+
         }
     }
 }

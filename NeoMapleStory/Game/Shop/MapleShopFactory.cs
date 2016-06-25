@@ -12,7 +12,7 @@ namespace NeoMapleStory.Game.Shop
 
         private MapleShop LoadShop(int id, bool isShopId)
         {
-            var ret = MapleShop.CreateFromDb(id, isShopId);
+            var ret = MapleShop.Create(id, isShopId);
             if (ret != null)
             {
                 if (m_mShops.ContainsKey(ret.ShopId))

@@ -499,14 +499,11 @@ namespace NeoMapleStory.Game.Inventory
             }
             if (type != MapleInventoryType.Equip && initialTarget != null && initialTarget.ItemId == source.ItemId && !ii.IsThrowingStar(source.ItemId) && !ii.IsBullet(source.ItemId))
             {
-                if ((olddstQ + oldsrcQ) > slotMax)
-                {
-                    c.Send(PacketCreator.MoveAndMergeWithRestInventoryItem(type, srcSlot, dstSlot, (short)((olddstQ + oldsrcQ) - slotMax), slotMax));
-                }
-                else
-                {
-                    c.Send(PacketCreator.MoveAndMergeInventoryItem(type, srcSlot, dstSlot, ((Item)c.Player.Inventorys[type.Value].Inventory[dstSlot]).Quantity));
-                }
+                c.Send(olddstQ + oldsrcQ > slotMax
+                    ? PacketCreator.MoveAndMergeWithRestInventoryItem(type, srcSlot, dstSlot,
+                        (short) ((olddstQ + oldsrcQ) - slotMax), slotMax)
+                    : PacketCreator.MoveAndMergeInventoryItem(type, srcSlot, dstSlot,
+                        ((Item) c.Player.Inventorys[type.Value].Inventory[dstSlot]).Quantity));
             }
             else
             {
@@ -768,9 +765,7 @@ namespace NeoMapleStory.Game.Inventory
             {
                 IMapleItem target = source.Copy();
                 target.Quantity = quantity;
-                //target.log(c.Player.getName() + " dropped part of a stack at " + dropPos.toString() + " on map " + c.Player.getMapId() + ". Quantity of this (new) instance is now " + quantity, false);
                 source.Quantity -= quantity;
-                //source.log(c.Player.getName() + " dropped part of a stack at " + dropPos.toString() + " on map " + c.Player.getMapId() + ". Quantity of this (leftover) instance is now " + source.getQuantity(), false);
                 c.Send(PacketCreator.DropInventoryItemUpdate(type, source));
                 bool weddingRing = source.ItemId == 1112804;
                 bool liRing = source.ItemId == 1112405;
@@ -809,9 +804,8 @@ namespace NeoMapleStory.Game.Inventory
             }
             else
             {
-                //source.log(c.Player.getName() + " dropped this (with full quantity) at " + dropPos.toString() + " on map " + c.Player.getMapId(), false);
                 c.Player.Inventorys[type.Value].RemoveSlot(srcSlot);
-                c.Send(PacketCreator.DropInventoryItem(srcSlot < 128 ? MapleInventoryType.Equip : type, srcSlot));
+                c.Send(PacketCreator.DropInventoryItem(srcSlot > 127 ? MapleInventoryType.Equip : type, srcSlot));
                 bool liRing = source.ItemId == 1112405;
                 if (srcSlot > 127)
                 {

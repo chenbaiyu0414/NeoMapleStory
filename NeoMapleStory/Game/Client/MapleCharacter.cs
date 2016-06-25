@@ -295,12 +295,17 @@ namespace NeoMapleStory.Game.Client
         public int Chair { get; set; }
 
         public List<MaplePet> Pets { get; set; } = new List<MaplePet>();
+        private TriggerKey m_fullnessSchedule;
+        private TriggerKey m_fullnessSchedule1;
+        private TriggerKey m_fullnessSchedule2;
 
         public Dictionary<int, MapleSummon> Summons { get; set; } = new Dictionary<int, MapleSummon>();
 
         public List<IMapleMapObject> VisibleMapObjects { get; set; } = new List<IMapleMapObject>();
 
         public List<ILifeMovementFragment> Lastres { get; set; } = new List<ILifeMovementFragment>();
+
+        public List<string> BlockedPortals { get; } = new List<string>();
 
         public string ChalkBoardText
         {
@@ -312,16 +317,14 @@ namespace NeoMapleStory.Game.Client
                 //    return;
                 //}
                 m_chalkboardtext = value;
-                if (m_chalkboardtext == null)
-                {
-                    Map.BroadcastMessage(PacketCreator.UseChalkboard(this, true));
-                }
-                else
-                {
-                    Map.BroadcastMessage(PacketCreator.UseChalkboard(this, false));
-                }
+                Map.BroadcastMessage(m_chalkboardtext == null
+                    ? PacketCreator.UseChalkboard(this, true)
+                    : PacketCreator.UseChalkboard(this, false));
             }
         }
+
+        private long m_afkTimer;
+        private readonly int[] m_savedLocations = new int[7];
 
         public int DojoEnergy { get; set; } = 0;
 
@@ -335,10 +338,20 @@ namespace NeoMapleStory.Game.Client
         public CheatTracker AntiCheatTracker { get; private set; }
         public bool CanDoor { get; private set; } = true;
 
-
-        public MapleCharacter()
+        public enum SavedLocationType
         {
-            Stance = 0;
+            FreeMarket,
+            Worldtour,
+            Florina,
+            Cygnusintro,
+            Dojo,
+            Pvp,
+            PachinkoPort
+        }
+
+    public MapleCharacter()
+        {
+        Stance = 0;
             Inventorys = new MapleInventory[MapleInventoryType.TypeList.Length];
             foreach (var type in MapleInventoryType.TypeList)
             {
@@ -1817,6 +1830,23 @@ namespace NeoMapleStory.Game.Client
             }
         }
 
+        public void BlockPortal(string scriptName)
+        {
+            if (!BlockedPortals.Contains(scriptName) && scriptName != null)
+            {
+                BlockedPortals.Add(scriptName);
+            }
+            Client.Send(PacketCreator.BlockedPortal());
+        }
+
+        public void UnblockPortal(string scriptName)
+        {
+            if (BlockedPortals.Contains(scriptName) && scriptName != null)
+            {
+                BlockedPortals.Remove(scriptName);
+            }
+        }
+
         public int GetItemAmount(int itemid)
         {
             var type = MapleItemInformationProvider.Instance.GetInventoryType(itemid);
@@ -2347,22 +2377,123 @@ namespace NeoMapleStory.Game.Client
             //ps.close();
         }
 
-        public int GetPetSlot(MaplePet pet)
+        public byte GetPetSlot(MaplePet pet)
         {
-            if (Pets.Any())
+            if (pet == null) return 0xFF;
+            if (!Pets.Any()) return 0xFF;
+            for (byte i = 0; i < Pets.Count; i++)
             {
-                for (var i = 0; i < Pets.Count; i++)
+                if (Pets[i] == null) continue;
+                if (Pets[i].UniqueId == pet.UniqueId)
                 {
-                    if (Pets[i] != null)
-                    {
-                        if (Pets[i].UniqueId == pet.UniqueId)
-                        {
-                            return i;
-                        }
-                    }
+                    return i;
                 }
             }
-            return -1;
+            return 0xFF;
+        }
+
+        public byte GetPetByUniqueId(int uniqueid)
+        {
+            if (!Pets.Any()) return 0xFF;
+            for (byte i = 0; i < Pets.Count; i++)
+            {
+                if (Pets[i] == null) continue;
+                if (Pets[i].UniqueId == uniqueid)
+                {
+                    return i;
+                }
+            }
+            return 0xFF;
+        }
+
+        public void UnequipPet(MaplePet pet, bool shiftLeft, bool hunger=false)
+        {
+            CancelFullnessSchedule(GetPetSlot(pet));
+            pet.Save();
+            Map.BroadcastMessage(this, PacketCreator.ShowPet(this, pet, true, hunger), true);
+            var stats = new List<Tuple<MapleStat, int>> {Tuple.Create(MapleStat.Pet, 0)};
+            Client.Send(PacketCreator.PetStatUpdate(this));
+            Client.Send(PacketCreator.EnableActions());
+            RemovePet(pet, shiftLeft);
+        }
+
+        public void RemovePet(MaplePet pet, bool shiftLeft)
+        {
+            int petslot = GetPetSlot(pet);
+            Pets.RemoveAt(petslot);
+            Client.Send(PacketCreator.PetStatUpdate(this));
+        }
+
+        public void AddPet(MaplePet pet, bool lead)
+        {
+            if (Pets.Count < 3)
+            {
+                if (lead)
+                {
+                    List<MaplePet> newpets = new List<MaplePet>();
+                    newpets.Add(pet);
+                    foreach (MaplePet oldpet in Pets)
+                    {
+                        newpets.Add(oldpet);
+                    }
+                    Pets = newpets;
+                    //fullnessSchedule_2 = fullnessSchedule_1;
+                    //fullnessSchedule_1 = fullnessSchedule;
+                }
+                else
+                {
+                    Pets.Add(pet);
+                }
+            }
+        }
+
+        public void StartFullnessSchedule(byte decrease, MaplePet pet, int petSlot)
+        {
+            var schedule = TimerManager.Instance.RepeatTask(() =>
+            {
+
+                byte newFullness = (byte)(pet.PetInfo.Fullness - decrease);
+                if (newFullness <= 5)
+                {
+                    pet.PetInfo.Fullness = 15;
+                    UnequipPet(pet, true, true);
+                }
+                else
+                {
+                    pet.PetInfo.Fullness = newFullness;
+                    Client.Send(PacketCreator.UpdatePet(pet, true));
+                }
+
+            }, 60000, 60000);
+
+            switch (petSlot)
+            {
+                case 0:
+                    m_fullnessSchedule = schedule;
+                    break;
+                case 1:
+                    m_fullnessSchedule1 = schedule;
+                    break;
+                case 2:
+                    m_fullnessSchedule2 = schedule;
+                    break;
+            }
+        }
+
+        public void CancelFullnessSchedule(int petSlot)
+        {
+            switch (petSlot)
+            {
+                case 0:
+                    TimerManager.Instance.CancelTask(m_fullnessSchedule);
+                    break;
+                case 1:
+                    TimerManager.Instance.CancelTask(m_fullnessSchedule1);
+                    break;
+                case 2:
+                    TimerManager.Instance.CancelTask(m_fullnessSchedule2);
+                    break;
+            }
         }
 
         public MapleStatEffect GetStatForBuff(MapleBuffStat effect)
@@ -2755,6 +2886,15 @@ namespace NeoMapleStory.Game.Client
             return false;
         }
 
+        public int GetSavedLocation(SavedLocationType type)=> m_savedLocations[(int)type];
+
+
+        public void SaveLocation(SavedLocationType type)=> m_savedLocations[(int)type] = Map.MapId;
+
+
+        public void ClearSavedLocation(SavedLocationType type)=> m_savedLocations[(int)type] = -1;
+
+
         public void ControlMonster(MapleMonster monster, bool aggro)
         {
             monster.SetController(this);
@@ -2780,7 +2920,6 @@ namespace NeoMapleStory.Game.Client
         {
             return DateTime.Now.GetTimeMilliseconds() - m_afkTimer;
         }
-        private long m_afkTimer;
 
         public void ChangeJob(MapleJob newJob)
         {

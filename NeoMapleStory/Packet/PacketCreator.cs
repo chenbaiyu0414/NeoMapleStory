@@ -39,6 +39,14 @@ namespace NeoMapleStory.Packet
             }
         }
 
+        public static OutPacket Ping()
+        {
+            using (var p = new OutPacket(SendOpcodes.Ping))
+            {
+                return p;
+            }
+        }
+
         public static void AddInventoryInfo(OutPacket p, MapleCharacter chr)
         {
             p.WriteByte(0x01);
@@ -1718,6 +1726,289 @@ namespace NeoMapleStory.Packet
             }
         }
 
+        public static OutPacket ShowChair(int characterid, int itemid)
+        {
+            using (var p = new OutPacket(SendOpcodes.ShowChair))
+            {
+                p.WriteInt(characterid);
+                p.WriteInt(itemid);
+                return p;
+            }
+        }
+
+
+        public static OutPacket CancelChair(short id=-1)
+        {
+            using (var p = new OutPacket(SendOpcodes.CancelChair))
+            {
+                if (id == -1)
+                {
+                    p.WriteByte(0);
+                }
+                else
+                {
+                    p.WriteByte(1);
+                    p.WriteShort(id);
+                }
+                return p;
+            }
+        }
+
+        public static OutPacket PetStatUpdate(MapleCharacter chr)
+        {
+            using (var p = new OutPacket(SendOpcodes.UpdateStats))
+            {
+                int mask = 0;
+                mask |= (int)MapleStat.Pet;
+                p.WriteByte(0);
+                p.WriteInt(mask);
+                var pets = chr.Pets;
+                foreach (var pet in pets)
+                {
+                    p.WriteInt(pet.UniqueId);
+                    p.WriteInt(0);
+                }
+                for (int i = 0; i < 3 - pets.Count; i++)
+                {
+                    p.WriteLong(0);
+                }
+                p.WriteByte(0);
+
+                return p;
+            }
+        }
+
+        public static OutPacket UpdatePet(MaplePet pet, bool alive)
+        {
+            using (var p = new OutPacket(SendOpcodes.ModifyInventoryItem))
+            {
+                p.WriteByte(0);
+                p.WriteByte(2);
+                p.WriteByte(3);
+                p.WriteByte(5);
+                p.WriteByte(pet.Position);
+                p.WriteShort(0);
+                p.WriteByte(5);
+                p.WriteByte(pet.Position);
+                p.WriteByte(0);
+                p.WriteByte(3);
+                p.WriteInt(pet.ItemId);
+                p.WriteByte(1);
+                p.WriteInt(pet.UniqueId);
+                p.WriteInt(0);
+                //mplew.writeLong(DateUtil.getFileTimestamp(item.getExpiration() == null ? FINAL_TIME : item.getExpiration().getTime()));
+                p.WriteBytes(new byte[] { 0x00, 0x80, 0x05, 0xBB, 0x46, 0xE6, 0x17, 0x02 });
+                string petname = pet.PetInfo.Name;
+                if (Encoding.Default.GetByteCount(petname) > 13)
+                {
+                    petname = petname.Substring(0, 13);
+                }
+                p.WriteString(petname);
+                p.WriteZero(13 - Encoding.Default.GetByteCount(petname));
+                p.WriteByte(pet.PetInfo.Level);
+                p.WriteShort(pet.PetInfo.Closeness);
+                p.WriteByte(pet.PetInfo.Fullness);
+                if (alive)
+                {
+                    p.WriteLong(DateUtiliy.GetFileTimestamp((long)(DateTime.Now.GetTimeMilliseconds() * 1.5), false));
+                    p.WriteBytes(new byte[] { 0x00, 0x00, 0x3F, 0x00, 0x00, 0x00 });
+                }
+                else
+                {
+                    p.WriteLong(DateUtiliy.GetFileTimestamp(FinalTime));
+                }
+                p.WriteInt(0);
+
+                return p;
+            }
+        }
+        public static OutPacket CommandResponse(int cid, byte slot, byte animation, bool success)
+        {
+            using (var p = new OutPacket(SendOpcodes.PetCommand))
+            {
+                p.WriteInt(cid);
+                p.WriteByte(slot);
+                p.WriteByte((byte)(animation == 1 && success ? 1 : 0));
+                p.WriteByte(animation);
+                if (animation == 1)
+                {
+                    p.WriteByte(0);
+                }
+                else
+                {
+                    p.WriteShort((short)(success ? 1 : 0));
+                }
+                return p;
+            }
+        }
+        public static OutPacket ShowPetLevelUp(MapleCharacter chr, byte index)
+        {
+            using (var p = new OutPacket(SendOpcodes.ShowForeignEffect))
+            {
+                p.WriteInt(chr.Id);
+                p.WriteByte(4);
+                p.WriteByte(0);
+                p.WriteByte(index);
+
+                return p;
+            }
+        }
+
+        public static OutPacket PetChat(int cid, byte slot, short act, string text)
+        {
+            using (var p = new OutPacket(SendOpcodes.PetChat))
+            {
+                p.WriteInt(cid);
+                p.WriteByte(slot);
+                p.WriteShort(act);
+                p.WriteMapleString(text);
+                p.WriteByte(0);
+                return p;
+            }
+        }
+
+        public static OutPacket MovePet(int cid, int pid, byte slot, List<ILifeMovementFragment> moves)
+        {
+            using (var p = new OutPacket(SendOpcodes.MovePet))
+            {
+                p.WriteInt(cid);
+                p.WriteByte(slot);
+                p.WriteInt(pid);
+                serializeMovementList(p, moves);
+
+                return p;
+            }
+        }
+
+        public static OutPacket CharInfo(MapleCharacter chr)
+        {
+            using (var p = new OutPacket(SendOpcodes.CharInfo))
+            {
+                p.WriteInt(chr.Id);
+                p.WriteByte(chr.Level);
+                p.WriteShort(chr.Job?.JobId ?? 0);
+                p.WriteShort(chr.Fame);
+                p.WriteBool(chr.IsMarried); // heart red or gray
+                string guildName = "-";
+                string allianceName = "-";
+                //MapleGuildSummary gs = chr.getClient().getChannelServer().getGuildSummary(chr.getGuildId());
+                //if (chr.getGuildId() > 0 && gs != null)
+                //{
+                //    guildName = gs.getName();
+                //    try
+                //    {
+                //        MapleAlliance alliance = chr.getClient().getChannelServer().getWorldInterface().getAlliance(gs.getAllianceId());
+                //        if (alliance != null)
+                //        {
+                //            allianceName = alliance.getName();
+                //        }
+                //    }
+                //    catch (RemoteException re)
+                //    {
+                //        re.printStackTrace();
+                //        chr.getClient().getChannelServer().reconnectWorld();
+                //    }
+                //}
+                p.WriteMapleString(guildName);
+                p.WriteMapleString(allianceName); // Alliance
+
+                foreach (var pet in chr.Pets)
+                {
+                    p.WriteByte((byte)pet.UniqueId);
+                    p.WriteInt(pet.ItemId); // petid
+                    p.WriteMapleString(pet.PetInfo.Name);
+                    p.WriteByte(pet.PetInfo.Level); // pet level
+                    p.WriteShort(pet.PetInfo.Closeness); // pet closeness
+                    p.WriteByte(pet.PetInfo.Fullness); // pet fullness
+                    p.WriteShort(0); // ??
+                    IMapleItem result;
+                    p.WriteInt(chr.Inventorys[MapleInventoryType.Equipped.Value].Inventory.TryGetValue(141,out result)
+                        ? result.ItemId
+                        : 0);
+                }
+                p.WriteByte(0);
+                //if (chr.getMount() != null && chr.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18) != null)
+                //{
+                //    if (chr.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-18).getItemId() == chr.getMount().getItemId())
+                //    {
+                //        if (chr.getInventory(MapleInventoryType.EQUIPPED).getItem((byte)-19) != null)
+                //        { // saddle
+                //            mplew.WriteByte(chr.getMount().getId()); //mount
+                //            mplew.WriteInt(chr.getMount().getLevel()); //level
+                //            mplew.WriteInt(chr.getMount().getExp()); //exp
+                //            mplew.WriteInt(chr.getMount().getTiredness()); //tiredness
+                //        }
+                //    }
+                //}
+                //else
+                //{
+                    p.WriteByte(0);
+                //}
+                //try
+                //{
+                //    Connection con = DatabaseConnection.getConnection();
+                //    PreparedStatement ps = con.prepareStatement("SELECT * FROM wishlist WHERE charid = ?");
+                //    ps.setInt(1, chr.getId());
+                //    ResultSet rs = ps.executeQuery();
+                //    int i = 0;
+                //    while (rs.next())
+                //    {
+                //        i++;
+                //    }
+                p.WriteByte(0);
+                //    rs.close();
+                //    ps.close();
+                //}
+                //catch (SQLException e)
+                //{
+                //    log.info("Error getting wishlist data:", e);
+                //}
+                //try
+                //{
+                //    Connection con = DatabaseConnection.getConnection();
+                //    PreparedStatement ps = con.prepareStatement("SELECT * FROM wishlist WHERE charid = ? ORDER BY sn DESC");
+                //    ps.setInt(1, chr.getId());
+                //    ResultSet rs = ps.executeQuery();
+                //    while (rs.next())
+                //    {
+                //        mplew.WriteInt(rs.getInt("sn"));
+                //    }
+                //    rs.close();
+                //    ps.close();
+                //}
+                //catch (SQLException e)
+                //{
+                //    log.info("Error getting wishlist data:", e);
+                //}
+                p.WriteInt(0); //mplew.WriteInt(chr.getMonsterBook().getBookLevel());
+                p.WriteInt(0); //mplew.WriteInt(chr.getMonsterBook().getNormalCard());
+                p.WriteInt(0); //mplew.WriteInt(chr.getMonsterBook().getSpecialCard());
+                p.WriteInt(0); //mplew.WriteInt(chr.getMonsterBook().getTotalCards());
+                p.WriteInt(0); //chr.getMonsterBookCover() > 0 ? MapleItemInformationProvider.getInstance().getCardMobId(chr.getMonsterBookCover()) : 0
+                p.WriteInt(0);
+                p.WriteShort(0);
+                MapleInventory iv = chr.Inventorys[MapleInventoryType.Setup.Value];
+                var chairItems = iv.Inventory.Values.Where(item => (item.ItemId >= 3010000) && (item.ItemId <= 3020001)).Cast<Item>().ToList();
+                p.WriteInt(chairItems.Count);
+                foreach (var item in chairItems)
+                {
+                    p.WriteInt(item.ItemId);
+                }
+                p.WriteInt(0);
+                return p;
+            }
+        }
+
+        public static OutPacket BlockedPortal()
+        {
+            using (var p = new OutPacket(SendOpcodes.UpdateStats))
+            {
+                p.WriteByte(0x01);
+                p.WriteInt(0);
+                return p;
+            }
+        }
+
         #region 任务
 
         public static OutPacket StartQuest(MapleCharacter c, short quest)
@@ -2803,10 +3094,9 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        public static OutPacket ScrolledItem(IMapleItem scroll, IMapleItem item, bool destroyed)
+        public static OutPacket ScrolledItem(IMapleItem scroll, IMapleItem item, bool destroyed,bool isScrolledToEquipped)
         {
             // 18 00 01 02 03 02 08 00 03 01 F7 FF 01
-
             using (var p = new OutPacket(SendOpcodes.ModifyInventoryItem))
             {
                 p.WriteBool(true); // fromdrop always true
@@ -2824,15 +3114,32 @@ namespace NeoMapleStory.Packet
                 if (!destroyed)
                 {
                     p.WriteByte(MapleInventoryType.Equip.Value);
-                    p.WriteShort(item.Position);
+                    if (isScrolledToEquipped)
+                    {
+                        p.WriteByte(item.Position);
+                        p.WriteByte(0xFF);
+                    }
+                    else
+                    {
+                        p.WriteShort(item.Position);
+                    }
                     p.WriteByte(0x00);
                 }
                 p.WriteByte(MapleInventoryType.Equip.Value);
-                p.WriteShort(item.Position);
+
+                if (isScrolledToEquipped)
+                {
+                    p.WriteByte(item.Position);
+                    p.WriteByte(0xFF);
+                }
+                else
+                {
+                    p.WriteShort(item.Position);
+                }
 
                 if (!destroyed)
                 {
-                    AddItemInfo(p, item, true, true, false);
+                    AddItemInfo(p, item, true, true);
                 }
                 p.WriteByte(0x01);
 
@@ -2840,35 +3147,44 @@ namespace NeoMapleStory.Packet
             }
         }
 
-        //public static OutPacket GetScrollEffect(int chr, ScrollResult scrollSuccess, bool legendarySpirit)
-        //{
+        public static OutPacket ShowBoughtCashShopQuestItem(byte position, int itemid)
+        {
+            using (var p = new OutPacket(SendOpcodes.CsOperation))
+            {
+                p.WriteByte(111);
+                p.WriteInt(1);
+                p.WriteShort(1);
+                p.WriteShort(position);
+                p.WriteInt(itemid);
 
+                return p;
+            }
+        }
 
-        //    using (OutPacket p = new OutPacket(SendOpcodes.SHOW_SCROLL_EFFECT))
-        //    {
-        //        p.WriteInt(chr);
-        //        switch (scrollSuccess)
-        //        {
-        //            case SUCCESS:
-        //                p.WriteShort(1);
-        //                p.WriteShort(legendarySpirit ? 1 : 0);
-        //                break;
-        //            case FAIL:
-        //                p.WriteShort(0);
-        //                p.WriteShort(legendarySpirit ? 1 : 0);
-        //                break;
-        //            case CURSE:
-        //                p.WriteByteInt(0);
-        //                p.WriteByteInt(1);
-        //                p.WriteShort(legendarySpirit ? 1 : 0);
-        //                break;
-        //            default:
-        //                throw new IllegalArgumentException("effect in illegal range");
-        //        }
-
-        //        return p;
-        //    }
-        //}
+        public static OutPacket GetScrollEffect(int chr, ScrollResult scrollSuccess, bool legendarySpirit)
+        {
+            using (var p = new OutPacket(SendOpcodes.ShowScrollEffect))
+            {
+                p.WriteInt(chr);
+                switch (scrollSuccess)
+                {
+                    case ScrollResult.Success:
+                        p.WriteShort(1);
+                        break;
+                    case  ScrollResult.Fail:
+                        p.WriteShort(0);                      
+                        break;
+                    case  ScrollResult.Curse:
+                        p.WriteByte(0);
+                        p.WriteByte(1);
+                        break;
+                    default:
+                        throw new Exception("effect in illegal range");
+                }
+                p.WriteShort((short)(legendarySpirit ? 1 : 0));
+                return p;
+            }
+        }
 
         public static void AddItemInfo(OutPacket p, IMapleItem item, bool zeroPosition = false, bool leaveOut = false,bool cs = false)
         {

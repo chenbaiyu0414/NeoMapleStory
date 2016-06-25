@@ -1,11 +1,22 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using NeoMapleStory.Core;
 using NeoMapleStory.Core.Database;
 using NeoMapleStory.Game.Mob;
 using System.Linq;
+using NeoMapleStory.Game.Shop;
+using Newtonsoft.Json;
 
 namespace NeoMapleStory.Game.Life
 {
+    class DropItem
+    {
+        public int MonsterId { get; set; }
+        public int ItemId { get; set; }
+        public int Chance { get; set; }
+        public int QuestId { get; set; }
+    }
     public class MapleMonsterInformationProvider
     {
         public const int ApproxFadeDelay = 90;
@@ -56,26 +67,25 @@ namespace NeoMapleStory.Game.Life
             
             MapleMonster theMonster = null;
 
-            using (var db = new NeoMapleStoryDatabase())
-            {
-                var dropQuery = db.MonsterDrops.Where(x => x.MonsterId == monsterid).Select(x => x);
+            var dropItems = JsonConvert.DeserializeObject<List<DropItem>>(File.ReadAllText($"{Environment.CurrentDirectory}\\Json\\MonsterDrops.json"));
+            var dropQuery = dropItems.Where(x => x.MonsterId == monsterid).Select(x => x);
 
-                foreach (var dropInfo in dropQuery)
+            foreach (var dropInfo in dropQuery)
+            {
+                var rowmonsterid = dropInfo.MonsterId;
+                var chance = dropInfo.Chance;
+                var questid = dropInfo.QuestId;
+                if (rowmonsterid != monsterid && rowmonsterid != 0)
                 {
-                    var rowmonsterid = dropInfo.MonsterId;
-                    var chance = dropInfo.Chance;
-                    var questid = dropInfo.QuestId;
-                    if (rowmonsterid != monsterid && rowmonsterid != 0)
+                    if (theMonster == null)
                     {
-                        if (theMonster == null)
-                        {
-                            theMonster = MapleLifeFactory.GetMonster(monsterid);
-                        }
-                        chance += theMonster.Stats.Level*rowmonsterid;
+                        theMonster = MapleLifeFactory.GetMonster(monsterid);
                     }
-                    ret.Add(new DropEntry(dropInfo.ItemId, chance, questid));
+                    chance += theMonster.Stats.Level * rowmonsterid;
                 }
+                ret.Add(new DropEntry(dropInfo.ItemId, chance, questid));
             }
+            
 
             if (m_drops.ContainsKey(monsterid))
                 m_drops[monsterid] = ret;

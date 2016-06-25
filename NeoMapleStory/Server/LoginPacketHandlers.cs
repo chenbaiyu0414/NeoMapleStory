@@ -15,6 +15,10 @@ namespace NeoMapleStory.Server
 {
     public static class LoginPacketHandlers
     {
+        public static void PONG(MapleClient c, InPacket p)
+        {
+            c.LastPongTime = DateTime.Now;
+        }
         public static void OnGENDER_RESULT(MapleClient c, InPacket p)
         {
             var gender = p.ReadByte(); //00 男 01女

@@ -55,6 +55,7 @@ namespace NeoMapleStory.Game.Inventory
         public string PartnerName { get; set; } = "";
         public int ItemExp { get; set; }
         public int ItemLevel { get; set; }
+        public ScrollResult ScrollResult { get; set; }
         public new MapleItemType Type => MapleItemType.Equip;
 
         public new IMapleItem Copy()

@@ -31,6 +31,7 @@ namespace NeoMapleStory.Server
         public int BossDropRate { get; private set; } = 1;
         public int DropRate { get; private set; } = 1;
         public int MesoRate { get; private set; } = 1;
+        public int PetExpRate { get; private set; } = 1;
 
         public MapleMapFactory MapFactory { get; }
         public int UserLogged => ClientCount;
@@ -40,19 +41,14 @@ namespace NeoMapleStory.Server
         protected override void OnNewClientConnected(MapleClient client)
         {
             client.SendRaw(PacketCreator.Handshake(client.SendIv, client.RecvIv));
-            //TimerManager.Instance.RepeatTask(() =>
-            //{
-            //    if ((DateTime.Now - client.LastPongTime).TotalSeconds > 180)
-            //    {
-            //        if (client.Connected)
-            //            client.Close();
-            //    }
-            //}, 10*1000);
+            client.HasHandShaked = true;
         }
 
         protected override void OnPacketHandlers()
         {
             Processor = new PacketProcessor("频道服务器");
+
+            Processor.AppendHandler(RecvOpcodes.Pong, ChannelPacketHandlers.PONG);
 
             Processor.AppendHandler(RecvOpcodes.PlayerLoggedin, ChannelPacketHandlers.PLAYER_LOGGEDIN);
             Processor.AppendHandler(RecvOpcodes.PlayerUpdate, ChannelPacketHandlers.PLAYER_UPDATE);
@@ -80,6 +76,21 @@ namespace NeoMapleStory.Server
             Processor.AppendHandler(RecvOpcodes.CashShop, ChannelPacketHandlers.CASHSHOP);
             Processor.AppendHandler(RecvOpcodes.ItemMove, ChannelPacketHandlers.ITEM_MOVE);
             Processor.AppendHandler(RecvOpcodes.TouchingCs, ChannelPacketHandlers.TOUCHING_CASHSHOP);
+            Processor.AppendHandler(RecvOpcodes.UseChair, ChannelPacketHandlers.USE_CHAIR);
+            Processor.AppendHandler(RecvOpcodes.CancelChair, ChannelPacketHandlers.CANCEL_CHAIR);
+            Processor.AppendHandler(RecvOpcodes.UseUpgradeScroll, ChannelPacketHandlers.USE_UPGRADE_SCROLL);
+            Processor.AppendHandler(RecvOpcodes.SpawnPet, ChannelPacketHandlers.SPAWN_PET);
+            Processor.AppendHandler(RecvOpcodes.MovePet, ChannelPacketHandlers.MOVE_PET);
+            Processor.AppendHandler(RecvOpcodes.CharInfoRequest, ChannelPacketHandlers.CHARINFO_REQUEST);
+            Processor.AppendHandler(RecvOpcodes.PetLoot, ChannelPacketHandlers.PET_LOOT);
+            Processor.AppendHandler(RecvOpcodes.PetAutoPot, ChannelPacketHandlers.PET_AUTO_POT);
+            Processor.AppendHandler(RecvOpcodes.PetChat, ChannelPacketHandlers.PET_CHAT);
+            Processor.AppendHandler(RecvOpcodes.PetCommand, ChannelPacketHandlers.PET_COMMAND);
+            Processor.AppendHandler(RecvOpcodes.PetFood, ChannelPacketHandlers.PET_FOOD);
+            Processor.AppendHandler(RecvOpcodes.UseReturnScroll, ChannelPacketHandlers.USE_RETURN_SCROLL);
+            Processor.AppendHandler(RecvOpcodes.NpcShop, ChannelPacketHandlers.NPC_SHOP);
+            Processor.AppendHandler(RecvOpcodes.ItemSort, ChannelPacketHandlers.ITEM_SORT);
+            Processor.AppendHandler(RecvOpcodes.UseInnerPortal, ChannelPacketHandlers.USE_INNER_PORTAL);
         }
 
         public override bool Start()

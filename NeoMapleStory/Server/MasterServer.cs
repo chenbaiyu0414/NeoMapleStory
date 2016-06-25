@@ -29,7 +29,6 @@ namespace NeoMapleStory.Server
                     Ip = "127.0.0.1",
                     MaxConnectionNumber = ServerSettings.BacklogLimit,
                     Name = "登录服务器",
-                    IdleSessionTimeOut = 30
                 };
                 LoginServer.Setup(loginConfig);
 

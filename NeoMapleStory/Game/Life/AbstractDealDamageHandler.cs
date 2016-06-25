@@ -177,7 +177,7 @@ namespace NeoMapleStory.Game.Life
                     if (mapobject != null && mapobject.GetType() == MapleMapObjectType.Item)
                     {
                         var mapitem = (MapleMapItem) mapobject;
-                        if (mapitem.Money > 0)
+                        if (mapitem.Meso > 0)
                         {
                             lock (mapitem)
                             {
@@ -195,7 +195,7 @@ namespace NeoMapleStory.Game.Life
                                 delay += 100;
                             }
                         }
-                        else if (mapitem.Money == 0)
+                        else if (mapitem.Meso == 0)
                         {
                             player.AntiCheatTracker.RegisterOffense(CheatingOffense.EtcExplosion);
                             return;

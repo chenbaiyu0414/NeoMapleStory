@@ -50,7 +50,7 @@ namespace NeoMapleStory.Game.Script.NPC
 
                     if (File.Exists(scriptPath))
                     {
-                        dynamic script = CSScript.Load($"Script//NPC//{npcId}.cs").CreateObject("*");
+                        dynamic script = CSScript.Load(scriptPath).CreateObject("*");
 
                         if (m_scripts.ContainsKey(c))
                             m_scripts[c] = script;

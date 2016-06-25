@@ -747,9 +747,9 @@ namespace NeoMapleStory.Game.Inventory
 
         public IMapleItem ScrollEquipWithId(IMapleItem equip, int scrollId, bool usingWhiteScroll, bool checkIfGm)
         {
-            if (equip is Equip)
-            {
-                var nEquip = (Equip) equip;
+            var nEquip = equip as Equip;
+            if (nEquip!=null)
+            {               
                 var stats = GetEquipStats(scrollId);
                 var eqstats = GetEquipStats(equip.ItemId);
                 if ((nEquip.UpgradeSlots > 0 || IsCleanSlate(scrollId)) &&

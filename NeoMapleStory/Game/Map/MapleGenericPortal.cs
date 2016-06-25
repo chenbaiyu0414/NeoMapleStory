@@ -2,6 +2,7 @@
 using System.Drawing;
 using NeoMapleStory.Core;
 using NeoMapleStory.Game.Client.AntiCheat;
+using NeoMapleStory.Game.Script.Portal;
 using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
 
@@ -39,7 +40,7 @@ namespace NeoMapleStory.Game.Map
             {
                 //if (!FourthJobQuestsPortalHandler.handlePortal(ScriptName, player))
                 //{
-                //    changed = PortalScriptManager.getInstance().executePortalScript(this, c);
+                changed = PortalScriptManager.Instance.Execute(this, c);
                 //}
             }
             else if (TargetMapId != 999999999)

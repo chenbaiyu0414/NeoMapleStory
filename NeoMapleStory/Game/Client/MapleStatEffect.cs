@@ -25,7 +25,8 @@ namespace NeoMapleStory.Game.Client
         private int m_fixDamage;
 
 
-        private short m_hp, m_mp;
+        public short Hp { get; set; }
+        public short Mp { get; set; }
         private double m_hpR, m_mpR;
         private bool m_isMorph;
         private int m_itemCon, m_itemConNo;
@@ -78,9 +79,9 @@ namespace NeoMapleStory.Game.Client
         {
             var ret = new MapleStatEffect();
             ret.Duration = MapleDataTool.ConvertToInt("time", source, -1);
-            ret.m_hp = (short) MapleDataTool.GetInt("hp", source, 0);
+            ret.Hp = (short) MapleDataTool.GetInt("hp", source, 0);
             ret.m_hpR = MapleDataTool.GetInt("hpR", source, 0)/100.0;
-            ret.m_mp = (short) MapleDataTool.GetInt("mp", source, 0);
+            ret.Mp = (short) MapleDataTool.GetInt("mp", source, 0);
             ret.m_mpR = MapleDataTool.GetInt("mpR", source, 0)/100.0;
             ret.MpCon = (short) MapleDataTool.GetInt("mpCon", source, 0);
             ret.HpCon = (short) MapleDataTool.GetInt("hpCon", source, 0);
@@ -1122,23 +1123,23 @@ namespace NeoMapleStory.Game.Client
         private int CalcHpChange(MapleCharacter applyfrom, bool primary)
         {
             var hpchange = 0;
-            if (m_hp != 0)
+            if (Hp != 0)
             {
                 if (!m_skill)
                 {
                     if (primary)
                     {
-                        hpchange += AlchemistModifyVal(applyfrom, m_hp, true);
+                        hpchange += AlchemistModifyVal(applyfrom, Hp, true);
                     }
                     else
                     {
-                        hpchange += m_hp;
+                        hpchange += Hp;
                     }
                 }
                 else
                 {
                     // assumption: this is heal
-                    hpchange += MakeHealHp(m_hp/100.0, applyfrom.Magic, 3, 5);
+                    hpchange += MakeHealHp(Hp/100.0, applyfrom.Magic, 3, 5);
                 }
             }
             if (m_hpR != 0)
@@ -1174,15 +1175,15 @@ namespace NeoMapleStory.Game.Client
         private int CalcMpChange(MapleCharacter applyfrom, bool primary)
         {
             var mpchange = 0;
-            if (m_mp != 0)
+            if (Mp != 0)
             {
                 if (primary)
                 {
-                    mpchange += AlchemistModifyVal(applyfrom, m_mp, true);
+                    mpchange += AlchemistModifyVal(applyfrom, Mp, true);
                 }
                 else
                 {
-                    mpchange += m_mp;
+                    mpchange += Mp;
                 }
             }
             if (m_mpR != 0)

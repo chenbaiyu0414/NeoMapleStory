@@ -1,5 +1,12 @@
 ﻿namespace NeoMapleStory.Game.Inventory
 {
+    public enum ScrollResult
+    {
+        Success,
+        Fail,
+        Curse
+    }
+
     public interface IEquip : IMapleItem
     {
         byte UpgradeSlots { get; set; }
@@ -42,7 +49,6 @@
 
         bool IsRing { get; set; }
 
-
         int PartnerUniqueId { get; set; }
 
         int PartnerId { get; set; }
@@ -52,5 +58,7 @@
         int ItemExp { get; set; }
 
         int ItemLevel { get; set; }
+
+        ScrollResult ScrollResult { get; set; }
     }
 }

@@ -19,8 +19,7 @@ namespace NeoMapleStory.Game.Inventory
 
         public Dictionary<byte, IMapleItem> Inventory { get; } = new Dictionary<byte, IMapleItem>();
 
-        public byte SlotLimit { get; }
-
+        public byte SlotLimit { get; set; }
 
         public MapleInventoryType Type { get; }
 
@@ -47,7 +46,10 @@ namespace NeoMapleStory.Game.Inventory
             if (slotId == 0xFF)
                 return 0xFF;
 
-            Inventory.Add(slotId, item);
+            if (Inventory.ContainsKey(slotId))
+                Inventory[slotId] = item;
+            else
+                Inventory.Add(slotId, item);
             item.Position = slotId;
             return slotId;
         }
@@ -69,7 +71,7 @@ namespace NeoMapleStory.Game.Inventory
 
         public void AddFromDb(IMapleItem item)
         {
-            if (item.Position > 127 && Type!=MapleInventoryType.Equipped)
+            if (item.Position > 127 && Type != MapleInventoryType.Equipped)
             {
                 Console.WriteLine($"Item with negative position in non-equipped IV wtf? ID:{item.ItemId}");
             }
@@ -94,22 +96,23 @@ namespace NeoMapleStory.Game.Inventory
             if (!Inventory.TryGetValue(dSlot, out iTarget))
             {
                 iSource.Position = dSlot;
-                Inventory.Add(dSlot, iSource);
+                if (Inventory.ContainsKey(dSlot))
+                    Inventory[dSlot] = iSource;
+                else
+                    Inventory.Add(dSlot, iSource);
                 Inventory.Remove(sSlot);
             }
-
-            var source = (Item) iSource;
-            var target = (Item) iTarget;
-
-            if (target.ItemId == source.ItemId && !ii.IsThrowingStar(source.ItemId) && !ii.IsBullet(source.ItemId))
+            else if (((Item)iTarget).ItemId == ((Item)iSource).ItemId && !ii.IsThrowingStar(((Item)iSource).ItemId) && !ii.IsBullet(((Item)iSource).ItemId))
             {
+                var source = (Item)iSource;
+                var target = (Item)iTarget;
                 if (Type.Value == MapleInventoryType.Equip.Value)
                 {
                     Swap(target, source);
                 }
                 if (source.Quantity + target.Quantity > slotMax)
                 {
-                    var rest = (short) (source.Quantity + target.Quantity - slotMax);
+                    var rest = (short)(source.Quantity + target.Quantity - slotMax);
                     if (rest + slotMax != source.Quantity + target.Quantity)
                     {
                         return false;
@@ -119,13 +122,13 @@ namespace NeoMapleStory.Game.Inventory
                 }
                 else
                 {
-                    target.Quantity = (short) (source.Quantity + target.Quantity);
+                    target.Quantity = (short)(source.Quantity + target.Quantity);
                     Inventory.Remove(sSlot);
                 }
             }
             else
             {
-                Swap(target, source);
+                Swap((Item)iTarget, (Item)iSource);
             }
             return true;
         }
@@ -140,8 +143,15 @@ namespace NeoMapleStory.Game.Inventory
             source.Position = target.Position;
             target.Position = swapPos;
 
-            Inventory.Add(source.Position, source);
-            Inventory.Add(target.Position, target);
+            if (Inventory.ContainsKey(source.Position))
+                Inventory[source.Position] = source;
+            else
+                Inventory.Add(source.Position, source);
+
+            if (Inventory.ContainsKey(target.Position))
+                Inventory[target.Position] = target;
+            else
+                Inventory.Add(target.Position, target);
         }
 
         public void RemoveItem(byte slot, short quantity = 1, bool allowZero = false)

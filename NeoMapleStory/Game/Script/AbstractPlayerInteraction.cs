@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using NeoMapleStory.Core;
 using NeoMapleStory.Game.Client;
+using NeoMapleStory.Game.Client.Message;
 using NeoMapleStory.Game.Inventory;
 using NeoMapleStory.Game.Map;
 using NeoMapleStory.Game.Quest;
@@ -9,7 +10,7 @@ using NeoMapleStory.Packet;
 using NeoMapleStory.Server;
 using NeoMapleStory.Settings;
 
-namespace NeoMapleStory.Game.Script.NPC
+namespace NeoMapleStory.Game.Script
 {
     public class AbstractPlayerInteraction
     {
@@ -341,10 +342,10 @@ namespace NeoMapleStory.Game.Script.NPC
         //        getPlayer().setBossLog(bossid);
         //    }
 
-        //    public void sendMessage(string message)
-        //    {
-        //        new ServernoticeMapleClientMessageCallback(0, c).dropMessage(message);
-        //    }
+        public void SendMessage(string message)
+        {
+            new ServernoticeMapleClientMessageCallback(0, Client).DropMessage(message);
+        }
 
         //    public void resetMap(int mapid)
         //    {
